@@ -6,7 +6,7 @@
 #include <DHT.h>
 #include <ESP32Servo.h>
 
-//  CẤU HÌNH CHÂN (PINOUT) 
+// ================= CẤU HÌNH CHÂN (PINOUT) =================
 #define DHTPIN 4
 #define DHTTYPE DHT22
 #define MUX_SIG_PIN 34
@@ -14,18 +14,23 @@
 #define MUX_S1_PIN 13
 #define MUX_S2_PIN 14
 #define MUX_S3_PIN 25
-#define ZONE_COUNT 4
+
+// Hệ thống 6 khu vực cây trồng (T001 - T006)
+#define ZONE_COUNT 6
 #define LED_PIN 2
 #define SERVO_PIN 5
 #define RAIN_SENSOR_PIN 33
 #define RAIN_DIGITAL_PIN 32
 
-const int relayPins[ZONE_COUNT] = {16, 17, 18, 23};
-const int moistureOn[ZONE_COUNT] = {55, 45, 35, 20};
-const int moistureOff[ZONE_COUNT] = {75, 65, 55, 35};
-const char* zoneNames[ZONE_COUNT] = {"leafy", "fruiting", "root", "ornamental"};
+// 6 Rơ-le điều khiển van từng luống. GPIO35 chỉ là chân input nên không dùng cho relay.
+const int relayPins[ZONE_COUNT] = {16, 17, 18, 23, 15, 19};
 
-//  CẤU HÌNH MQTT 
+// Ngưỡng tưới tương ứng (T001: Rau muống, T002: Cà chua, T003: Cà rốt, T004: Khoai lang, T005: Dưa leo, T006: Xà lách)
+const int moistureOn[ZONE_COUNT]  = {60, 45, 35, 30, 45, 55};
+const int moistureOff[ZONE_COUNT] = {80, 65, 55, 50, 65, 75};
+const char* zoneNames[ZONE_COUNT] = {"T001", "T002", "T003", "T004", "T005", "T006"};
+
+// ================= CẤU HÌNH MQTT =================
 const char* mqtt_server = "host.wokwi.internal";
 const int mqtt_port = 1883;
 
@@ -35,45 +40,56 @@ const char* topic_cmd    = "smart-irrigation/cmd";
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-//  BIẾN TOÀN CỤC 
-bool isAutoMode = true;       // Chế độ Auto (true) / Manual (false)
-bool pumpRunning[ZONE_COUNT] = {false, false, false, false};
+// ================= BIẾN TOÀN CỤC =================
+bool isAutoMode = true;
+bool pumpRunning[ZONE_COUNT] = {false, false, false, false, false, false};
 bool weatherGateEnabled = true;
-int moisturePercent[ZONE_COUNT] = {0, 0, 0, 0};
-int rainPercent = 0;          // % Mức mưa
+int moisturePercent[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
+int rainPercent = 0;
 bool isRaining = false;
 float temperature = 0.0;
 float humidity = 0.0;
 
-// Cấu hình tưới (Yêu cầu Hysteresis)
-// Quản lý thời gian
 unsigned long previousMillis = 0;
-const long interval = 2000; // Đọc & gửi dữ liệu mỗi 2 giây
+const long interval = 2000;
 
-//  KHỞI TẠO ĐỐI TƯỢNG 
 DHT dht(DHTPIN, DHTTYPE);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 Servo waterPump;
 
-//  HÀM ĐIỀU KHIỂN BƠM 
+// ================= ĐIỀU KHIỂN BƠM & VAN =================
 void startPump(int zone) {
+  if (zone < 0 || zone >= ZONE_COUNT) return;
   pumpRunning[zone] = true;
-  digitalWrite(relayPins[zone], LOW); // Relay Active LOW
+  digitalWrite(relayPins[zone], LOW); // Active LOW
   digitalWrite(LED_PIN, HIGH);
-  waterPump.write(90);          // Quay servo mô phỏng
+  waterPump.write(90);
   
   lcd.setCursor(0, 1);
-  lcd.print("Pump: ON        ");
+  lcd.print("Pump: ON [");
+  lcd.print(zoneNames[zone]);
+  lcd.print("]  ");
 }
 
 void stopPump(int zone) {
+  if (zone < 0 || zone >= ZONE_COUNT) return;
   pumpRunning[zone] = false;
   digitalWrite(relayPins[zone], HIGH);
-  digitalWrite(LED_PIN, LOW);
-  waterPump.write(0);
   
-  lcd.setCursor(0, 1);
-  lcd.print("Pump: OFF       ");
+  bool anyRunning = false;
+  for (int i = 0; i < ZONE_COUNT; i++) {
+    if (pumpRunning[i]) {
+      anyRunning = true;
+      break;
+    }
+  }
+
+  if (!anyRunning) {
+    digitalWrite(LED_PIN, LOW);
+    waterPump.write(0);
+    lcd.setCursor(0, 1);
+    lcd.print("Pump: OFF       ");
+  }
 }
 
 bool anyPumpRunning() {
@@ -92,17 +108,27 @@ void selectMuxChannel(int channel) {
 
 int readZoneMoisture(int zone) {
   selectMuxChannel(zone);
-  delayMicroseconds(100);
-  return constrain(map(analogRead(MUX_SIG_PIN), 0, 4095, 0, 100), 0, 100);
+  delayMicroseconds(500);
+
+  // Bỏ mẫu đầu sau khi chuyển kênh MUX và lấy trung bình để tránh nhiễu/kênh trước.
+  analogRead(MUX_SIG_PIN);
+  long total = 0;
+  for (int sample = 0; sample < 5; sample++) {
+    total += analogRead(MUX_SIG_PIN);
+    delayMicroseconds(100);
+  }
+
+  const int rawValue = static_cast<int>(total / 5);
+  return constrain(map(rawValue, 0, 4095, 0, 100), 0, 100);
 }
 
-// ================= XỬ LÝ NHẬN LỆNH TỪ WEB (MQTT CALLBACK) =================
+// ================= XỬ LÝ LỆNH TỪ WEB (MQTT CALLBACK) =================
 void callback(char* topic, byte* payload, unsigned int length) {
   String message = "";
-  for (int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
-  Serial.print("MQTT message arrived [");
+  Serial.print("MQTT [");
   Serial.print(topic);
   Serial.print("]: ");
   Serial.println(message);
@@ -110,40 +136,45 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (String(topic) == topic_cmd) {
     if (message == "MODE_AUTO") {
       isAutoMode = true;
-      Serial.println("Switched to AUTO mode");
+      Serial.println("Mode: AUTO");
     } else if (message == "MODE_MANUAL") {
       isAutoMode = false;
-      Serial.println("Switched to MANUAL mode");
+      Serial.println("Mode: MANUAL");
     } else if (message == "PUMP_ON") {
       if (!isAutoMode) {
         for (int zone = 0; zone < ZONE_COUNT; zone++) startPump(zone);
-        Serial.println("Manual: Pump ON");
       }
     } else if (message == "PUMP_OFF") {
       if (!isAutoMode) {
         for (int zone = 0; zone < ZONE_COUNT; zone++) stopPump(zone);
-        Serial.println("Manual: Pump OFF");
+      }
+    } else if (message.startsWith("PUMP_ON_")) {
+      // Điều khiển từng zone cụ thể: PUMP_ON_T001, PUMP_ON_T002,...
+      String targetId = message.substring(8);
+      for (int i = 0; i < ZONE_COUNT; i++) {
+        if (String(zoneNames[i]) == targetId) startPump(i);
+      }
+    } else if (message.startsWith("PUMP_OFF_")) {
+      String targetId = message.substring(9);
+      for (int i = 0; i < ZONE_COUNT; i++) {
+        if (String(zoneNames[i]) == targetId) stopPump(i);
       }
     } else if (message == "WEATHER_GATE_ON") {
       weatherGateEnabled = true;
-      Serial.println("Weather gate: ON");
     } else if (message == "WEATHER_GATE_OFF") {
       weatherGateEnabled = false;
-      Serial.println("Weather gate: OFF");
     }
   }
 }
 
-// ================= KẾT NỐI LẠI MQTT =================
+// ================= RECONNECT MQTT =================
 void reconnectMQTT() {
   while (!client.connected()) {
     Serial.print("Connecting to Mosquitto MQTT...");
     String clientId = "ESP32-SmartIrrigation-" + String(random(0xffff), HEX);
     if (client.connect(clientId.c_str())) {
       Serial.println(" Connected!");
-      client.subscribe(topic_cmd); // Đăng ký nhận lệnh từ Web
-      Serial.print("Subscribed to: ");
-      Serial.println(topic_cmd);
+      client.subscribe(topic_cmd);
     } else {
       Serial.print(" Failed, rc=");
       Serial.print(client.state());
@@ -163,13 +194,15 @@ void setup() {
   pinMode(MUX_S1_PIN, OUTPUT);
   pinMode(MUX_S2_PIN, OUTPUT);
   pinMode(MUX_S3_PIN, OUTPUT);
-  pinMode(RAIN_DIGITAL_PIN, INPUT);
+  pinMode(RAIN_DIGITAL_PIN, INPUT_PULLUP);
+  analogSetPinAttenuation(MUX_SIG_PIN, ADC_11db);
+
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
     pinMode(relayPins[zone], OUTPUT);
     stopPump(zone);
   }
   pinMode(LED_PIN, OUTPUT);
-  
+
   dht.begin();
   waterPump.attach(SERVO_PIN);
   lcd.init();
@@ -177,7 +210,6 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print("Connecting WiFi.");
 
-  // Kết nối WiFi Wokwi
   WiFi.begin("Wokwi-GUEST", "", 6);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -191,7 +223,6 @@ void setup() {
   delay(1000);
   lcd.clear();
 
-  // Khởi tạo MQTT Client
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 }
@@ -201,51 +232,66 @@ void loop() {
   if (!client.connected()) {
     reconnectMQTT();
   }
-  client.loop(); // Duy trì lắng nghe MQTT liên tục
+  client.loop();
 
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
-    // 1. Đọc cảm biến
+    // 1. Đọc cảm biến độ ẩm 6 luống từ MUX 74HC4067 (C0 - C5)
     for (int zone = 0; zone < ZONE_COUNT; zone++) {
       moisturePercent[zone] = readZoneMoisture(zone);
     }
+
     int rainValue = analogRead(RAIN_SENSOR_PIN);
     rainPercent = constrain(map(rainValue, 0, 4095, 0, 100), 0, 100);
     isRaining = digitalRead(RAIN_DIGITAL_PIN) == HIGH;
-    
+
     temperature = dht.readTemperature();
     humidity = dht.readHumidity();
 
-    // 2. Hiển thị LCD
+    // 2. Hiển thị LCD: luống T002 (Cà chua) + Nhiệt độ
     lcd.setCursor(0, 0);
-    lcd.print("M:");
-    lcd.print(moisturePercent[0]);
-    lcd.print("% T:");
+    lcd.print("T002:");
+    lcd.print(moisturePercent[1]);
+    lcd.print("% ");
     lcd.print(temperature, 1);
-    lcd.print("C  ");
+    lcd.print("C   ");
 
-    // 3. Logic tự động (Auto Mode)
+    // 3. Logic Hysteresis Auto Mode cho từng luống
     if (isAutoMode) {
       for (int zone = 0; zone < ZONE_COUNT; zone++) {
         if (weatherGateEnabled && isRaining && pumpRunning[zone]) {
           stopPump(zone);
-        }
-        else if ((!weatherGateEnabled || !isRaining) &&
-                 moisturePercent[zone] < moistureOn[zone] && !pumpRunning[zone]) {
-          startPump(zone);
-        } 
-        else if ((!weatherGateEnabled || !isRaining) &&
-                 moisturePercent[zone] > moistureOff[zone] && pumpRunning[zone]) {
+        } else if (pumpRunning[zone] &&
+                   moisturePercent[zone] >= moistureOff[zone]) {
           stopPump(zone);
+        } else if (!pumpRunning[zone] &&
+                   (!weatherGateEnabled || !isRaining) &&
+                   moisturePercent[zone] <= moistureOn[zone]) {
+          startPump(zone);
         }
       }
     }
 
-    // 4. Publish JSON lên Mosquitto Broker cho Web Dashboard
+    Serial.print("Auto=");
+    Serial.print(isAutoMode ? "ON" : "OFF");
+    Serial.print(" Rain=");
+    Serial.print(isRaining ? "YES" : "NO");
+    Serial.print(" Moisture: ");
+    for (int zone = 0; zone < ZONE_COUNT; zone++) {
+      Serial.print(zoneNames[zone]);
+      Serial.print("=");
+      Serial.print(moisturePercent[zone]);
+      Serial.print("%/");
+      Serial.print(pumpRunning[zone] ? "ON" : "OFF");
+      if (zone < ZONE_COUNT - 1) Serial.print(", ");
+    }
+    Serial.println();
+
+    // 4. Gửi JSON trực tiếp dạng 6 Zone T001 - T006 cho Web
     String json = "{";
-    json += "\"moisture\":" + String(moisturePercent[0]) + ",";
+    json += "\"moisture\":" + String(moisturePercent[1]) + ","; // Zone T002 đại diện
     json += "\"temperature\":" + String(isnan(temperature) ? 0.0 : temperature, 1) + ",";
     json += "\"humidity\":" + String(isnan(humidity) ? 0.0 : humidity, 1) + ",";
     json += "\"rain\":" + String(rainPercent) + ",";
