@@ -18,7 +18,10 @@
 // Hệ thống 6 khu vực cây trồng (T001 - T006)
 #define ZONE_COUNT 6
 #define LED_PIN 2
+#define BUZZER_PIN 0
 #define SERVO_PIN 5
+#define MASTER_VALVE_CLOSED 0
+#define MASTER_VALVE_OPEN 90
 #define RAIN_SENSOR_PIN 33
 #define RAIN_DIGITAL_PIN 32
 
@@ -26,8 +29,9 @@
 const int relayPins[ZONE_COUNT] = {16, 17, 18, 23, 15, 19};
 
 // Ngưỡng tưới tương ứng (T001: Rau muống, T002: Cà chua, T003: Cà rốt, T004: Khoai lang, T005: Dưa leo, T006: Xà lách)
-const int moistureOn[ZONE_COUNT]  = {60, 45, 35, 30, 45, 55};
-const int moistureOff[ZONE_COUNT] = {80, 65, 55, 50, 65, 75};
+// Có thể chỉnh từ Web thông qua lệnh SET_THRESHOLD_T00X_YY.
+int moistureOn[ZONE_COUNT]  = {60, 45, 35, 30, 45, 55};
+int moistureOff[ZONE_COUNT] = {80, 65, 55, 50, 65, 75};
 const char* zoneNames[ZONE_COUNT] = {"T001", "T002", "T003", "T004", "T005", "T006"};
 
 // ================= CẤU HÌNH MQTT =================
@@ -47,6 +51,7 @@ bool weatherGateEnabled = true;
 int moisturePercent[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 int rainPercent = 0;
 bool isRaining = false;
+bool previousRaining = false;
 float temperature = 0.0;
 float humidity = 0.0;
 
@@ -54,21 +59,55 @@ unsigned long previousMillis = 0;
 const long interval = 2000;
 
 DHT dht(DHTPIN, DHTTYPE);
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-Servo waterPump;
+LiquidCrystal_I2C lcds[ZONE_COUNT] = {
+  LiquidCrystal_I2C(0x20, 16, 2),
+  LiquidCrystal_I2C(0x21, 16, 2),
+  LiquidCrystal_I2C(0x22, 16, 2),
+  LiquidCrystal_I2C(0x23, 16, 2),
+  LiquidCrystal_I2C(0x24, 16, 2),
+  LiquidCrystal_I2C(0x25, 16, 2),
+};
+bool lcdReady = false;
+Servo masterValve;
 
-// ================= ĐIỀU KHIỂN BƠM & VAN =================
+void updateLcds() {
+  if (!lcdReady) return;
+
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    lcds[zone].clear();
+    lcds[zone].setCursor(0, 0);
+    lcds[zone].print(zoneNames[zone]);
+    lcds[zone].print(" M:");
+    lcds[zone].print(moisturePercent[zone]);
+    lcds[zone].print("%");
+    lcds[zone].setCursor(0, 1);
+    lcds[zone].print(isRaining ? "RAIN " : (pumpRunning[zone] ? "PUMP ON " : "PUMP OFF"));
+    lcds[zone].print(isAutoMode ? " AUTO" : " MAN");
+  }
+}
+
+void updateRainAlarm() {
+  if (isRaining) {
+    tone(BUZZER_PIN, 1800);
+  } else {
+    noTone(BUZZER_PIN);
+  }
+
+  if (isRaining != previousRaining) {
+    Serial.println(isRaining ? "RAIN ALERT: Dang mua" : "RAIN ALERT: Het mua");
+    previousRaining = isRaining;
+  }
+}
+
+// ================= ĐIỀU KHIỂN VAN TỔNG & VAN ZONE =================
 void startPump(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
   pumpRunning[zone] = true;
   digitalWrite(relayPins[zone], LOW); // Active LOW
   digitalWrite(LED_PIN, HIGH);
-  waterPump.write(90);
+  masterValve.write(MASTER_VALVE_OPEN);
   
-  lcd.setCursor(0, 1);
-  lcd.print("Pump: ON [");
-  lcd.print(zoneNames[zone]);
-  lcd.print("]  ");
+  updateLcds();
 }
 
 void stopPump(int zone) {
@@ -86,9 +125,8 @@ void stopPump(int zone) {
 
   if (!anyRunning) {
     digitalWrite(LED_PIN, LOW);
-    waterPump.write(0);
-    lcd.setCursor(0, 1);
-    lcd.print("Pump: OFF       ");
+    masterValve.write(MASTER_VALVE_CLOSED);
+    updateLcds();
   }
 }
 
@@ -148,6 +186,22 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if (!isAutoMode) {
         for (int zone = 0; zone < ZONE_COUNT; zone++) stopPump(zone);
       }
+    } else if (message.startsWith("SET_THRESHOLD_")) {
+      char zoneId[5] = {0};
+      int value = 0;
+      if (sscanf(message.c_str(), "SET_THRESHOLD_%4[^_]_%d", zoneId, &value) == 2) {
+        value = constrain(value, 10, 90);
+        for (int i = 0; i < ZONE_COUNT; i++) {
+          if (String(zoneNames[i]) == zoneId) {
+            moistureOn[i] = value;
+            moistureOff[i] = constrain(value + 20, value + 5, 100);
+            Serial.print("Set threshold ");
+            Serial.print(zoneId);
+            Serial.print(" -> ");
+            Serial.println(value);
+          }
+        }
+      }
     } else if (message.startsWith("PUMP_ON_")) {
       // Điều khiển từng zone cụ thể: PUMP_ON_T001, PUMP_ON_T002,...
       String targetId = message.substring(8);
@@ -195,6 +249,8 @@ void setup() {
   pinMode(MUX_S2_PIN, OUTPUT);
   pinMode(MUX_S3_PIN, OUTPUT);
   pinMode(RAIN_DIGITAL_PIN, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
+  noTone(BUZZER_PIN);
   analogSetPinAttenuation(MUX_SIG_PIN, ADC_11db);
 
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
@@ -204,11 +260,16 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
 
   dht.begin();
-  waterPump.attach(SERVO_PIN);
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0, 0);
-  lcd.print("Connecting WiFi.");
+  masterValve.attach(SERVO_PIN);
+  masterValve.write(MASTER_VALVE_CLOSED);
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    lcds[zone].init();
+    lcds[zone].backlight();
+    lcds[zone].setCursor(0, 0);
+    lcds[zone].print(zoneNames[zone]);
+    lcds[zone].setCursor(0, 1);
+    lcds[zone].print("Connecting WiFi");
+  }
 
   WiFi.begin("Wokwi-GUEST", "", 6);
   while (WiFi.status() != WL_CONNECTED) {
@@ -217,14 +278,23 @@ void setup() {
   }
   Serial.println("\nWiFi Connected!");
 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("WiFi Connected!");
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    lcds[zone].clear();
+    lcds[zone].setCursor(0, 0);
+    lcds[zone].print(zoneNames[zone]);
+    lcds[zone].setCursor(0, 1);
+    lcds[zone].print("WiFi Connected");
+  }
   delay(1000);
-  lcd.clear();
+  lcdReady = true;
+  updateLcds();
 
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+  // JSON telemetry (~700 bytes) vượt xa buffer mặc định 256 byte của PubSubClient.
+  // Nếu không tăng buffer, publish sẽ thất bại âm thầm và Backend không nhận được gì.
+  client.setBufferSize(1024);
+  client.setKeepAlive(30);
 }
 
 // ================= LOOP =================
@@ -246,19 +316,12 @@ void loop() {
     int rainValue = analogRead(RAIN_SENSOR_PIN);
     rainPercent = constrain(map(rainValue, 0, 4095, 0, 100), 0, 100);
     isRaining = digitalRead(RAIN_DIGITAL_PIN) == HIGH;
+    updateRainAlarm();
 
     temperature = dht.readTemperature();
     humidity = dht.readHumidity();
 
-    // 2. Hiển thị LCD: luống T002 (Cà chua) + Nhiệt độ
-    lcd.setCursor(0, 0);
-    lcd.print("T002:");
-    lcd.print(moisturePercent[1]);
-    lcd.print("% ");
-    lcd.print(temperature, 1);
-    lcd.print("C   ");
-
-    // 3. Logic Hysteresis Auto Mode cho từng luống
+    // 2. Logic Hysteresis Auto Mode cho từng luống
     if (isAutoMode) {
       for (int zone = 0; zone < ZONE_COUNT; zone++) {
         if (weatherGateEnabled && isRaining && pumpRunning[zone]) {
@@ -273,6 +336,8 @@ void loop() {
         }
       }
     }
+
+    updateLcds();
 
     Serial.print("Auto=");
     Serial.print(isAutoMode ? "ON" : "OFF");
@@ -289,8 +354,11 @@ void loop() {
     }
     Serial.println();
 
-    // 4. Gửi JSON trực tiếp dạng 6 Zone T001 - T006 cho Web
-    String json = "{";
+    // 3. Gửi JSON trực tiếp dạng 6 Zone T001 - T006 cho Web
+    String json;
+    json.reserve(768);
+    json = "{";
+    json += "\"deviceId\":\"esp32-garden-01\",";
     json += "\"moisture\":" + String(moisturePercent[1]) + ","; // Zone T002 đại diện
     json += "\"temperature\":" + String(isnan(temperature) ? 0.0 : temperature, 1) + ",";
     json += "\"humidity\":" + String(isnan(humidity) ? 0.0 : humidity, 1) + ",";
@@ -303,14 +371,23 @@ void loop() {
       if (zone > 0) json += ",";
       json += "{\"id\":\"" + String(zoneNames[zone]) + "\",";
       json += "\"moisture\":" + String(moisturePercent[zone]) + ",";
+      json += "\"threshold\":" + String(moistureOn[zone]) + ",";
+      json += "\"stopThreshold\":" + String(moistureOff[zone]) + ",";
       json += "\"pump\":" + String(pumpRunning[zone] ? "true" : "false") + "}";
     }
     json += "],";
     json += "\"mode\":\"" + String(isAutoMode ? "auto" : "manual") + "\"";
     json += "}";
 
-    client.publish(topic_status, json.c_str());
-    Serial.print("Published to MQTT: ");
-    Serial.println(json);
+    // Retained: backend/web nhận ngay trạng thái mới nhất dù kết nối sau ESP32
+    bool published = client.publish(topic_status, json.c_str(), true);
+    if (published) {
+      Serial.print("Published to MQTT: ");
+      Serial.println(json);
+    } else {
+      Serial.print("MQTT publish FAILED (");
+      Serial.print(json.length());
+      Serial.println(" bytes). Kiểm tra setBufferSize/độ dài payload.");
+    }
   }
 }
