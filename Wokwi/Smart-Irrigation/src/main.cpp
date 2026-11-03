@@ -360,8 +360,10 @@ void loop() {
     json = "{";
     json += "\"deviceId\":\"esp32-garden-01\",";
     json += "\"moisture\":" + String(moisturePercent[1]) + ","; // Zone T002 đại diện
-    json += "\"temperature\":" + String(isnan(temperature) ? 0.0 : temperature, 1) + ",";
-    json += "\"humidity\":" + String(isnan(humidity) ? 0.0 : humidity, 1) + ",";
+    if (isnan(temperature)) json += "\"temperature\":null,";
+    else json += "\"temperature\":" + String(temperature, 1) + ",";
+    if (isnan(humidity)) json += "\"humidity\":null,";
+    else json += "\"humidity\":" + String(humidity, 1) + ",";
     json += "\"rain\":" + String(rainPercent) + ",";
     json += "\"raining\":" + String(isRaining ? "true" : "false") + ",";
     json += "\"weatherGate\":" + String(weatherGateEnabled ? "true" : "false") + ",";
