@@ -5,7 +5,6 @@ import { type Zone } from "../garden-data";
 
 interface ControlPanelProps {
   mode: "auto" | "manual";
-  pumpOn: boolean;
   selectedZone: Zone;
   temperature: number;
   humidity: number;
@@ -21,7 +20,6 @@ interface ControlPanelProps {
 
 export function ControlPanel({
   mode,
-  pumpOn,
   selectedZone,
   temperature,
   humidity,
@@ -43,8 +41,11 @@ export function ControlPanel({
             <h2>Điều khiển Bơm</h2>
             <p>Tự động theo thuật toán Hysteresis (40% - 60%)</p>
           </div>
-          <span className={`live-badge ${pumpOn ? "active" : ""}`}>
-            <i /> {pumpOn ? "Máy bơm ĐANG BẬT" : "Máy bơm ĐANG TẮT"}
+          <span className={`live-badge ${selectedZone.pump ? "active" : ""}`}>
+            <i />{" "}
+            {selectedZone.pump
+              ? `${selectedZone.name} đang tưới`
+              : "Máy bơm đang tắt"}
           </span>
         </div>
         <div className="mode-row">
@@ -79,7 +80,7 @@ export function ControlPanel({
           </div>
           <button
             aria-label="Toggle pump"
-            className={`big-toggle ${pumpOn ? "on" : ""}`}
+            className={`big-toggle ${selectedZone.pump ? "on" : ""}`}
             onClick={onTogglePump}
           >
             <i />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { initialZones, plantGroups } from "./garden-data";
+import { initialZones } from "./garden-data";
 import { useMqtt } from "./hooks/useMqtt";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -10,14 +10,12 @@ import { ControlPanel } from "./components/ControlPanel";
 import { MetricsOverview } from "./components/MetricsOverview";
 import { ActivityAndZones } from "./components/ActivityAndZones";
 
-const TOPIC_STATUS = "smart-irrigation/status";
-const TOPIC_CMD = "smart-irrigation/cmd";
-const MQTT_URL = process.env.NEXT_PUBLIC_MQTT_URL ?? "ws://localhost:9001";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
 const MAX_LOGS = 50;
 
 export default function App() {
   const [logs, setLogs] = useState<string[]>([
-    "Mosquitto Broker: ws://localhost:9001",
+    `Backend: ${BACKEND_URL}`,
     "Chờ nhận dữ liệu từ ESP32 Wokwi...",
   ]);
   const [activeZone, setActiveZone] = useState("T002");
@@ -48,9 +46,7 @@ export default function App() {
     reconnect,
     setZoneThreshold,
   } = useMqtt({
-    brokerUrl: MQTT_URL,
-    statusTopic: TOPIC_STATUS,
-    cmdTopic: TOPIC_CMD,
+    backendUrl: BACKEND_URL,
     initialZones,
     onLog: appendLog,
   });
@@ -59,7 +55,7 @@ export default function App() {
 
   // Giả lập lưu lượng nước tưới khi bơm bật
   useEffect(() => {
-    if (!pumpOn || !selectedZone.online) return;
+    if (!selectedZone.pump || !selectedZone.online) return;
 
     const timer = window.setInterval(() => {
       setWateredLiters((current) => {
@@ -81,7 +77,7 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [
     connected,
-    pumpOn,
+    selectedZone.pump,
     selectedZone.id,
     selectedZone.name,
     selectedZone.online,
@@ -92,18 +88,18 @@ export default function App() {
     appendLog,
   ]);
 
-  const handleTogglePump = () => {
+  const handleTogglePump = async () => {
+    if (!connected) {
+      appendLog("Mất kết nối thiết bị!");
+      return;
+    }
+    if (mode === "auto") await changeMode("manual");
     const nextState = togglePump(selectedZone.id);
     if (nextState) setWateredLiters(0);
   };
 
   const handleToggleIrrigation = () => {
-    if (!connected) {
-      appendLog("Mất kết nối thiết bị!");
-      return;
-    }
-    changeMode("manual");
-    handleTogglePump();
+    void handleTogglePump();
   };
 
   const handleSyncLiveData = () => {
@@ -136,9 +132,9 @@ export default function App() {
           <div className="offline-banner">
             <span>!</span>
             <div>
-              <strong>Mosquitto Broker chưa kết nối</strong>
+              <strong>Backend chưa kết nối</strong>
               <small>
-                Hãy chắc chắn Mosquitto đang chạy trên cổng WebSocket 9001.
+                Hãy chắc chắn Backend đang chạy và kết nối được Mosquitto.
               </small>
             </div>
             <button onClick={reconnect}>Reconnect</button>
@@ -149,7 +145,6 @@ export default function App() {
           zones={zones}
           activeZone={activeZone}
           view={view}
-          pumpOn={pumpOn}
           connected={connected}
           onSelectZone={setActiveZone}
           onChangeView={setView}
@@ -158,7 +153,6 @@ export default function App() {
 
         <ControlPanel
           mode={mode}
-          pumpOn={pumpOn}
           selectedZone={selectedZone}
           temperature={temperature}
           humidity={humidity}

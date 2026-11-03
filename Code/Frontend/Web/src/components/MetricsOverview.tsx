@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { type Zone } from "../garden-data";
 
 interface MetricsOverviewProps {
   temperature: number;

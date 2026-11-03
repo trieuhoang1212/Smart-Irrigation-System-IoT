@@ -4,25 +4,10 @@ import React from "react";
 import { GardenMap } from "./GardenMap";
 import { type Zone } from "../garden-data";
 
-interface GardenOverviewProps {
-  zones: Zone[];
-  activeGroup: string;
-  plantGroups: readonly string[];
-  activeZone: string;
-  view: "2d" | "map";
-  pumpOn: boolean;
-  connected: boolean;
-  onSelectGroup: (group: any) => void;
-  onSelectZone: (zoneId: string) => void;
-  onChangeView: (view: "2d" | "map") => void;
-  onToggleIrrigation: () => void;
-}
-
 export function GardenOverview({
   zones,
   activeZone,
   view,
-  pumpOn,
   connected,
   onSelectZone,
   onChangeView,
@@ -31,7 +16,6 @@ export function GardenOverview({
   zones: Zone[];
   activeZone: string;
   view: "2d" | "map";
-  pumpOn: boolean;
   connected: boolean;
   onSelectZone: (zoneId: string) => void;
   onChangeView: (view: "2d" | "map") => void;
@@ -76,7 +60,6 @@ export function GardenOverview({
         activeZone={activeZone}
         onSelect={onSelectZone}
         view={view}
-        pumpOn={pumpOn}
       />
 
       <div className="selected-zone">
@@ -104,12 +87,14 @@ export function GardenOverview({
           </strong>
         </div>
         <button
-          className={`water-button ${pumpOn ? "watering" : ""}`}
+          className={`water-button ${selectedZone.pump ? "watering" : ""}`}
           onClick={onToggleIrrigation}
           disabled={!connected}
           title={connected ? "Tưới khu vực đang chọn" : "Cần kết nối MQTT"}
         >
-          {pumpOn ? "◌ Bơm đang chạy..." : "♧ Tưới khu vực này"}
+          {selectedZone.pump
+            ? `◌ ${selectedZone.name} đang tưới...`
+            : "♧ Tưới khu vực này"}
         </button>
       </div>
     </section>

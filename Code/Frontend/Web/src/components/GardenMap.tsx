@@ -5,14 +5,13 @@ export function GardenMap({
   activeZone,
   onSelect,
   view,
-  pumpOn,
 }: {
   zones: Zone[];
   activeZone: string;
   onSelect: (id: string) => void;
   view: "2d" | "map";
-  pumpOn?: boolean;
 }) {
+  const anyPumping = zones.some((zone) => zone.online && zone.pump);
   const mapZones = zones.map((zone, index) => ({
     ...zone,
     x: 65 + (index % 2) * 415,
@@ -205,7 +204,7 @@ export function GardenMap({
             cx={mainPipeX}
             cy={mainPipeTop + 1}
             r="4"
-            fill={pumpOn ? "#00cec9" : "#95a5a6"}
+            fill={anyPumping ? "#00cec9" : "#95a5a6"}
           />
 
           {/* Các nhánh rẽ xương cá dẫn tới từng luống */}
@@ -248,7 +247,7 @@ export function GardenMap({
                 />
 
                 {/* Dòng nước chảy trong nhánh khi khu vực này đang được tưới */}
-                {pumpOn && zone.id === activeZone && (
+                {zone.online && zone.pump && (
                   <line
                     x1={mainPipeX}
                     y1={branchY}
@@ -266,7 +265,7 @@ export function GardenMap({
           })}
 
           {/* Dòng nước xung nhịp chạy trong trục ống chính khi máy bơm bật */}
-          {pumpOn && (
+          {anyPumping && (
             <line
               x1={mainPipeX}
               y1={mainPipeTop}
@@ -284,7 +283,7 @@ export function GardenMap({
         {/* Từng luống cây nông trại */}
         {mapZones.map((zone) => {
           const isSelected = zone.id === activeZone;
-          const isWatering = isSelected && pumpOn;
+          const isWatering = zone.online && zone.pump;
 
           return (
             <g

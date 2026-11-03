@@ -1,233 +1,266 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import mqtt, { type MqttClient } from "mqtt";
 import { type Zone } from "../garden-data";
 
+type BackendTelemetry = {
+  mode?: "auto" | "manual";
+  temperature?: number;
+  humidity?: number;
+  rain?: number;
+  raining?: boolean;
+  weatherGate?: boolean;
+  pump?: boolean;
+  zones?: Array<{
+    id?: string;
+    moisture?: number;
+    threshold?: number;
+    stopThreshold?: number;
+    pump?: boolean;
+  }>;
+};
+
 export interface UseMqttOptions {
-  brokerUrl: string;
-  statusTopic: string;
-  cmdTopic: string;
+  backendUrl: string;
   initialZones: Zone[];
   onLog?: (msg: string) => void;
 }
 
-export function useMqtt({
-  brokerUrl,
-  statusTopic,
-  cmdTopic,
-  initialZones,
-  onLog,
-}: UseMqttOptions) {
+const MAX_RECONNECT_DELAY = 15000;
+const OPTIMISTIC_WINDOW_MS = 3000;
+
+export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
   const [zones, setZones] = useState<Zone[]>(initialZones);
   const [connected, setConnected] = useState(false);
   const [mode, setMode] = useState<"auto" | "manual">("auto");
   const [pumpOn, setPumpOn] = useState(false);
-  const [temperature, setTemperature] = useState(25.0);
-  const [humidity, setHumidity] = useState(65.0);
+  const [temperature, setTemperature] = useState(25);
+  const [humidity, setHumidity] = useState(65);
   const [rainPercent, setRainPercent] = useState(0);
   const [raining, setRaining] = useState(false);
   const [rainBlock, setRainBlock] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("Chưa kết nối");
+  const [reconnectToken, setReconnectToken] = useState(0);
+  const socketRef = useRef<WebSocket | null>(null);
+  const pumpByZoneRef = useRef<Record<string, boolean>>({});
+  const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
+  const pendingThresholdRef = useRef<Record<string, number>>({});
 
-  const clientRef = useRef<MqttClient | null>(null);
+  const log = useCallback((message: string) => onLog?.(message), [onLog]);
 
-  const log = useCallback(
-    (message: string) => {
-      onLog?.(message);
-    },
-    [onLog],
-  );
+  const applyTelemetry = useCallback((data: BackendTelemetry, isOnline: boolean) => {
+    const hasZoneList = Array.isArray(data.zones);
+    const now = Date.now();
 
-  useEffect(() => {
-    let disposed = false;
+    setZones((current) =>
+      current.map((zone) => {
+        const live = hasZoneList
+          ? data.zones?.find((item) => item.id === zone.id)
+          : undefined;
+        if (!live) return hasZoneList ? { ...zone, online: false } : zone;
 
-    const client = mqtt.connect(brokerUrl, {
-      reconnectPeriod: 2000,
-    });
-    clientRef.current = client;
+        const isThresholdPending = now <= (pendingThresholdRef.current[zone.id] ?? 0);
 
-    client.on("connect", () => {
-      if (disposed || clientRef.current !== client) return;
+        return {
+          ...zone,
+          moisture: Math.max(0, Math.min(100, Number(live.moisture ?? zone.moisture))),
+          pump: isOnline ? Boolean(live.pump) : false,
+          threshold: isThresholdPending
+            ? zone.threshold
+            : Number(live.threshold) > 0
+              ? Math.min(100, Number(live.threshold))
+              : zone.threshold,
+          stopThreshold: isThresholdPending
+            ? zone.stopThreshold
+            : Number(live.stopThreshold) > 0
+              ? Math.min(100, Number(live.stopThreshold))
+              : zone.stopThreshold,
+          online: isOnline,
+        };
+      }),
+    );
 
-      setConnected(true);
-      setZones((current) => current.map((zone) => ({ ...zone, online: true })));
-      setLastUpdated("Vừa kết nối");
-      log("Web đã kết nối Mosquitto Broker thành công!");
-      client.subscribe(statusTopic);
-    });
-
-    client.on("message", (topic, message) => {
-      if (topic === statusTopic) {
-        try {
-          const data = JSON.parse(message.toString());
-
-          if (data.moisture !== undefined && Number.isFinite(Number(data.moisture))) {
-            setZones((current) =>
-              current.map((z) =>
-                z.id === "T002"
-                  ? {
-                      ...z,
-                      moisture: Math.max(0, Math.min(100, Number(data.moisture))),
-                      online: true,
-                    }
-                  : z,
-              ),
-            );
-          }
-
-          if (Array.isArray(data.zones)) {
-            setZones((current) =>
-              current.map((zone) => {
-                const live = data.zones.find(
-                  (item: { id?: string }) => item.id === zone.id,
-                );
-                return live
-                  ? {
-                      ...zone,
-                      moisture: Math.max(
-                        0,
-                        Math.min(100, Number(live.moisture)),
-                      ),
-                      online: true,
-                    }
-                  : zone;
-              }),
-            );
-          }
-
-          if (data.temperature !== undefined && Number.isFinite(Number(data.temperature))) {
-            setTemperature(Number(data.temperature));
-          }
-          if (data.humidity !== undefined && Number.isFinite(Number(data.humidity))) {
-            setHumidity(Math.max(0, Math.min(100, Number(data.humidity))));
-          }
-          if (data.rain !== undefined && Number.isFinite(Number(data.rain))) {
-            setRainPercent(Math.max(0, Math.min(100, Number(data.rain))));
-          }
-          if (data.raining !== undefined) setRaining(Boolean(data.raining));
-          if (data.weatherGate !== undefined) {
-            setRainBlock(Boolean(data.weatherGate));
-          }
-          if (data.pump !== undefined) setPumpOn(Boolean(data.pump));
-          if (data.mode !== undefined) {
-            setMode(data.mode === "auto" ? "auto" : "manual");
-          }
-
-          const time = new Date().toLocaleTimeString();
-          setLastUpdated(time);
-        } catch (e) {
-          console.error("Lỗi phân tích JSON từ MQTT:", e);
-        }
+    data.zones?.forEach((item) => {
+      if (item.id && item.pump !== undefined) {
+        pumpByZoneRef.current[item.id] = isOnline ? Boolean(item.pump) : false;
       }
     });
 
-    client.on("close", () => {
-      setConnected(false);
-      setZones((current) => current.map((zone) => ({ ...zone, online: false })));
-    });
+    if (data.temperature !== undefined) setTemperature(Number(data.temperature));
+    if (data.humidity !== undefined) setHumidity(Math.max(0, Math.min(100, Number(data.humidity))));
+    if (data.rain !== undefined) setRainPercent(Math.max(0, Math.min(100, Number(data.rain))));
+    if (data.raining !== undefined) setRaining(data.raining);
+    if (data.pump !== undefined) setPumpOn(isOnline ? Boolean(data.pump) : false);
 
-    client.on("error", (err) => {
-      console.error("Mosquitto error:", err);
-      setConnected(false);
-    });
+    if (data.mode && now > (pendingRef.current.mode ?? 0)) setMode(data.mode);
+    if (data.weatherGate !== undefined && now > (pendingRef.current.weatherGate ?? 0)) {
+      setRainBlock(data.weatherGate);
+    }
+
+    setLastUpdated(new Date().toLocaleTimeString());
+  }, []);
+
+  useEffect(() => {
+    const base = backendUrl.replace(/\/+$/, "");
+    const socketUrl = `${base.replace(/^http/, "ws")}/realtime`;
+    let disposed = false;
+    let attempt = 0;
+    let retryTimer: number | undefined;
+
+    const connect = () => {
+      if (disposed) return;
+
+      const socket = new WebSocket(socketUrl);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        if (disposed) return;
+        attempt = 0;
+        setConnected(true);
+        log("Web đã kết nối Backend realtime.");
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data) as {
+            type?: string;
+            data?: BackendTelemetry;
+            online?: boolean;
+          };
+          if (message.type === "telemetry" && message.data) {
+            applyTelemetry(message.data, message.online !== false);
+          } else if (message.type === "device-status" && message.online === false) {
+            setZones((current) =>
+              current.map((zone) => ({ ...zone, online: false, pump: false })),
+            );
+            setPumpOn(false);
+          }
+        } catch {
+          log("Backend gửi dữ liệu realtime không hợp lệ.");
+        }
+      };
+
+      socket.onerror = () => {
+        if (disposed) return;
+        log("Không thể kết nối Backend realtime.");
+      };
+
+      socket.onclose = () => {
+        if (disposed) return;
+        setConnected(false);
+        setZones((current) => current.map((zone) => ({ ...zone, online: false })));
+
+        attempt += 1;
+        const delay = Math.min(1000 * 2 ** (attempt - 1), MAX_RECONNECT_DELAY);
+        log(`Mất kết nối Backend, thử lại sau ${Math.round(delay / 1000)}s...`);
+        retryTimer = window.setTimeout(connect, delay);
+      };
+    };
+
+    connect();
 
     return () => {
       disposed = true;
-      if (clientRef.current === client) {
-        clientRef.current = null;
-      }
-      client.end();
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      socketRef.current?.close();
+      socketRef.current = null;
     };
-  }, [brokerUrl, statusTopic, log]);
+  }, [backendUrl, applyTelemetry, log, reconnectToken]);
 
   const sendCommand = useCallback(
     (cmd: string) => {
-      if (!connected || !clientRef.current) {
-        log("Không thể gửi lệnh khi mất kết nối MQTT");
-        return false;
-      }
-      clientRef.current.publish(cmdTopic, cmd);
-      return true;
+      const pumpMatch = cmd.match(/^(PUMP_ON|PUMP_OFF)_(T00[1-6])$/);
+      const thresholdMatch = cmd.match(/^SET_THRESHOLD_(T00[1-6])_(\d{1,3})$/);
+      const body = pumpMatch
+        ? { action: pumpMatch[1], zoneId: pumpMatch[2] }
+        : thresholdMatch
+          ? { action: "SET_THRESHOLD", zoneId: thresholdMatch[1], value: Number(thresholdMatch[2]) }
+          : { action: cmd };
+
+      return fetch(`${backendUrl.replace(/\/+$/, "")}/api/devices/esp32-garden-01/commands`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            log(`Backend từ chối lệnh ${cmd}.`);
+            return false;
+          }
+          return true;
+        })
+        .catch(() => {
+          log(`Không gửi được lệnh ${cmd} tới Backend.`);
+          return false;
+        });
     },
-    [connected, cmdTopic, log],
+    [backendUrl, log],
   );
 
-  const togglePump = useCallback((zoneId?: string) => {
-    const nextState = !pumpOn;
-    setPumpOn(nextState);
-    const cmd = nextState
-      ? zoneId
-        ? `PUMP_ON_${zoneId}`
-        : "PUMP_ON"
-      : zoneId
-        ? `PUMP_OFF_${zoneId}`
-        : "PUMP_OFF";
-    if (sendCommand(cmd)) {
-      log(`Gửi lệnh: ${cmd} (${mode === "manual" ? "Thủ công" : "Bảng điều khiển"})`);
-    }
-    return nextState;
-  }, [pumpOn, mode, sendCommand, log]);
+  const togglePump = useCallback(
+    (zoneId?: string) => {
+      const current = zoneId ? pumpByZoneRef.current[zoneId] ?? false : pumpOn;
+      const nextState = !current;
+
+      if (zoneId) {
+        pumpByZoneRef.current[zoneId] = nextState;
+        setPumpOn(Object.values(pumpByZoneRef.current).some(Boolean));
+      } else {
+        setPumpOn(nextState);
+      }
+
+      void sendCommand(`${nextState ? "PUMP_ON" : "PUMP_OFF"}${zoneId ? `_${zoneId}` : ""}`);
+      return nextState;
+    },
+    [pumpOn, sendCommand],
+  );
 
   const changeMode = useCallback(
     (newMode: "auto" | "manual") => {
       setMode(newMode);
-      const cmd = newMode === "auto" ? "MODE_AUTO" : "MODE_MANUAL";
-      if (sendCommand(cmd)) {
-        log(`Chuyển sang chế độ: ${newMode.toUpperCase()}`);
-      }
+      pendingRef.current.mode = Date.now() + OPTIMISTIC_WINDOW_MS;
+      return sendCommand(newMode === "auto" ? "MODE_AUTO" : "MODE_MANUAL");
     },
-    [sendCommand, log],
+    [sendCommand],
   );
 
   const toggleWeatherGate = useCallback(
     (enabled: boolean) => {
       setRainBlock(enabled);
-      const cmd = enabled ? "WEATHER_GATE_ON" : "WEATHER_GATE_OFF";
-      if (sendCommand(cmd)) {
-        log(`${enabled ? "Bật" : "Tắt"} bảo vệ khi mưa`);
-      } else {
-        log("Đã đổi giao diện nhưng chưa gửi được weather gate vì mất kết nối MQTT");
-      }
+      pendingRef.current.weatherGate = Date.now() + OPTIMISTIC_WINDOW_MS;
+      return sendCommand(enabled ? "WEATHER_GATE_ON" : "WEATHER_GATE_OFF");
     },
-    [sendCommand, log],
+    [sendCommand],
   );
 
   const reconnect = useCallback(() => {
-    clientRef.current?.reconnect();
-    log("Đang yêu cầu kết nối lại Mosquitto...");
+    setReconnectToken((current) => current + 1);
+    log("Đang yêu cầu kết nối lại Backend...");
   }, [log]);
 
   const setZoneThreshold = useCallback(
     (zoneId: string, value: number) => {
+      const clamped = Math.max(10, Math.min(90, Math.round(value)));
+      pendingThresholdRef.current[zoneId] = Date.now() + OPTIMISTIC_WINDOW_MS;
       setZones((current) =>
         current.map((zone) =>
-          zone.id === zoneId ? { ...zone, threshold: value } : zone,
+          zone.id === zoneId
+            ? {
+                ...zone,
+                threshold: clamped,
+                stopThreshold: Math.max(zone.stopThreshold, Math.min(100, clamped + 20)),
+              }
+            : zone,
         ),
       );
-      log(`Đổi ngưỡng tưới ${zoneId} thành ${value}%`);
+      void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
     },
-    [log],
+    [sendCommand],
   );
 
   return {
-    zones,
-    setZones,
-    connected,
-    mode,
-    pumpOn,
-    setPumpOn,
-    temperature,
-    humidity,
-    rainPercent,
-    raining,
-    rainBlock,
-    lastUpdated,
-    sendCommand,
-    togglePump,
-    changeMode,
-    toggleWeatherGate,
-    reconnect,
-    setZoneThreshold,
+    zones, setZones, connected, mode, pumpOn, setPumpOn, temperature, humidity,
+    rainPercent, raining, rainBlock, lastUpdated, sendCommand, togglePump,
+    changeMode, toggleWeatherGate, reconnect, setZoneThreshold,
   };
 }

@@ -1053,6 +1053,16 @@ button:disabled {
 .zone-row:hover {
   background: #f7fbf5;
 }
+.zone-row.active {
+  background: #eef8f0;
+  box-shadow: inset 3px 0 0 #24a46b;
+}
+.zone-row.pumping b {
+  color: #0f9d8a;
+}
+.zone-row.pumping .zone-live {
+  color: #0f9d8a;
+}
 .zone-color {
   width: 7px;
   height: 7px;
