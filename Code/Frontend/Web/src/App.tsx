@@ -21,7 +21,6 @@ export default function App() {
     "Chờ nhận dữ liệu từ ESP32 Wokwi...",
   ]);
   const [activeZone, setActiveZone] = useState("T002");
-  const [activeGroup, setActiveGroup] = useState<(typeof plantGroups)[number]>("Rau ăn lá");
   const [view, setView] = useState<"2d" | "map">("2d");
   const [syncing, setSyncing] = useState(false);
   const [wateredLiters, setWateredLiters] = useState(0);
@@ -57,7 +56,6 @@ export default function App() {
   });
 
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
-  const visibleZones = zones.filter((zone) => zone.group === activeGroup);
 
   // Giả lập lưu lượng nước tưới khi bơm bật
   useEffect(() => {
@@ -70,7 +68,7 @@ export default function App() {
           selectedZone.targetLiters,
         );
         if (next >= selectedZone.targetLiters && connected) {
-          sendCommand("PUMP_OFF");
+          sendCommand(`PUMP_OFF_${selectedZone.id}`);
           setPumpOn(false);
           appendLog(
             `Đã đủ ${selectedZone.targetLiters.toFixed(2)} L cho ${selectedZone.name}`,
@@ -95,7 +93,7 @@ export default function App() {
   ]);
 
   const handleTogglePump = () => {
-    const nextState = togglePump();
+    const nextState = togglePump(selectedZone.id);
     if (nextState) setWateredLiters(0);
   };
 
@@ -119,12 +117,6 @@ export default function App() {
       );
     }, 500);
     return () => window.clearTimeout(timer);
-  };
-
-  const handleSelectGroup = (group: (typeof plantGroups)[number]) => {
-    setActiveGroup(group);
-    const firstZone = zones.find((zone) => zone.group === group);
-    if (firstZone) setActiveZone(firstZone.id);
   };
 
   const leafyZone = zones.find((z) => z.id === "T002");
@@ -155,13 +147,10 @@ export default function App() {
 
         <GardenOverview
           zones={zones}
-          activeGroup={activeGroup}
-          plantGroups={plantGroups}
           activeZone={activeZone}
           view={view}
           pumpOn={pumpOn}
           connected={connected}
-          onSelectGroup={handleSelectGroup}
           onSelectZone={setActiveZone}
           onChangeView={setView}
           onToggleIrrigation={handleToggleIrrigation}
@@ -193,7 +182,7 @@ export default function App() {
 
         <ActivityAndZones
           logs={logs}
-          visibleZones={visibleZones}
+          visibleZones={zones}
           activeZone={activeZone}
           onClearLogs={() => setLogs([])}
           onSelectZone={setActiveZone}

@@ -20,18 +20,23 @@ interface GardenOverviewProps {
 
 export function GardenOverview({
   zones,
-  activeGroup,
-  plantGroups,
   activeZone,
   view,
   pumpOn,
   connected,
-  onSelectGroup,
   onSelectZone,
   onChangeView,
   onToggleIrrigation,
-}: GardenOverviewProps) {
-  const visibleZones = zones.filter((zone) => zone.group === activeGroup);
+}: {
+  zones: Zone[];
+  activeZone: string;
+  view: "2d" | "map";
+  pumpOn: boolean;
+  connected: boolean;
+  onSelectZone: (zoneId: string) => void;
+  onChangeView: (view: "2d" | "map") => void;
+  onToggleIrrigation: () => void;
+}) {
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
 
   return (
@@ -40,7 +45,7 @@ export function GardenOverview({
         <div>
           <h2>Garden overview</h2>
           <p>
-            Vùng <strong>T002</strong> được liên kết trực tiếp với cảm biến ESP32
+            Vùng <strong>T002 (Cà chua)</strong> được liên kết trực tiếp với cảm biến ESP32
           </p>
         </div>
         <div className="view-switch">
@@ -59,35 +64,19 @@ export function GardenOverview({
         </div>
       </div>
 
-      <div className="garden-tabs" role="tablist" aria-label="Nhóm cây trồng">
-        {plantGroups.map((group) => (
-          <button
-            key={group}
-            className={activeGroup === group ? "selected" : ""}
-            onClick={() => onSelectGroup(group)}
-            role="tab"
-            aria-selected={activeGroup === group}
-          >
-            {group}
-            <small>
-              {zones.filter((zone) => zone.group === group).length} loại
-            </small>
-          </button>
-        ))}
-      </div>
-
-      <div className="group-caption">
-        <strong>{activeGroup}</strong>
+      <div className="group-caption" style={{ marginTop: "12px" }}>
+        <strong>Khu vườn thông minh Greenflow</strong>
         <span>
-          {visibleZones.length} khu vực riêng · Mỗi loại cây có ngưỡng tưới độc lập
+          6 luống cây trồng chuyên biệt (T001 - T006) · Điều khiển tưới tự động & van độc lập
         </span>
       </div>
 
       <GardenMap
-        zones={visibleZones}
+        zones={zones}
         activeZone={activeZone}
         onSelect={onSelectZone}
         view={view}
+        pumpOn={pumpOn}
       />
 
       <div className="selected-zone">

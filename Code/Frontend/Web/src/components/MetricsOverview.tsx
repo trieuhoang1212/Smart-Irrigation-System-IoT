@@ -46,7 +46,7 @@ export function MetricsOverview({
 
         <article className="metric-card">
           <div className="metric-icon green">♧</div>
-          <span>Độ ẩm đất (Zone T002 - Cải xanh)</span>
+          <span>Độ ẩm đất (Zone T002 - Cà chua)</span>
           <strong>
             {leafyMoisture}%{" "}
             <small className={pumpOn ? "good" : "warning"}>

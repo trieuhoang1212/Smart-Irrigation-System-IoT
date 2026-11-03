@@ -51,11 +51,7 @@ export function useMqtt({
       if (disposed || clientRef.current !== client) return;
 
       setConnected(true);
-      setZones((current) =>
-        current.map((zone) =>
-          zone.id === "T002" ? { ...zone, online: true } : zone,
-        ),
-      );
+      setZones((current) => current.map((zone) => ({ ...zone, online: true })));
       setLastUpdated("Vừa kết nối");
       log("Web đã kết nối Mosquitto Broker thành công!");
       client.subscribe(statusTopic);
@@ -81,16 +77,10 @@ export function useMqtt({
           }
 
           if (Array.isArray(data.zones)) {
-            const liveZoneIds: Record<string, string> = {
-              leafy: "T002",
-              fruiting: "T007",
-              root: "T013",
-              ornamental: "T019",
-            };
             setZones((current) =>
               current.map((zone) => {
                 const live = data.zones.find(
-                  (item: { id?: string }) => liveZoneIds[item.id ?? ""] === zone.id,
+                  (item: { id?: string }) => item.id === zone.id,
                 );
                 return live
                   ? {
@@ -134,11 +124,7 @@ export function useMqtt({
 
     client.on("close", () => {
       setConnected(false);
-      setZones((current) =>
-        current.map((zone) =>
-          zone.id === "T002" ? { ...zone, online: false } : zone,
-        ),
-      );
+      setZones((current) => current.map((zone) => ({ ...zone, online: false })));
     });
 
     client.on("error", (err) => {
@@ -167,10 +153,16 @@ export function useMqtt({
     [connected, cmdTopic, log],
   );
 
-  const togglePump = useCallback(() => {
+  const togglePump = useCallback((zoneId?: string) => {
     const nextState = !pumpOn;
     setPumpOn(nextState);
-    const cmd = nextState ? "PUMP_ON" : "PUMP_OFF";
+    const cmd = nextState
+      ? zoneId
+        ? `PUMP_ON_${zoneId}`
+        : "PUMP_ON"
+      : zoneId
+        ? `PUMP_OFF_${zoneId}`
+        : "PUMP_OFF";
     if (sendCommand(cmd)) {
       log(`Gửi lệnh: ${cmd} (${mode === "manual" ? "Thủ công" : "Bảng điều khiển"})`);
     }
