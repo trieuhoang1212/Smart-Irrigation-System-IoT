@@ -20,7 +20,7 @@ export function ActivityAndZones({
 }: ActivityAndZonesProps) {
   const onlineZones = visibleZones.filter((zone) => zone.online);
   const healthyCount = onlineZones.filter(
-    (zone) => zone.moisture >= zone.threshold,
+    (zone) => zone.moisture !== null && zone.moisture >= zone.threshold,
   ).length;
   const onlineCount = onlineZones.length;
   const wateringCount = onlineZones.filter((zone) => zone.pump).length;
@@ -67,7 +67,7 @@ export function ActivityAndZones({
         </div>
         {visibleZones.map((zone) => {
           const isActive = zone.id === activeZone;
-          const isDry = zone.online && zone.moisture < zone.threshold;
+          const isDry = zone.online && zone.moisture !== null && zone.moisture < zone.threshold;
           const isPumping = zone.online && zone.pump;
 
           return (

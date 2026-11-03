@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { type Zone } from "../garden-data";
+import { type GardenConfigResponse, type Zone, zonesFromConfig } from "../garden-data";
 
 type BackendTelemetry = {
+  deviceId?: string;
   mode?: "auto" | "manual";
-  temperature?: number;
-  humidity?: number;
-  rain?: number;
+  temperature?: number | null;
+  humidity?: number | null;
+  rain?: number | null;
   raining?: boolean;
   weatherGate?: boolean;
   pump?: boolean;
@@ -22,31 +23,60 @@ type BackendTelemetry = {
 
 export interface UseMqttOptions {
   backendUrl: string;
-  initialZones: Zone[];
   onLog?: (msg: string) => void;
 }
 
 const MAX_RECONNECT_DELAY = 15000;
 const OPTIMISTIC_WINDOW_MS = 3000;
 
-export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
-  const [zones, setZones] = useState<Zone[]>(initialZones);
+export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [mode, setMode] = useState<"auto" | "manual">("auto");
   const [pumpOn, setPumpOn] = useState(false);
-  const [temperature, setTemperature] = useState(25);
-  const [humidity, setHumidity] = useState(65);
-  const [rainPercent, setRainPercent] = useState(0);
+  const [temperature, setTemperature] = useState<number | null>(null);
+  const [humidity, setHumidity] = useState<number | null>(null);
+  const [rainPercent, setRainPercent] = useState<number | null>(null);
   const [raining, setRaining] = useState(false);
   const [rainBlock, setRainBlock] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("Chưa kết nối");
   const [reconnectToken, setReconnectToken] = useState(0);
+  const [configRetryToken, setConfigRetryToken] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
   const pumpByZoneRef = useRef<Record<string, boolean>>({});
   const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
   const pendingThresholdRef = useRef<Record<string, number>>({});
 
   const log = useCallback((message: string) => onLog?.(message), [onLog]);
+
+  useEffect(() => {
+    let disposed = false;
+    fetch(`${backendUrl.replace(/\/+$/, "")}/api/config`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Config request failed (${response.status})`);
+        return (await response.json()) as GardenConfigResponse;
+      })
+      .then((config) => {
+        if (disposed || !config.deviceId || !Array.isArray(config.zones)) {
+          if (!disposed) setConfigError("Backend trả về cấu hình không hợp lệ.");
+          return;
+        }
+        setDeviceId(config.deviceId);
+        setZones(zonesFromConfig(config));
+      })
+      .catch(() => {
+        if (!disposed) setConfigError("Không thể tải cấu hình khu vườn từ Backend.");
+      })
+      .finally(() => {
+        if (!disposed) setConfigLoading(false);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [backendUrl, configRetryToken]);
 
   const applyTelemetry = useCallback((data: BackendTelemetry, isOnline: boolean) => {
     const hasZoneList = Array.isArray(data.zones);
@@ -63,17 +93,19 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
 
         return {
           ...zone,
-          moisture: Math.max(0, Math.min(100, Number(live.moisture ?? zone.moisture))),
+          moisture: typeof live.moisture === "number" && Number.isFinite(live.moisture)
+            ? Math.max(0, Math.min(100, live.moisture))
+            : zone.moisture,
           pump: isOnline ? Boolean(live.pump) : false,
           threshold: isThresholdPending
             ? zone.threshold
-            : Number(live.threshold) > 0
-              ? Math.min(100, Number(live.threshold))
+            : typeof live.threshold === "number" && Number.isFinite(live.threshold)
+              ? Math.max(0, Math.min(100, live.threshold))
               : zone.threshold,
           stopThreshold: isThresholdPending
             ? zone.stopThreshold
-            : Number(live.stopThreshold) > 0
-              ? Math.min(100, Number(live.stopThreshold))
+            : typeof live.stopThreshold === "number" && Number.isFinite(live.stopThreshold)
+              ? Math.max(0, Math.min(100, live.stopThreshold))
               : zone.stopThreshold,
           online: isOnline,
         };
@@ -86,9 +118,9 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
       }
     });
 
-    if (data.temperature !== undefined) setTemperature(Number(data.temperature));
-    if (data.humidity !== undefined) setHumidity(Math.max(0, Math.min(100, Number(data.humidity))));
-    if (data.rain !== undefined) setRainPercent(Math.max(0, Math.min(100, Number(data.rain))));
+    if (typeof data.temperature === "number" && Number.isFinite(data.temperature)) setTemperature(data.temperature);
+    if (typeof data.humidity === "number" && Number.isFinite(data.humidity)) setHumidity(Math.max(0, Math.min(100, data.humidity)));
+    if (typeof data.rain === "number" && Number.isFinite(data.rain)) setRainPercent(Math.max(0, Math.min(100, data.rain)));
     if (data.raining !== undefined) setRaining(data.raining);
     if (data.pump !== undefined) setPumpOn(isOnline ? Boolean(data.pump) : false);
 
@@ -101,6 +133,7 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
   }, []);
 
   useEffect(() => {
+    if (!deviceId) return;
     const base = backendUrl.replace(/\/+$/, "");
     const socketUrl = `${base.replace(/^http/, "ws")}/realtime`;
     let disposed = false;
@@ -126,6 +159,7 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
             type?: string;
             data?: BackendTelemetry;
             online?: boolean;
+            status?: "confirmed" | "timeout";
           };
           if (message.type === "telemetry" && message.data) {
             applyTelemetry(message.data, message.online !== false);
@@ -134,6 +168,12 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
               current.map((zone) => ({ ...zone, online: false, pump: false })),
             );
             setPumpOn(false);
+          } else if (message.type === "command-result") {
+            log(
+              message.status === "confirmed"
+                ? "Thiết bị đã xác nhận lệnh."
+                : "Thiết bị chưa xác nhận lệnh trước thời hạn.",
+            );
           }
         } catch {
           log("Backend gửi dữ liệu realtime không hợp lệ.");
@@ -165,7 +205,7 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
       socketRef.current?.close();
       socketRef.current = null;
     };
-  }, [backendUrl, applyTelemetry, log, reconnectToken]);
+  }, [backendUrl, applyTelemetry, deviceId, log, reconnectToken]);
 
   const sendCommand = useCallback(
     (cmd: string) => {
@@ -177,16 +217,22 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
           ? { action: "SET_THRESHOLD", zoneId: thresholdMatch[1], value: Number(thresholdMatch[2]) }
           : { action: cmd };
 
-      return fetch(`${backendUrl.replace(/\/+$/, "")}/api/devices/esp32-garden-01/commands`, {
+      if (!deviceId) {
+        log(`Chưa thể gửi lệnh ${cmd} khi chưa tải cấu hình.`);
+        return Promise.resolve(false);
+      }
+      return fetch(`${backendUrl.replace(/\/+$/, "")}/api/devices/${encodeURIComponent(deviceId)}/commands`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-        .then((response) => {
+        .then(async (response) => {
           if (!response.ok) {
             log(`Backend từ chối lệnh ${cmd}.`);
             return false;
           }
+          const result = (await response.json()) as { commandId?: string };
+          log(`Đã nhận acknowledgement cho lệnh ${cmd}${result.commandId ? ` (${result.commandId})` : ""}.`);
           return true;
         })
         .catch(() => {
@@ -194,7 +240,7 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
           return false;
         });
     },
-    [backendUrl, log],
+    [backendUrl, deviceId, log],
   );
 
   const togglePump = useCallback(
@@ -234,6 +280,9 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
   );
 
   const reconnect = useCallback(() => {
+    setConfigLoading(true);
+    setConfigError(null);
+    setConfigRetryToken((current) => current + 1);
     setReconnectToken((current) => current + 1);
     log("Đang yêu cầu kết nối lại Backend...");
   }, [log]);
@@ -261,6 +310,7 @@ export function useMqtt({ backendUrl, initialZones, onLog }: UseMqttOptions) {
   return {
     zones, setZones, connected, mode, pumpOn, setPumpOn, temperature, humidity,
     rainPercent, raining, rainBlock, lastUpdated, sendCommand, togglePump,
-    changeMode, toggleWeatherGate, reconnect, setZoneThreshold,
+    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, configLoading,
+    configError, deviceId,
   };
 }

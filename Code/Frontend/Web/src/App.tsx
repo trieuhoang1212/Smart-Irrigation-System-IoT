@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { initialZones } from "./garden-data";
+import { useState, useCallback } from "react";
 import { useMqtt } from "./hooks/useMqtt";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -32,61 +31,42 @@ export default function App() {
     connected,
     mode,
     pumpOn,
-    setPumpOn,
     temperature,
     humidity,
     rainPercent,
     raining,
     rainBlock,
     lastUpdated,
-    sendCommand,
     togglePump,
     changeMode,
     toggleWeatherGate,
     reconnect,
     setZoneThreshold,
+    configLoading,
+    configError,
   } = useMqtt({
     backendUrl: BACKEND_URL,
-    initialZones,
     onLog: appendLog,
   });
 
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
 
-  // Giả lập lưu lượng nước tưới khi bơm bật
-  useEffect(() => {
-    if (!selectedZone.pump || !selectedZone.online) return;
-
-    const timer = window.setInterval(() => {
-      setWateredLiters((current) => {
-        const next = Math.min(
-          current + selectedZone.flowLitersPerHour / 3600,
-          selectedZone.targetLiters,
-        );
-        if (next >= selectedZone.targetLiters && connected) {
-          sendCommand(`PUMP_OFF_${selectedZone.id}`);
-          setPumpOn(false);
-          appendLog(
-            `Đã đủ ${selectedZone.targetLiters.toFixed(2)} L cho ${selectedZone.name}`,
-          );
-        }
-        return next;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [
-    connected,
-    selectedZone.pump,
-    selectedZone.id,
-    selectedZone.name,
-    selectedZone.online,
-    selectedZone.flowLitersPerHour,
-    selectedZone.targetLiters,
-    sendCommand,
-    setPumpOn,
-    appendLog,
-  ]);
+  if (configLoading || configError || !selectedZone) {
+    return (
+      <main className="app-shell">
+        <section className="content status-page">
+          <div className={`status-card ${configError ? "error" : ""}`}>
+            <strong>{configError ? "Không thể tải cấu hình" : "Đang tải cấu hình..."}</strong>
+            <p>
+              {configError ??
+                "Đang lấy danh sách khu vực và device ID từ Backend."}
+            </p>
+            {configError && <button onClick={reconnect}>Thử lại</button>}
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const handleTogglePump = async () => {
     if (!connected) {
@@ -171,7 +151,7 @@ export default function App() {
           humidity={humidity}
           pumpOn={pumpOn}
           mode={mode}
-          leafyMoisture={leafyZone?.moisture ?? 0}
+          leafyMoisture={leafyZone?.moisture ?? null}
         />
 
         <ActivityAndZones

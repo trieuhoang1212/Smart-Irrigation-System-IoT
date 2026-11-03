@@ -3,11 +3,11 @@
 import React from "react";
 
 interface MetricsOverviewProps {
-  temperature: number;
-  humidity: number;
+  temperature: number | null;
+  humidity: number | null;
   pumpOn: boolean;
   mode: string;
-  leafyMoisture: number;
+  leafyMoisture: number | null;
 }
 
 export function MetricsOverview({
@@ -29,7 +29,7 @@ export function MetricsOverview({
           <div className="metric-icon orange">☼</div>
           <span>Nhiệt độ không khí</span>
           <strong>
-            {temperature}°<small>C</small>
+            {temperature === null ? "--" : `${temperature}°`}<small>C</small>
           </strong>
           <p>Đọc từ DHT22 ESP32</p>
         </article>
@@ -38,7 +38,7 @@ export function MetricsOverview({
           <div className="metric-icon blue">≋</div>
           <span>Độ ẩm không khí</span>
           <strong>
-            {humidity}% <small className="good">● DHT22</small>
+            {humidity === null ? "--" : `${humidity}%`} <small className="good">● DHT22</small>
           </strong>
           <p>Thời tiết nhà vườn</p>
         </article>
@@ -47,7 +47,7 @@ export function MetricsOverview({
           <div className="metric-icon green">♧</div>
           <span>Độ ẩm đất (Zone T002 - Cà chua)</span>
           <strong>
-            {leafyMoisture}%{" "}
+            {leafyMoisture === null ? "--" : `${leafyMoisture}%`}{" "}
             <small className={pumpOn ? "good" : "warning"}>
               {pumpOn ? "● Đang tưới" : "● Bình thường"}
             </small>

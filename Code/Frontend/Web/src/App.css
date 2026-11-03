@@ -266,6 +266,39 @@ button:disabled {
   font-size: 10px;
   font-weight: 700;
 }
+.status-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+.status-card {
+  width: min(460px, 100%);
+  padding: 28px;
+  border: 1px solid #dcefd6;
+  border-radius: 14px;
+  background: #eff8ea;
+  color: #276448;
+  text-align: center;
+}
+.status-card.error {
+  border-color: #f4d8c8;
+  background: #fff6f0;
+  color: #a85d3e;
+}
+.status-card p {
+  margin: 8px 0 18px;
+  color: #77917e;
+  font-size: 12px;
+}
+.status-card button {
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 14px;
+  color: #fff;
+  background: #168c5b;
+  font-size: 12px;
+  font-weight: 700;
+}
 .page-heading {
   display: flex;
   justify-content: space-between;

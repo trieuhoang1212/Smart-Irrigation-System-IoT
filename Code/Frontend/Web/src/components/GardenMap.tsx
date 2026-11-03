@@ -476,16 +476,16 @@ export function GardenMap({
                   width="60"
                   height="22"
                   rx="6"
-                  fill={zone.moisture < zone.threshold ? "#ffefe9" : "#ebfbee"}
+                  fill={zone.moisture !== null && zone.moisture < zone.threshold ? "#ffefe9" : "#ebfbee"}
                   stroke={
-                    zone.moisture < zone.threshold ? "#ff7675" : "#55efc4"
+                    zone.moisture !== null && zone.moisture < zone.threshold ? "#ff7675" : "#55efc4"
                   }
                   strokeWidth="1"
                 />
                 <text
                   x="30"
                   y="1"
-                  fill={zone.moisture < zone.threshold ? "#d63031" : "#00b894"}
+                  fill={zone.moisture !== null && zone.moisture < zone.threshold ? "#d63031" : "#00b894"}
                   fontSize="11"
                   fontWeight="800"
                   textAnchor="middle"

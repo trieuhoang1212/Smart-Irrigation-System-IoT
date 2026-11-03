@@ -6,10 +6,10 @@ import { type Zone } from "../garden-data";
 interface ControlPanelProps {
   mode: "auto" | "manual";
   selectedZone: Zone;
-  temperature: number;
-  humidity: number;
+  temperature: number | null;
+  humidity: number | null;
   raining: boolean;
-  rainPercent: number;
+  rainPercent: number | null;
   rainBlock: boolean;
   wateredLiters: number;
   onChangeMode: (mode: "auto" | "manual") => void;
@@ -117,8 +117,8 @@ export function ControlPanel({
           <span className="weather-icon">⛅</span>
         </div>
         <div className="weather-main">
-          <strong>{temperature}°</strong>
-          <span>°C · {humidity}% độ ẩm</span>
+          <strong>{temperature === null ? "--" : `${temperature}°`}</strong>
+          <span>°C · {humidity === null ? "--" : `${humidity}%`} độ ẩm</span>
         </div>
         <div className="weather-details">
           <span>
@@ -127,7 +127,7 @@ export function ControlPanel({
           <strong>
             {raining
               ? `Đang mưa (${rainPercent}%)`
-              : temperature > 32
+              : temperature !== null && temperature > 32
                 ? "Nắng nóng"
                 : "Ổn định"}
           </strong>
@@ -136,7 +136,7 @@ export function ControlPanel({
           <span>
             <b>☂</b> Cảm biến mưa
           </span>
-          <strong>{rainPercent}%</strong>
+          <strong>{rainPercent === null ? "--" : `${rainPercent}%`}</strong>
         </div>
         <div className="weather-details">
           <span>

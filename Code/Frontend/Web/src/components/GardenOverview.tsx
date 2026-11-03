@@ -70,9 +70,9 @@ export function GardenOverview({
         </div>
         <div className="zone-stat">
           <span>Độ ẩm đất</span>
-          <strong>{selectedZone.moisture}%</strong>
+          <strong>{selectedZone.moisture === null ? "--" : `${selectedZone.moisture}%`}</strong>
           <div className="progress">
-            <i style={{ width: `${selectedZone.moisture}%` }} />
+            <i style={{ width: `${selectedZone.moisture ?? 0}%` }} />
           </div>
         </div>
         <div className="zone-stat">
@@ -80,7 +80,7 @@ export function GardenOverview({
           <strong>
             {selectedZone.threshold}%{" "}
             <em>
-              {selectedZone.moisture < selectedZone.threshold
+              {selectedZone.moisture !== null && selectedZone.moisture < selectedZone.threshold
                 ? "Cần tưới nước"
                 : "Độ ẩm tốt"}
             </em>
