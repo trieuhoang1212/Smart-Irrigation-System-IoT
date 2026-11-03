@@ -1,15 +1,24 @@
 import cors from "cors";
+import { randomUUID } from "node:crypto";
 import express from "express";
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { config } from "./config.js";
 import { type CommandRequest, type Telemetry, toMqttCommand } from "./domain.js";
 import { MqttGateway } from "./mqtt-gateway.js";
+import { gardenConfig } from "./garden-config.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const latestByDevice = new Map<string, Telemetry>();
 const onlineByDevice = new Map<string, boolean>();
 const lastLiveAtByDevice = new Map<string, number>();
+type PendingCommand = {
+  id: string;
+  deviceId: string;
+  command: string;
+  expiresAt: number;
+};
+const pendingCommands = new Map<string, PendingCommand>();
 const gateway = new MqttGateway();
 const app = express();
 const server = http.createServer(app);
@@ -24,6 +33,31 @@ function broadcast(payload: unknown) {
   const message = JSON.stringify(payload);
   webSockets.clients.forEach((socket: LiveSocket) => {
     if (socket.readyState === socket.OPEN) socket.send(message);
+  });
+}
+
+function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean {
+  if (command === "MODE_AUTO") return telemetry.mode === "auto";
+  if (command === "MODE_MANUAL") return telemetry.mode === "manual";
+  if (command === "WEATHER_GATE_ON") return telemetry.weatherGate;
+  if (command === "WEATHER_GATE_OFF") return !telemetry.weatherGate;
+  if (command === "PUMP_ON") return telemetry.pump;
+  if (command === "PUMP_OFF") return !telemetry.pump;
+
+  const pump = command.match(/^(PUMP_ON|PUMP_OFF)_(T00[1-6])$/);
+  if (pump) return telemetry.zones.find((zone) => zone.id === pump[2])?.pump === (pump[1] === "PUMP_ON");
+
+  const threshold = command.match(/^SET_THRESHOLD_(T00[1-6])_(\d{1,3})$/);
+  if (threshold) return telemetry.zones.find((zone) => zone.id === threshold[1])?.threshold === Number(threshold[2]);
+
+  return false;
+}
+
+function confirmPendingCommands(telemetry: Telemetry) {
+  pendingCommands.forEach((pending, commandId) => {
+    if (pending.deviceId !== telemetry.deviceId || !commandMatchesTelemetry(pending.command, telemetry)) return;
+    pendingCommands.delete(commandId);
+    broadcast({ type: "command-result", commandId, deviceId: pending.deviceId, status: "confirmed" });
   });
 }
 
@@ -88,6 +122,7 @@ gateway.onTelemetry((telemetry, meta) => {
     data: telemetry,
     online: onlineByDevice.get(deviceId) ?? false,
   });
+  confirmPendingCommands(telemetry);
 });
 
 const deviceWatchdog = setInterval(() => {
@@ -114,6 +149,18 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
+app.get("/api/config", (_request, response) => {
+  response.json(gardenConfig);
+});
+
+app.get("/api/devices/:deviceId/config", (request, response) => {
+  if (request.params.deviceId !== gardenConfig.deviceId) {
+    response.status(404).json({ error: "Device config not found" });
+    return;
+  }
+  response.json(gardenConfig);
+});
+
 app.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {
   const telemetry = latestByDevice.get(request.params.deviceId);
   if (!telemetry) {
@@ -124,6 +171,10 @@ app.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {
 });
 
 app.post("/api/devices/:deviceId/commands", async (request, response) => {
+  if (request.params.deviceId !== gardenConfig.deviceId) {
+    response.status(404).json({ error: "Device not found" });
+    return;
+  }
   const command = toMqttCommand(request.body as CommandRequest);
   if (!command) {
     response.status(400).json({ error: "Invalid command or zoneId" });
@@ -132,8 +183,16 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
 
   try {
     await gateway.publish(command);
+    const commandId = randomUUID();
+    pendingCommands.set(commandId, {
+      id: commandId,
+      deviceId: request.params.deviceId,
+      command,
+      expiresAt: Date.now() + DEVICE_TIMEOUT_MS * 2,
+    });
     response.status(202).json({
       accepted: true,
+      commandId,
       deviceId: request.params.deviceId,
       command,
       sentAt: new Date().toISOString(),
@@ -144,6 +203,16 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
   }
 });
 
+const commandWatchdog = setInterval(() => {
+  const now = Date.now();
+  pendingCommands.forEach((pending, commandId) => {
+    if (pending.expiresAt > now) return;
+    pendingCommands.delete(commandId);
+    broadcast({ type: "command-result", commandId, deviceId: pending.deviceId, status: "timeout" });
+  });
+}, 1000);
+commandWatchdog.unref();
+
 server.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`);
 });
@@ -151,6 +220,7 @@ server.listen(config.port, () => {
 function shutdown(signal: string) {
   console.log(`${signal} received, shutting down...`);
   clearInterval(deviceWatchdog);
+  clearInterval(commandWatchdog);
   gateway.close();
   webSockets.close();
   server.close(() => process.exit(0));
