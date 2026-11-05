@@ -1,0 +1,237 @@
+.control-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 13px;
+  margin-top: 13px;
+}
+.control-card,
+.weather-card,
+.profile-card,
+.activity-card,
+.zone-summary {
+  padding: 20px;
+}
+.live-badge {
+  color: #27865b;
+  background: #e9f7eb;
+  border-radius: 20px;
+  padding: 6px 9px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.live-badge i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #23ad6c;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.live-badge.active {
+  color: #bb663b;
+  background: #fff0e8;
+}
+.live-badge.active i {
+  background: #e7774d;
+}
+.mode-row,
+.control-row,
+.threshold-control {
+  border-top: 1px solid #edf1ed;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #6f7e75;
+  font-size: 10px;
+}
+.mode-switch {
+  background: #f0f5ef;
+  border-radius: 7px;
+  padding: 3px;
+  display: flex;
+}
+.mode-switch button {
+  border: 0;
+  background: none;
+  color: #99a59d;
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 9px;
+}
+.mode-switch button.selected {
+  background: #fff;
+  color: #178354;
+  font-weight: 700;
+  box-shadow: 0 2px 6px #dae6da;
+}
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.control-row strong {
+  display: block;
+  font-size: 11px;
+}
+.control-row small {
+  display: block;
+  color: #9da9a1;
+  font-size: 9px;
+  margin-top: 4px;
+}
+.big-toggle {
+  width: 38px;
+  height: 22px;
+  background: #cad3cd;
+  border: 0;
+  border-radius: 20px;
+  padding: 3px;
+}
+.big-toggle i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.big-toggle.on {
+  background: #25a66a;
+}
+.big-toggle.on i {
+  transform: translateX(16px);
+}
+.threshold-control label {
+  display: flex;
+  justify-content: space-between;
+  color: #75837a;
+  font-size: 10px;
+}
+.threshold-control label strong {
+  color: #208958;
+  font-size: 12px;
+}
+.threshold-control input {
+  width: 100%;
+  accent-color: #20a26a;
+  margin: 12px 0 0;
+}
+.threshold-control > div {
+  display: flex;
+  justify-content: space-between;
+  color: #a0aba4;
+  font-size: 8px;
+}
+.weather-icon {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #319aac;
+  background: #e3f5f5;
+  font-size: 18px;
+}
+.weather-main {
+  margin: 18px 0 14px;
+}
+.weather-main strong {
+  color: #25362e;
+  font-size: 29px;
+}
+.weather-main span {
+  color: #8d9b92;
+  font-size: 10px;
+  margin-left: 7px;
+}
+.weather-details {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #edf1ed;
+  padding: 10px 0;
+  color: #77857c;
+  font-size: 10px;
+}
+.weather-details b {
+  color: #57aeb9;
+  margin-right: 7px;
+}
+.weather-details strong {
+  color: #dc9950;
+  font-size: 10px;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #65756b;
+  font-size: 10px;
+  margin-top: 8px;
+}
+.check-row input {
+  accent-color: #1da76a;
+}
+.weather-alert {
+  color: #238358;
+  background: #eff9ed;
+  border-radius: 7px;
+  padding: 8px;
+  margin-top: 12px;
+  font-size: 9px;
+}
+.plant-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #edf1ed;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.plant-emoji {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: #e8f4e3;
+  border-radius: 9px;
+  font-size: 17px;
+}
+.plant-name strong {
+  display: block;
+  font-size: 12px;
+}
+.plant-name small {
+  color: #98a69d;
+  font-size: 9px;
+  display: block;
+  margin-top: 3px;
+}
+.profile-line {
+  display: flex;
+  justify-content: space-between;
+  color: #86948a;
+  font-size: 9px;
+  border-top: 1px solid #edf1ed;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.profile-line strong {
+  color: #3e5147;
+  font-weight: 600;
+}
+.recommendation {
+  display: flex;
+  gap: 7px;
+  color: #a87826;
+  background: #fff8e9;
+  border-radius: 8px;
+  padding: 9px;
+  margin-top: 13px;
+  font-size: 9px;
+  line-height: 1.4;
+}

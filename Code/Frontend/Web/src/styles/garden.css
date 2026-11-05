@@ -1,0 +1,117 @@
+.garden-map {
+  position: relative;
+  margin: 19px -5px 0;
+  background: #e5f4db;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.garden-map svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.garden-map.map-mode svg {
+  filter: saturate(0.72) contrast(0.96);
+}
+.garden-zone {
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+.garden-zone:hover {
+  filter: brightness(1.08);
+}
+.garden-zone.selected {
+  filter: drop-shadow(0 3px 4px rgba(16, 87, 53, 0.28));
+}
+.map-legend {
+  position: absolute;
+  bottom: 11px;
+  left: 15px;
+  display: flex;
+  gap: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #718078;
+  font-size: 9px;
+}
+.dot,
+.line {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.dot.green {
+  background: #1da76b;
+}
+.dot.amber {
+  background: #dfae3d;
+}
+.line {
+  width: 13px;
+  height: 2px;
+  border-top: 2px dashed #d7be82;
+}
+.selected-zone {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  padding: 16px 3px;
+}
+.zone-title {
+  font-size: 12px;
+  min-width: 185px;
+}
+.zone-title small {
+  display: block;
+  color: #9aa59f;
+  font-size: 10px;
+  margin: 3px 0 0 14px;
+}
+.zone-stat {
+  min-width: 145px;
+  color: #829088;
+  font-size: 10px;
+}
+.zone-stat strong {
+  display: block;
+  color: #26372e;
+  font-size: 15px;
+  margin: 3px 0;
+}
+.zone-stat em {
+  color: #e4ab3f;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 500;
+}
+.progress {
+  height: 4px;
+  background: #eaf1e9;
+  border-radius: 5px;
+  width: 100px;
+}
+.progress i {
+  display: block;
+  height: 100%;
+  background: #1ea56b;
+  border-radius: 5px;
+}
+.water-button {
+  margin-left: auto;
+  background: #e9f7e9;
+  color: #178050;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 13px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.water-button:disabled {
+  filter: grayscale(0.35);
+}

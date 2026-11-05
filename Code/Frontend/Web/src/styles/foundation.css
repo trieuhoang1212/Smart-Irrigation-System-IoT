@@ -1,0 +1,23 @@
+:root {
+  --ink: #17231e;
+  --muted: #75817b;
+  --green: #168c5b;
+  --deep: #123e34;
+  --line: #e4e9e3;
+  --cream: #f6faf1;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  font-family: var(--font-lexend), sans-serif;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

@@ -1,0 +1,177 @@
+@media (max-width: 1050px) {
+  .sidebar {
+    width: 205px;
+  }
+  .content {
+    padding: 0 25px 35px;
+  }
+  .metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .resource-card {
+    grid-column: span 1;
+  }
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1050px) {
+  .control-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .control-card {
+    grid-column: span 2;
+  }
+  .below-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .sidebar {
+    display: none;
+  }
+  .content {
+    padding: 0 15px 25px;
+  }
+  .topbar {
+    height: 55px;
+    justify-content: space-between;
+  }
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--deep);
+    font:
+      700 16px var(--font-lexend),
+      sans-serif;
+  }
+  .mobile-brand .brand-mark {
+    width: 23px;
+    height: 23px;
+    font-size: 14px;
+  }
+  .page-heading {
+    display: block;
+    padding: 25px 0 20px;
+  }
+  .sync-button {
+    margin-top: 17px;
+  }
+  .garden-panel {
+    padding: 16px 12px 0;
+  }
+  .garden-map {
+    margin-left: -3px;
+    margin-right: -3px;
+  }
+  .map-legend {
+    position: static;
+    flex-wrap: wrap;
+    border-radius: 0;
+    padding: 9px;
+  }
+  .selected-zone {
+    flex-wrap: wrap;
+    gap: 13px;
+  }
+  .zone-title {
+    flex-basis: 100%;
+  }
+  .water-button {
+    margin-left: 0;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .metric-card,
+  .resource-card {
+    min-height: 125px;
+  }
+  .resource-card {
+    grid-column: span 2;
+  }
+  .bottom-grid {
+    margin-top: 13px;
+  }
+  .trends {
+    overflow: hidden;
+  }
+  .chart {
+    min-width: 450px;
+  }
+  .top-actions {
+    gap: 12px;
+  }
+  .control-grid {
+    grid-template-columns: 1fr;
+  }
+  .control-card {
+    grid-column: auto;
+  }
+  .control-card,
+  .weather-card,
+  .profile-card,
+  .activity-card,
+  .zone-summary {
+    padding: 15px;
+  }
+}
+
+.nav-status.offline {
+  background: #b3beb8;
+}
+.garden-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  margin: 16px 0 8px;
+  padding-bottom: 2px;
+}
+.garden-tabs button {
+  border: 1px solid #e3ebe2;
+  background: #f7faf6;
+  color: #7c8b82;
+  border-radius: 9px;
+  padding: 9px 12px;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+}
+.garden-tabs button.selected {
+  border-color: #bfe4c8;
+  background: #e9f7e9;
+  color: #177d52;
+}
+.garden-tabs small {
+  display: block;
+  margin-top: 3px;
+  color: #9ba9a0;
+  font-size: 8px;
+  font-weight: 500;
+}
+.group-caption {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #8a9890;
+  font-size: 10px;
+  margin: 4px 0 12px;
+}
+.group-caption strong {
+  color: #2a5542;
+  font-size: 12px;
+}
+.water-progress-detail {
+  border-top: 1px solid #edf1ed;
+  margin-top: 12px;
+  padding-top: 10px;
+  color: #7c8a82;
+  font-size: 10px;
+}
+.water-progress-detail strong {
+  float: right;
+  color: #218b5d;
+  font-size: 11px;
+}
+
