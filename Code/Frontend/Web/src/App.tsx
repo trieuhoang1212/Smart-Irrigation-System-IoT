@@ -2,10 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { useMqtt } from "./hooks/useMqtt";
+import { useWateredLiters } from "./hooks/useWateredLiters";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { GardenOverview } from "./components/GardenOverview";
 import { ControlPanel } from "./components/ControlPanel";
+import { HistoryChart } from "./components/HistoryChart";
 import { MetricsOverview } from "./components/MetricsOverview";
 import { ActivityAndZones } from "./components/ActivityAndZones";
 
@@ -20,7 +22,6 @@ export default function App() {
   const [activeZone, setActiveZone] = useState("T002");
   const [view, setView] = useState<"2d" | "map">("2d");
   const [syncing, setSyncing] = useState(false);
-  const [wateredLiters, setWateredLiters] = useState(0);
 
   const appendLog = useCallback((message: string) => {
     setLogs((current) => [message, ...current].slice(0, MAX_LOGS));
@@ -44,11 +45,13 @@ export default function App() {
     setZoneThreshold,
     configLoading,
     configError,
+    deviceId,
   } = useMqtt({
     backendUrl: BACKEND_URL,
     onLog: appendLog,
   });
 
+  const wateredLitersByZone = useWateredLiters(zones);
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
 
   if (configLoading || configError || !selectedZone) {
@@ -74,8 +77,7 @@ export default function App() {
       return;
     }
     if (mode === "auto") await changeMode("manual");
-    const nextState = togglePump(selectedZone.id);
-    if (nextState) setWateredLiters(0);
+    togglePump(selectedZone.id);
   };
 
   const handleToggleIrrigation = () => {
@@ -94,8 +96,6 @@ export default function App() {
     }, 500);
     return () => window.clearTimeout(timer);
   };
-
-  const leafyZone = zones.find((z) => z.id === "T002");
 
   return (
     <main className="app-shell">
@@ -139,11 +139,20 @@ export default function App() {
           raining={raining}
           rainPercent={rainPercent}
           rainBlock={rainBlock}
-          wateredLiters={wateredLiters}
+          wateredLiters={wateredLitersByZone[activeZone] ?? 0}
           onChangeMode={changeMode}
           onTogglePump={handleTogglePump}
           onChangeThreshold={(val) => setZoneThreshold(activeZone, val)}
           onToggleWeatherGate={toggleWeatherGate}
+        />
+
+        <HistoryChart
+          backendUrl={BACKEND_URL}
+          deviceId={deviceId}
+          zones={zones}
+          activeZone={activeZone}
+          onSelectZone={setActiveZone}
+          connected={connected}
         />
 
         <MetricsOverview
@@ -151,7 +160,7 @@ export default function App() {
           humidity={humidity}
           pumpOn={pumpOn}
           mode={mode}
-          leafyMoisture={leafyZone?.moisture ?? null}
+          selectedZone={selectedZone}
         />
 
         <ActivityAndZones

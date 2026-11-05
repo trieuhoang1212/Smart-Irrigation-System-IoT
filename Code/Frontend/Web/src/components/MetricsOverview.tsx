@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
+import { type Zone } from "../garden-data";
 
 interface MetricsOverviewProps {
   temperature: number | null;
   humidity: number | null;
   pumpOn: boolean;
   mode: string;
-  leafyMoisture: number | null;
+  selectedZone: Zone;
 }
 
 export function MetricsOverview({
@@ -15,13 +16,15 @@ export function MetricsOverview({
   humidity,
   pumpOn,
   mode,
-  leafyMoisture,
+  selectedZone,
 }: MetricsOverviewProps) {
   return (
     <>
       <div className="section-title">
         <h2>Thông số thời gian thực</h2>
-        <button className="link-button">Chi tiết cảm biến →</button>
+        <a className="link-button" href="#history">
+          Xem lịch sử cảm biến →
+        </a>
       </div>
 
       <section className="metrics-grid">
@@ -45,14 +48,16 @@ export function MetricsOverview({
 
         <article className="metric-card">
           <div className="metric-icon green">♧</div>
-          <span>Độ ẩm đất (Zone T002 - Cà chua)</span>
+          <span>
+            Độ ẩm đất (Zone {selectedZone.id} - {selectedZone.name})
+          </span>
           <strong>
-            {leafyMoisture === null ? "--" : `${leafyMoisture}%`}{" "}
-            <small className={pumpOn ? "good" : "warning"}>
-              {pumpOn ? "● Đang tưới" : "● Bình thường"}
+            {selectedZone.moisture === null ? "--" : `${selectedZone.moisture}%`}{" "}
+            <small className={selectedZone.pump ? "good" : "warning"}>
+              {selectedZone.pump ? "● Đang tưới" : "● Bình thường"}
             </small>
           </strong>
-          <p>Đọc từ biến trở đất (GPIO 34)</p>
+          <p>Cảm biến độ ẩm đất · {selectedZone.method}</p>
         </article>
 
         <article className="metric-card resource-card">
@@ -94,9 +99,9 @@ export function MetricsOverview({
           </div>
           <div className="resource-row">
             <span>
-              <b className="resource-icon orange">◌</b> Cổng WebSocket
+              <b className="resource-icon orange">◌</b> Kênh realtime
             </span>
-            <strong>9001 (Mosquitto)</strong>
+            <strong>Backend /realtime</strong>
           </div>
           <div className="resource-progress">
             <i className="orange-fill" />

@@ -29,7 +29,8 @@ export function GardenOverview({
         <div>
           <h2>Garden overview</h2>
           <p>
-            Vùng <strong>T002 (Cà chua)</strong> được liên kết trực tiếp với cảm biến ESP32
+            Vùng <strong>{selectedZone.id} ({selectedZone.name})</strong> đang được
+            chọn · dữ liệu realtime từ ESP32
           </p>
         </div>
         <div className="view-switch">

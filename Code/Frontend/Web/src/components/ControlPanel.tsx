@@ -39,7 +39,10 @@ export function ControlPanel({
         <div className="panel-heading">
           <div>
             <h2>Điều khiển Bơm</h2>
-            <p>Tự động theo thuật toán Hysteresis (40% - 60%)</p>
+            <p>
+              Tự động theo thuật toán Hysteresis ({selectedZone.threshold}% -{" "}
+              {selectedZone.stopThreshold}%)
+            </p>
           </div>
           <span className={`live-badge ${selectedZone.pump ? "active" : ""}`}>
             <i />{" "}
@@ -74,7 +77,7 @@ export function ControlPanel({
             </strong>
             <small>
               {mode === "auto"
-                ? `ESP32 tự bật khi < 40%, tắt khi > 60%`
+                ? `ESP32 tự bật khi < ${selectedZone.threshold}%, tắt khi > ${selectedZone.stopThreshold}%`
                 : "Bạn có thể bật/tắt bơm tự do bằng công tắc bên cạnh"}
             </small>
           </div>
