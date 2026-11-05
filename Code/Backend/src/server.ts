@@ -4,9 +4,19 @@ import express from "express";
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { config } from "./config.js";
+import { closeDatabase, databaseFile } from "./db.js";
 import { type CommandRequest, type Telemetry, toMqttCommand } from "./domain.js";
 import { MqttGateway } from "./mqtt-gateway.js";
 import { gardenConfig } from "./garden-config.js";
+import {
+  getTelemetryHistory,
+  listCommands,
+  loadAllLatestTelemetry,
+  logCommand,
+  pruneHistory,
+  resolveCommand,
+  saveTelemetry,
+} from "./telemetry-repository.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const latestByDevice = new Map<string, Telemetry>();
@@ -19,6 +29,13 @@ type PendingCommand = {
   expiresAt: number;
 };
 const pendingCommands = new Map<string, PendingCommand>();
+
+// Khôi phục snapshot mới nhất sau restart; chưa chứng minh thiết bị đang online.
+for (const telemetry of loadAllLatestTelemetry()) {
+  latestByDevice.set(telemetry.deviceId, telemetry);
+  onlineByDevice.set(telemetry.deviceId, false);
+}
+
 const gateway = new MqttGateway();
 const app = express();
 const server = http.createServer(app);
@@ -57,6 +74,7 @@ function confirmPendingCommands(telemetry: Telemetry) {
   pendingCommands.forEach((pending, commandId) => {
     if (pending.deviceId !== telemetry.deviceId || !commandMatchesTelemetry(pending.command, telemetry)) return;
     pendingCommands.delete(commandId);
+    resolveCommand(commandId, "confirmed");
     broadcast({ type: "command-result", commandId, deviceId: pending.deviceId, status: "confirmed" });
   });
 }
@@ -105,6 +123,12 @@ gateway.onTelemetry((telemetry, meta) => {
   const wasKnown = latestByDevice.has(deviceId);
   latestByDevice.set(deviceId, telemetry);
 
+  try {
+    saveTelemetry(telemetry);
+  } catch (error) {
+    console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
+  }
+
   if (meta.retained) {
     // Retained message chỉ là snapshot cuối, không chứng minh thiết bị đang chạy.
     if (!onlineByDevice.has(deviceId)) onlineByDevice.set(deviceId, false);
@@ -139,10 +163,17 @@ const deviceWatchdog = setInterval(() => {
 }, 2000);
 deviceWatchdog.unref();
 
+function queryNumber(value: unknown): number | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 app.get("/api/health", (_request, response) => {
   response.json({
     ok: true,
     mqtt: gateway.connected,
+    database: { driver: "sqlite", file: databaseFile },
     devices: latestByDevice.size,
     onlineDevices: Array.from(onlineByDevice.values()).filter(Boolean).length,
     realtimeClients: webSockets.clients.size,
@@ -170,6 +201,41 @@ app.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {
   response.json(telemetry);
 });
 
+app.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
+  const to = queryNumber(request.query.to) ?? Date.now();
+  const from = queryNumber(request.query.from) ?? to - 24 * 60 * 60 * 1000;
+  const limit = queryNumber(request.query.limit);
+  const bucketMs = queryNumber(request.query.bucketMs);
+  const zoneId = typeof request.query.zoneId === "string" ? request.query.zoneId : undefined;
+
+  const samples = getTelemetryHistory({
+    deviceId: request.params.deviceId,
+    zoneId,
+    from,
+    to,
+    limit,
+    bucketMs,
+  });
+
+  response.json({
+    deviceId: request.params.deviceId,
+    zoneId: zoneId ?? null,
+    from,
+    to,
+    bucketMs: bucketMs ?? null,
+    count: samples.length,
+    samples,
+  });
+});
+
+app.get("/api/devices/:deviceId/commands", (request, response) => {
+  const limit = queryNumber(request.query.limit);
+  response.json({
+    deviceId: request.params.deviceId,
+    commands: listCommands(request.params.deviceId, limit),
+  });
+});
+
 app.post("/api/devices/:deviceId/commands", async (request, response) => {
   if (request.params.deviceId !== gardenConfig.deviceId) {
     response.status(404).json({ error: "Device not found" });
@@ -181,26 +247,37 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
     return;
   }
 
+  const commandId = randomUUID();
+  const sentAt = new Date().toISOString();
+
   try {
     await gateway.publish(command);
-    const commandId = randomUUID();
-    pendingCommands.set(commandId, {
-      id: commandId,
-      deviceId: request.params.deviceId,
-      command,
-      expiresAt: Date.now() + DEVICE_TIMEOUT_MS * 2,
-    });
-    response.status(202).json({
-      accepted: true,
-      commandId,
-      deviceId: request.params.deviceId,
-      command,
-      sentAt: new Date().toISOString(),
-    });
   } catch (error) {
     console.error("MQTT command failed:", error);
     response.status(503).json({ error: "MQTT unavailable" });
+    return;
   }
+
+  pendingCommands.set(commandId, {
+    id: commandId,
+    deviceId: request.params.deviceId,
+    command,
+    expiresAt: Date.now() + DEVICE_TIMEOUT_MS * 2,
+  });
+
+  try {
+    logCommand(commandId, request.params.deviceId, command);
+  } catch (error) {
+    console.error("Failed to log command:", error instanceof Error ? error.message : error);
+  }
+
+  response.status(202).json({
+    accepted: true,
+    commandId,
+    deviceId: request.params.deviceId,
+    command,
+    sentAt,
+  });
 });
 
 const commandWatchdog = setInterval(() => {
@@ -208,22 +285,50 @@ const commandWatchdog = setInterval(() => {
   pendingCommands.forEach((pending, commandId) => {
     if (pending.expiresAt > now) return;
     pendingCommands.delete(commandId);
+    resolveCommand(commandId, "timeout");
     broadcast({ type: "command-result", commandId, deviceId: pending.deviceId, status: "timeout" });
   });
 }, 1000);
 commandWatchdog.unref();
 
+try {
+  const removed = pruneHistory(config.dbRetentionDays);
+  if (removed > 0) {
+    console.log(`Pruned ${removed} telemetry samples older than ${config.dbRetentionDays} days`);
+  }
+} catch (error) {
+  console.error("Failed to prune old telemetry:", error instanceof Error ? error.message : error);
+}
+
+const retentionTimer = setInterval(() => {
+  try {
+    pruneHistory(config.dbRetentionDays);
+  } catch (error) {
+    console.error("Failed to prune old telemetry:", error instanceof Error ? error.message : error);
+  }
+}, 24 * 60 * 60 * 1000);
+retentionTimer.unref();
+
 server.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`);
+  console.log(`SQLite database: ${databaseFile}`);
 });
 
 function shutdown(signal: string) {
   console.log(`${signal} received, shutting down...`);
   clearInterval(deviceWatchdog);
   clearInterval(commandWatchdog);
+  clearInterval(retentionTimer);
   gateway.close();
   webSockets.close();
-  server.close(() => process.exit(0));
+  server.close(() => {
+    try {
+      closeDatabase();
+    } catch (error) {
+      console.error("Failed to close database:", error instanceof Error ? error.message : error);
+    }
+    process.exit(0);
+  });
 }
 
 process.once("SIGINT", () => shutdown("SIGINT"));
