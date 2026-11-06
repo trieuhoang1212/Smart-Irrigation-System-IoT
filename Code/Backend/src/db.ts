@@ -76,6 +76,29 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_command_log_device_time
     ON command_log(device_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS zone_settings (
+    device_id       TEXT NOT NULL,
+    zone_id         TEXT NOT NULL,
+    threshold       REAL NOT NULL,
+    stop_threshold  REAL NOT NULL,
+    updated_at      INTEGER NOT NULL,
+    PRIMARY KEY (device_id, zone_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS zone_setting_changes (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id          TEXT NOT NULL,
+    zone_id            TEXT NOT NULL,
+    old_threshold      REAL,
+    new_threshold      REAL NOT NULL,
+    old_stop_threshold REAL,
+    new_stop_threshold REAL NOT NULL,
+    changed_at         INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_zone_setting_changes_device_time
+    ON zone_setting_changes(device_id, changed_at);
 `);
 
 export function closeDatabase() {

@@ -17,6 +17,15 @@ import {
   resolveCommand,
   saveTelemetry,
 } from "./telemetry-repository.js";
+import {
+  clampThreshold,
+  deriveStopThreshold,
+  getZoneSettings,
+  isZoneId,
+  listZoneSettingChanges,
+  saveZoneSetting,
+  seedZoneSettings,
+} from "./zone-settings-repository.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const latestByDevice = new Map<string, Telemetry>();
@@ -29,6 +38,9 @@ type PendingCommand = {
   expiresAt: number;
 };
 const pendingCommands = new Map<string, PendingCommand>();
+
+// Tạo ngưỡng mặc định trong DB cho zone chưa từng được lưu.
+seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
 
 // Khôi phục snapshot mới nhất sau restart; chưa chứng minh thiết bị đang online.
 for (const telemetry of loadAllLatestTelemetry()) {
@@ -51,6 +63,58 @@ function broadcast(payload: unknown) {
   webSockets.clients.forEach((socket: LiveSocket) => {
     if (socket.readyState === socket.OPEN) socket.send(message);
   });
+}
+
+/** gardenConfig gốc + ngưỡng đã lưu trong DB (DB là nguồn cấu hình thật). */
+function buildDeviceConfig(deviceId: string) {
+  const settings = new Map(
+    getZoneSettings(deviceId).map((setting) => [setting.zoneId as string, setting]),
+  );
+
+  return {
+    ...gardenConfig,
+    zones: gardenConfig.zones.map((zone) => {
+      const setting = settings.get(zone.id);
+      return setting
+        ? { ...zone, threshold: setting.threshold, stopThreshold: setting.stopThreshold }
+        : zone;
+    }),
+  };
+}
+
+const THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
+const lastThresholdSyncAt = new Map<string, number>();
+
+/**
+ * Firmware có thể reboot và quay về ngưỡng mặc định. Khi telemetry báo ngưỡng
+ * khác DB, gửi lại SET_THRESHOLD (có cooldown để tránh spam mỗi 2 giây).
+ */
+function resyncThresholds(telemetry: Telemetry) {
+  const settings = getZoneSettings(telemetry.deviceId);
+  if (settings.length === 0) return;
+
+  const byZone = new Map(
+    settings.map((setting) => [setting.zoneId as string, setting]),
+  );
+  const now = Date.now();
+
+  for (const zone of telemetry.zones) {
+    const setting = byZone.get(zone.id);
+    if (!setting || setting.threshold === zone.threshold) continue;
+
+    const key = `${telemetry.deviceId}:${zone.id}`;
+    if (now - (lastThresholdSyncAt.get(key) ?? 0) < THRESHOLD_SYNC_COOLDOWN_MS) continue;
+    lastThresholdSyncAt.set(key, now);
+
+    const command = `SET_THRESHOLD_${zone.id}_${Math.round(setting.threshold)}`;
+    void gateway.publish(command).catch((error) => {
+      console.error(
+        `Threshold resync failed (${zone.id}):`,
+        error instanceof Error ? error.message : error,
+      );
+    });
+    console.log(`Threshold resync ${zone.id}: ${zone.threshold} -> ${setting.threshold}`);
+  }
 }
 
 function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean {
@@ -129,6 +193,8 @@ gateway.onTelemetry((telemetry, meta) => {
     console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
   }
 
+  resyncThresholds(telemetry);
+
   if (meta.retained) {
     // Retained message chỉ là snapshot cuối, không chứng minh thiết bị đang chạy.
     if (!onlineByDevice.has(deviceId)) onlineByDevice.set(deviceId, false);
@@ -181,7 +247,7 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.get("/api/config", (_request, response) => {
-  response.json(gardenConfig);
+  response.json(buildDeviceConfig(gardenConfig.deviceId));
 });
 
 app.get("/api/devices/:deviceId/config", (request, response) => {
@@ -189,7 +255,51 @@ app.get("/api/devices/:deviceId/config", (request, response) => {
     response.status(404).json({ error: "Device config not found" });
     return;
   }
-  response.json(gardenConfig);
+  response.json(buildDeviceConfig(request.params.deviceId));
+});
+
+app.get("/api/devices/:deviceId/config/changes", (request, response) => {
+  const limit = queryNumber(request.query.limit);
+  response.json({
+    deviceId: request.params.deviceId,
+    changes: listZoneSettingChanges(request.params.deviceId, limit),
+  });
+});
+
+app.put("/api/devices/:deviceId/config/zones/:zoneId", async (request, response) => {
+  const { deviceId, zoneId } = request.params;
+  if (deviceId !== gardenConfig.deviceId) {
+    response.status(404).json({ error: "Device not found" });
+    return;
+  }
+  if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
+    response.status(404).json({ error: "Zone not found" });
+    return;
+  }
+
+  const body = request.body as { threshold?: unknown };
+  const numeric = Number(body.threshold);
+  if (!Number.isFinite(numeric)) {
+    response.status(400).json({ error: "threshold must be a number" });
+    return;
+  }
+
+  const threshold = clampThreshold(numeric);
+  const stopThreshold = deriveStopThreshold(threshold);
+  const setting = saveZoneSetting(deviceId, zoneId, threshold, stopThreshold);
+
+  let appliedRemotely = false;
+  try {
+    await gateway.publish(`SET_THRESHOLD_${zoneId}_${threshold}`);
+    appliedRemotely = true;
+  } catch (error) {
+    console.error(
+      "Threshold saved but MQTT publish failed:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
+  response.json({ ...setting, appliedRemotely });
 });
 
 app.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {
@@ -241,10 +351,26 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
     response.status(404).json({ error: "Device not found" });
     return;
   }
-  const command = toMqttCommand(request.body as CommandRequest);
+  const commandRequest = request.body as CommandRequest;
+  const command = toMqttCommand(commandRequest);
   if (!command) {
     response.status(400).json({ error: "Invalid command or zoneId" });
     return;
+  }
+
+  // Lưu ngay ngưỡng mới để cấu hình không mất khi restart, kể cả khi MQTT lỗi.
+  if (
+    commandRequest.action === "SET_THRESHOLD" &&
+    commandRequest.zoneId &&
+    isZoneId(commandRequest.zoneId)
+  ) {
+    const threshold = clampThreshold(Number(commandRequest.value));
+    saveZoneSetting(
+      request.params.deviceId,
+      commandRequest.zoneId,
+      threshold,
+      deriveStopThreshold(threshold),
+    );
   }
 
   const commandId = randomUUID();

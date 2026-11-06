@@ -87,7 +87,7 @@ export function toMqttCommand({ action, zoneId, value }: CommandRequest): string
     if (zoneId === undefined) return null;
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return null;
-    return `SET_THRESHOLD_${zoneId}_${Math.max(0, Math.min(100, Math.round(numeric)))}`;
+    return `SET_THRESHOLD_${zoneId}_${Math.max(10, Math.min(90, Math.round(numeric)))}`;
   }
 
   if (zoneId !== undefined) {
