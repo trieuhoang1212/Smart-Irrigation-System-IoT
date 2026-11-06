@@ -5,6 +5,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <DHT.h>
 #include <ESP32Servo.h>
+#include <Preferences.h>
 
 // ================= CẤU HÌNH CHÂN (PINOUT) =================
 #define DHTPIN 4
@@ -43,6 +44,7 @@ const char* topic_cmd    = "smart-irrigation/cmd";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+Preferences prefs;  // Lưu ngưỡng vào NVS để không mất khi reboot
 
 // ================= BIẾN TOÀN CỤC =================
 bool isAutoMode = true;
@@ -195,6 +197,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
           if (String(zoneNames[i]) == zoneId) {
             moistureOn[i] = value;
             moistureOff[i] = constrain(value + 20, value + 5, 100);
+            prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[i]);
+            prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[i]);
             Serial.print("Set threshold ");
             Serial.print(zoneId);
             Serial.print(" -> ");
@@ -241,6 +245,17 @@ void reconnectMQTT() {
 // ================= SETUP =================
 void setup() {
   Serial.begin(115200);
+
+  // Khôi phục ngưỡng đã lưu trong NVS (nếu có), nếu chưa thì dùng mặc định.
+  prefs.begin("irrigation", false);
+  for (int i = 0; i < ZONE_COUNT; i++) {
+    String keyOn = String("on_") + zoneNames[i];
+    String keyOff = String("off_") + zoneNames[i];
+    moistureOn[i] = constrain(prefs.getInt(keyOn.c_str(), moistureOn[i]), 10, 90);
+    moistureOff[i] = constrain(
+      prefs.getInt(keyOff.c_str(), moistureOff[i]), moistureOn[i] + 5, 100);
+  }
+
   Wire.begin(21, 22);
 
   pinMode(MUX_SIG_PIN, INPUT);
