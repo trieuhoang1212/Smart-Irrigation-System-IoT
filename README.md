@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="/images/favicon.svg" width="100%">
+<img src="/images/favicon.svg" width="50%">
 
 # Smart Irrigation System
 
