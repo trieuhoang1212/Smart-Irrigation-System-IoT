@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { ZONE_IDS, type ZoneId } from "./domain.js";
+import { MAX_THRESHOLD, MIN_THRESHOLD, ZONE_IDS, type ZoneId } from "./domain.js";
 
 export type ZoneSetting = {
   zoneId: ZoneId;
@@ -25,8 +25,6 @@ type ZoneSettingChangeRow = ZoneSettingRow & {
   old_stop_threshold: number | null;
 };
 
-const MIN_THRESHOLD = 10;
-const MAX_THRESHOLD = 90;
 const STOP_OFFSET = 20;
 
 /** Firmware đặt ngưỡng dừng = ngưỡng bật + 20 (giới hạn 100). */

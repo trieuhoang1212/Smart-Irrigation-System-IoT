@@ -1,3 +1,5 @@
+import { config } from "./config.js";
+
 type ZoneConfigTuple = [
   id: string,
   name: string,
@@ -22,7 +24,7 @@ const zoneRows: ZoneConfigTuple[] = [
 ];
 
 export const gardenConfig = {
-  deviceId: "esp32-garden-01",
+  deviceId: config.deviceId,
   zones: zoneRows.map(
     ([
       id,
