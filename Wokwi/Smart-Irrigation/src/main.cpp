@@ -7,7 +7,6 @@
 #include <ESP32Servo.h>
 #include <Preferences.h>
 
-// ================= CẤU HÌNH CHÂN (PINOUT) =================
 #define DHTPIN 4
 #define DHTTYPE DHT22
 #define MUX_SIG_PIN 34
@@ -35,7 +34,6 @@ int moistureOn[ZONE_COUNT]  = {60, 45, 35, 30, 45, 55};
 int moistureOff[ZONE_COUNT] = {80, 65, 55, 50, 65, 75};
 const char* zoneNames[ZONE_COUNT] = {"T001", "T002", "T003", "T004", "T005", "T006"};
 
-// ================= CẤU HÌNH MQTT =================
 const char* mqtt_server = "host.wokwi.internal";
 const int mqtt_port = 1883;
 
@@ -46,7 +44,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 Preferences prefs;  // Lưu ngưỡng vào NVS để không mất khi reboot
 
-// ================= BIẾN TOÀN CỤC =================
+
 bool isAutoMode = true;
 bool pumpRunning[ZONE_COUNT] = {false, false, false, false, false, false};
 bool weatherGateEnabled = true;
@@ -101,7 +99,6 @@ void updateRainAlarm() {
   }
 }
 
-// ================= ĐIỀU KHIỂN VAN TỔNG & VAN ZONE =================
 void startPump(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
   pumpRunning[zone] = true;
@@ -162,7 +159,6 @@ int readZoneMoisture(int zone) {
   return constrain(map(rawValue, 0, 4095, 0, 100), 0, 100);
 }
 
-// ================= XỬ LÝ LỆNH TỪ WEB (MQTT CALLBACK) =================
 void callback(char* topic, byte* payload, unsigned int length) {
   String message = "";
   for (unsigned int i = 0; i < length; i++) {
@@ -225,7 +221,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-// ================= RECONNECT MQTT =================
 void reconnectMQTT() {
   while (!client.connected()) {
     Serial.print("Connecting to Mosquitto MQTT...");
@@ -242,7 +237,6 @@ void reconnectMQTT() {
   }
 }
 
-// ================= SETUP =================
 void setup() {
   Serial.begin(115200);
 
@@ -312,7 +306,6 @@ void setup() {
   client.setKeepAlive(30);
 }
 
-// ================= LOOP =================
 void loop() {
   if (!client.connected()) {
     reconnectMQTT();
@@ -323,7 +316,7 @@ void loop() {
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
-    // 1. Đọc cảm biến độ ẩm 6 luống từ MUX 74HC4067 (C0 - C5)
+    // Đọc cảm biến độ ẩm 6 luống từ MUX 74HC4067 (C0 - C5)
     for (int zone = 0; zone < ZONE_COUNT; zone++) {
       moisturePercent[zone] = readZoneMoisture(zone);
     }
@@ -336,7 +329,7 @@ void loop() {
     temperature = dht.readTemperature();
     humidity = dht.readHumidity();
 
-    // 2. Logic Hysteresis Auto Mode cho từng luống
+    // Logic Hysteresis Auto Mode cho từng luống
     if (isAutoMode) {
       for (int zone = 0; zone < ZONE_COUNT; zone++) {
         if (weatherGateEnabled && isRaining && pumpRunning[zone]) {
@@ -369,7 +362,7 @@ void loop() {
     }
     Serial.println();
 
-    // 3. Gửi JSON trực tiếp dạng 6 Zone T001 - T006 cho Web
+    // Gửi JSON trực tiếp dạng 6 Zone T001 - T006 cho Web
     String json;
     json.reserve(768);
     json = "{";
@@ -396,7 +389,7 @@ void loop() {
     json += "\"mode\":\"" + String(isAutoMode ? "auto" : "manual") + "\"";
     json += "}";
 
-    // Retained: backend/web nhận ngay trạng thái mới nhất dù kết nối sau ESP32
+    // Retained: backend/web nhận ngay trạng thái mới nhất dù kết nối sau ESP32 
     bool published = client.publish(topic_status, json.c_str(), true);
     if (published) {
       Serial.print("Published to MQTT: ");
