@@ -10,8 +10,8 @@ export type HistoryRow = {
   threshold: number;
   stopThreshold: number;
   pump: boolean;
-  temperature: number;
-  humidity: number;
+  temperature: number | null;
+  humidity: number | null;
   rain: number;
   raining: boolean;
   mode: "auto" | "manual";
@@ -50,8 +50,8 @@ type HistoryDbRow = {
   threshold: number;
   stop_threshold: number;
   pump: number;
-  temperature: number;
-  humidity: number;
+  temperature: number | null;
+  humidity: number | null;
   rain: number;
   raining: number;
   mode: string;
@@ -160,40 +160,53 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
     Math.min(query.limit ?? DEFAULT_HISTORY_LIMIT, MAX_HISTORY_LIMIT),
   );
 
-  const filters = ["z.device_id = ?", "z.recorded_at BETWEEN ? AND ?"];
-  const params: Array<string | number> = [query.deviceId, from, to];
+  const filters = ["z.device_id = :deviceId", "z.recorded_at BETWEEN :from AND :to"];
+  const params: Record<string, string | number> = { deviceId: query.deviceId, from, to };
 
   if (query.zoneId) {
-    filters.push("z.zone_id = ?");
-    params.push(query.zoneId);
+    filters.push("z.zone_id = :zoneId");
+    params.zoneId = query.zoneId;
   }
 
   if (query.bucketMs && query.bucketMs > 0) {
-    const bucket = Math.max(1000, Math.floor(query.bucketMs));
+    // Giá trị đo lấy trung bình, còn trạng thái (ngưỡng, bơm, mode) lấy mẫu mới nhất
+    // trong bucket để chart không hiển thị trạng thái cũ.
     const rows = db
       .prepare(`
+        WITH bucketed AS (
+          SELECT
+            CAST(z.recorded_at / :bucket AS INTEGER) AS bucket,
+            z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
+            s.temperature, s.humidity, s.rain, s.raining, s.mode
+          FROM telemetry_zone_samples z
+          JOIN telemetry_samples s ON s.id = z.sample_id
+          WHERE ${filters.join(" AND ")}
+        ),
+        ranked AS (
+          SELECT *,
+            ROW_NUMBER() OVER (PARTITION BY bucket, zone_id ORDER BY recorded_at DESC) AS position
+          FROM bucketed
+        )
         SELECT
-          CAST(z.recorded_at / ? AS INTEGER) * ? AS recorded_at,
-          z.zone_id,
-          AVG(z.moisture) AS moisture,
-          AVG(z.threshold) AS threshold,
-          AVG(z.stop_threshold) AS stop_threshold,
-          MAX(z.pump) AS pump,
-          AVG(s.temperature) AS temperature,
-          AVG(s.humidity) AS humidity,
-          AVG(s.rain) AS rain,
-          MAX(s.raining) AS raining,
-          MAX(s.mode) AS mode
-        FROM telemetry_zone_samples z
-        JOIN telemetry_samples s ON s.id = z.sample_id
-        WHERE ${filters.join(" AND ")}
-        GROUP BY 1, 2
-        ORDER BY 1 ASC
-        LIMIT ?
+          bucket * :bucket AS recorded_at,
+          zone_id,
+          AVG(moisture) AS moisture,
+          AVG(temperature) AS temperature,
+          AVG(humidity) AS humidity,
+          AVG(rain) AS rain,
+          MAX(CASE WHEN position = 1 THEN threshold END) AS threshold,
+          MAX(CASE WHEN position = 1 THEN stop_threshold END) AS stop_threshold,
+          MAX(CASE WHEN position = 1 THEN pump END) AS pump,
+          MAX(CASE WHEN position = 1 THEN raining END) AS raining,
+          MAX(CASE WHEN position = 1 THEN mode END) AS mode
+        FROM ranked
+        GROUP BY bucket, zone_id
+        ORDER BY bucket DESC
+        LIMIT :limit
       `)
-      .all(bucket, bucket, ...params, limit) as HistoryDbRow[];
+      .all({ ...params, bucket: Math.max(1000, Math.floor(query.bucketMs)), limit }) as HistoryDbRow[];
 
-    return rows.map(toHistoryRow);
+    return rows.reverse().map(toHistoryRow);
   }
 
   // Lấy mẫu mới nhất trước rồi đảo lại để trả về theo thứ tự thời gian tăng dần.
@@ -206,9 +219,9 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
       JOIN telemetry_samples s ON s.id = z.sample_id
       WHERE ${filters.join(" AND ")}
       ORDER BY z.recorded_at DESC
-      LIMIT ?
+      LIMIT :limit
     `)
-    .all(...params, limit) as HistoryDbRow[];
+    .all({ ...params, limit }) as HistoryDbRow[];
 
   return rows.reverse().map(toHistoryRow);
 }
@@ -264,6 +277,17 @@ export function listCommands(deviceId: string, limit = 50): CommandLogRow[] {
     createdAt: row.created_at,
     resolvedAt: row.resolved_at,
   }));
+}
+
+// Lệnh pending nằm trong RAM, restart sẽ mất dấu nên phải đóng sổ lúc khởi động.
+export function timeoutStaleCommands(): number {
+  return db
+    .prepare(`
+      UPDATE command_log
+      SET status = 'timeout', resolved_at = ?
+      WHERE status = 'pending'
+    `)
+    .run(Date.now()).changes;
 }
 
 export function pruneHistory(retentionDays: number): number {

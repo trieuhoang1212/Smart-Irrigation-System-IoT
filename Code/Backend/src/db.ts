@@ -35,8 +35,8 @@ db.exec(`
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id     TEXT NOT NULL,
     mode          TEXT NOT NULL,
-    temperature   REAL NOT NULL,
-    humidity      REAL NOT NULL,
+    temperature   REAL,
+    humidity      REAL,
     rain          REAL NOT NULL,
     raining       INTEGER NOT NULL,
     weather_gate  INTEGER NOT NULL,
@@ -76,6 +76,8 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_command_log_device_time
     ON command_log(device_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_command_log_status_time
+    ON command_log(status, created_at);
 
   CREATE TABLE IF NOT EXISTS zone_settings (
     device_id       TEXT NOT NULL,
@@ -100,6 +102,49 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_zone_setting_changes_device_time
     ON zone_setting_changes(device_id, changed_at);
 `);
+
+// DB cũ tạo temperature/humidity NOT NULL, không lưu được lúc DHT22 lỗi.
+function migrateSensorNullability() {
+  const columns = db.prepare("PRAGMA table_info(telemetry_samples)").all() as Array<{
+    name: string;
+    notnull: number;
+  }>;
+  if (!columns.some((column) => ["temperature", "humidity"].includes(column.name) && column.notnull)) {
+    return;
+  }
+
+  db.pragma("foreign_keys = OFF");
+  try {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE telemetry_samples_new (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          device_id     TEXT NOT NULL,
+          mode          TEXT NOT NULL,
+          temperature   REAL,
+          humidity      REAL,
+          rain          REAL NOT NULL,
+          raining       INTEGER NOT NULL,
+          weather_gate  INTEGER NOT NULL,
+          pump          INTEGER NOT NULL,
+          recorded_at   INTEGER NOT NULL
+        );
+        INSERT INTO telemetry_samples_new
+          (id, device_id, mode, temperature, humidity, rain, raining, weather_gate, pump, recorded_at)
+        SELECT id, device_id, mode, temperature, humidity, rain, raining, weather_gate, pump, recorded_at
+        FROM telemetry_samples;
+        DROP TABLE telemetry_samples;
+        ALTER TABLE telemetry_samples_new RENAME TO telemetry_samples;
+        CREATE INDEX idx_telemetry_samples_device_time ON telemetry_samples(device_id, recorded_at);
+        CREATE INDEX idx_telemetry_samples_time ON telemetry_samples(recorded_at);
+      `);
+    })();
+  } finally {
+    db.pragma("foreign_keys = ON");
+  }
+}
+
+migrateSensorNullability();
 
 export function closeDatabase() {
   if (db.open) db.close();

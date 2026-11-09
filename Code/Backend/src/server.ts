@@ -4,8 +4,8 @@ import express from "express";
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { config } from "./config.js";
-import { closeDatabase, databaseFile } from "./db.js";
-import { type CommandRequest, type Telemetry, toMqttCommand } from "./domain.js";
+import { closeDatabase, databaseFile, db } from "./db.js";
+import { type CommandRequest, type Telemetry, ZONE_IDS, toMqttCommand } from "./domain.js";
 import { MqttGateway } from "./mqtt-gateway.js";
 import { gardenConfig } from "./garden-config.js";
 import {
@@ -16,6 +16,7 @@ import {
   pruneHistory,
   resolveCommand,
   saveTelemetry,
+  timeoutStaleCommands,
 } from "./telemetry-repository.js";
 import {
   clampThreshold,
@@ -28,9 +29,11 @@ import {
 } from "./zone-settings-repository.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
+const HISTORY_WRITE_INTERVAL_MS = 10_000;
 const latestByDevice = new Map<string, Telemetry>();
 const onlineByDevice = new Map<string, boolean>();
 const lastLiveAtByDevice = new Map<string, number>();
+const lastHistoryWriteByDevice = new Map<string, number>();
 type PendingCommand = {
   id: string;
   deviceId: string;
@@ -41,6 +44,10 @@ const pendingCommands = new Map<string, PendingCommand>();
 
 // Tạo ngưỡng mặc định trong DB cho zone chưa từng được lưu.
 seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
+
+// Lệnh pending chỉ nằm trong RAM; restart xong thì không còn ai xác nhận nữa.
+const staleCommands = timeoutStaleCommands();
+if (staleCommands > 0) console.log(`Marked ${staleCommands} stale commands as timeout`);
 
 // Khôi phục snapshot mới nhất sau restart; chưa chứng minh thiết bị đang online.
 for (const telemetry of loadAllLatestTelemetry()) {
@@ -57,6 +64,15 @@ type LiveSocket = WebSocket & { isAlive?: boolean };
 
 app.use(cors({ origin: config.webOrigin }));
 app.use(express.json({ limit: "16kb" }));
+
+// Một nguồn device ID duy nhất; route nào có :deviceId đều trả 404 như nhau.
+app.param("deviceId", (_request, response, next, value: string) => {
+  if (value !== gardenConfig.deviceId) {
+    response.status(404).json({ error: "Device not found" });
+    return;
+  }
+  next();
+});
 
 function broadcast(payload: unknown) {
   const message = JSON.stringify(payload);
@@ -85,10 +101,7 @@ function buildDeviceConfig(deviceId: string) {
 const THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
 const lastThresholdSyncAt = new Map<string, number>();
 
-/**
- * Firmware có thể reboot và quay về ngưỡng mặc định. Khi telemetry báo ngưỡng
- * khác DB, gửi lại SET_THRESHOLD (có cooldown để tránh spam mỗi 2 giây).
- */
+
 function resyncThresholds(telemetry: Telemetry) {
   const settings = getZoneSettings(telemetry.deviceId);
   if (settings.length === 0) return;
@@ -122,13 +135,15 @@ function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean
   if (command === "MODE_MANUAL") return telemetry.mode === "manual";
   if (command === "WEATHER_GATE_ON") return telemetry.weatherGate;
   if (command === "WEATHER_GATE_OFF") return !telemetry.weatherGate;
-  if (command === "PUMP_ON") return telemetry.pump;
-  if (command === "PUMP_OFF") return !telemetry.pump;
+  // Firmware chỉ nhận lệnh bơm toàn vườn ở chế độ manual.
+  if (command === "PUMP_ON") return telemetry.mode === "manual" && telemetry.zones.every((zone) => zone.pump);
+  if (command === "PUMP_OFF") return telemetry.mode === "manual" && telemetry.zones.every((zone) => !zone.pump);
 
-  const pump = command.match(/^(PUMP_ON|PUMP_OFF)_(T00[1-6])$/);
+  const zonePattern = ZONE_IDS.join("|");
+  const pump = command.match(new RegExp(`^(PUMP_ON|PUMP_OFF)_(${zonePattern})$`));
   if (pump) return telemetry.zones.find((zone) => zone.id === pump[2])?.pump === (pump[1] === "PUMP_ON");
 
-  const threshold = command.match(/^SET_THRESHOLD_(T00[1-6])_(\d{1,3})$/);
+  const threshold = command.match(new RegExp(`^SET_THRESHOLD_(${zonePattern})_(\\d{1,3})$`));
   if (threshold) return telemetry.zones.find((zone) => zone.id === threshold[1])?.threshold === Number(threshold[2]);
 
   return false;
@@ -187,10 +202,17 @@ gateway.onTelemetry((telemetry, meta) => {
   const wasKnown = latestByDevice.has(deviceId);
   latestByDevice.set(deviceId, telemetry);
 
-  try {
-    saveTelemetry(telemetry);
-  } catch (error) {
-    console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
+  // Live state vẫn 2s/lần, nhưng history chỉ ghi 10s/lần cho nhẹ DB.
+  // Retained chỉ là snapshot cũ nên không ghi vào history để khỏi lệch chart.
+  const now = Date.now();
+  const lastSavedAt = lastHistoryWriteByDevice.get(deviceId) ?? 0;
+  if (!meta.retained && now - lastSavedAt >= HISTORY_WRITE_INTERVAL_MS) {
+    try {
+      saveTelemetry(telemetry);
+      lastHistoryWriteByDevice.set(deviceId, now);
+    } catch (error) {
+      console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
+    }
   }
 
   resyncThresholds(telemetry);
@@ -199,7 +221,7 @@ gateway.onTelemetry((telemetry, meta) => {
     // Retained message chỉ là snapshot cuối, không chứng minh thiết bị đang chạy.
     if (!onlineByDevice.has(deviceId)) onlineByDevice.set(deviceId, false);
   } else {
-    lastLiveAtByDevice.set(deviceId, Date.now());
+    lastLiveAtByDevice.set(deviceId, now);
     if (!onlineByDevice.get(deviceId)) {
       onlineByDevice.set(deviceId, true);
       broadcast({ type: "device-status", deviceId, online: true });
@@ -236,10 +258,19 @@ function queryNumber(value: unknown): number | undefined {
 }
 
 app.get("/api/health", (_request, response) => {
-  response.json({
-    ok: true,
+  let database = false;
+  try {
+    db.prepare("SELECT 1").get();
+    database = true;
+  } catch {
+    database = false;
+  }
+
+  const ok = database && gateway.connected;
+  response.status(ok ? 200 : 503).json({
+    ok,
     mqtt: gateway.connected,
-    database: { driver: "sqlite", file: databaseFile },
+    database: { ok: database, driver: "sqlite", file: databaseFile },
     devices: latestByDevice.size,
     onlineDevices: Array.from(onlineByDevice.values()).filter(Boolean).length,
     realtimeClients: webSockets.clients.size,
@@ -251,10 +282,6 @@ app.get("/api/config", (_request, response) => {
 });
 
 app.get("/api/devices/:deviceId/config", (request, response) => {
-  if (request.params.deviceId !== gardenConfig.deviceId) {
-    response.status(404).json({ error: "Device config not found" });
-    return;
-  }
   response.json(buildDeviceConfig(request.params.deviceId));
 });
 
@@ -268,23 +295,18 @@ app.get("/api/devices/:deviceId/config/changes", (request, response) => {
 
 app.put("/api/devices/:deviceId/config/zones/:zoneId", async (request, response) => {
   const { deviceId, zoneId } = request.params;
-  if (deviceId !== gardenConfig.deviceId) {
-    response.status(404).json({ error: "Device not found" });
-    return;
-  }
   if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
     response.status(404).json({ error: "Zone not found" });
     return;
   }
 
-  const body = request.body as { threshold?: unknown };
-  const numeric = Number(body.threshold);
-  if (!Number.isFinite(numeric)) {
+  const body = request.body as { threshold?: unknown } | undefined;
+  if (!body || typeof body !== "object" || typeof body.threshold !== "number" || !Number.isFinite(body.threshold)) {
     response.status(400).json({ error: "threshold must be a number" });
     return;
   }
 
-  const threshold = clampThreshold(numeric);
+  const threshold = clampThreshold(body.threshold);
   const stopThreshold = deriveStopThreshold(threshold);
   const setting = saveZoneSetting(deviceId, zoneId, threshold, stopThreshold);
 
@@ -315,8 +337,20 @@ app.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
   const to = queryNumber(request.query.to) ?? Date.now();
   const from = queryNumber(request.query.from) ?? to - 24 * 60 * 60 * 1000;
   const limit = queryNumber(request.query.limit);
-  const bucketMs = queryNumber(request.query.bucketMs);
+  const requestedBucket = queryNumber(request.query.bucketMs);
   const zoneId = typeof request.query.zoneId === "string" ? request.query.zoneId : undefined;
+
+  if (from >= to) {
+    response.status(400).json({ error: "from must be earlier than to" });
+    return;
+  }
+  if (zoneId !== undefined && !isZoneId(zoneId)) {
+    response.status(400).json({ error: "Invalid zoneId" });
+    return;
+  }
+
+  // Luôn gộp bucket để chart dài ngày không trả về quá nhiều điểm.
+  const bucketMs = Math.max(1000, Math.floor(requestedBucket ?? (to - from) / 500));
 
   const samples = getTelemetryHistory({
     deviceId: request.params.deviceId,
@@ -332,7 +366,7 @@ app.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
     zoneId: zoneId ?? null,
     from,
     to,
-    bucketMs: bucketMs ?? null,
+    bucketMs,
     count: samples.length,
     samples,
   });
@@ -347,30 +381,34 @@ app.get("/api/devices/:deviceId/commands", (request, response) => {
 });
 
 app.post("/api/devices/:deviceId/commands", async (request, response) => {
-  if (request.params.deviceId !== gardenConfig.deviceId) {
-    response.status(404).json({ error: "Device not found" });
+  const deviceId = request.params.deviceId;
+  const commandRequest = request.body as CommandRequest | undefined;
+  if (!commandRequest || typeof commandRequest !== "object") {
+    response.status(400).json({ error: "Invalid request body" });
     return;
   }
-  const commandRequest = request.body as CommandRequest;
+
   const command = toMqttCommand(commandRequest);
   if (!command) {
     response.status(400).json({ error: "Invalid command or zoneId" });
     return;
   }
 
-  // Lưu ngay ngưỡng mới để cấu hình không mất khi restart, kể cả khi MQTT lỗi.
+  // Firmware chỉ nhận lệnh bơm toàn vườn khi đang ở chế độ manual.
   if (
-    commandRequest.action === "SET_THRESHOLD" &&
-    commandRequest.zoneId &&
-    isZoneId(commandRequest.zoneId)
+    (commandRequest.action === "PUMP_ON" || commandRequest.action === "PUMP_OFF") &&
+    commandRequest.zoneId === undefined &&
+    latestByDevice.get(deviceId)?.mode === "auto"
   ) {
+    response.status(409).json({ error: "Global pump control requires manual mode" });
+    return;
+  }
+
+  // Lưu ngay ngưỡng mới để cấu hình không mất khi restart, kể cả khi MQTT lỗi.
+  let setting: ReturnType<typeof saveZoneSetting> | undefined;
+  if (commandRequest.action === "SET_THRESHOLD" && commandRequest.zoneId && isZoneId(commandRequest.zoneId)) {
     const threshold = clampThreshold(Number(commandRequest.value));
-    saveZoneSetting(
-      request.params.deviceId,
-      commandRequest.zoneId,
-      threshold,
-      deriveStopThreshold(threshold),
-    );
+    setting = saveZoneSetting(deviceId, commandRequest.zoneId, threshold, deriveStopThreshold(threshold));
   }
 
   const commandId = randomUUID();
@@ -380,28 +418,36 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
     await gateway.publish(command);
   } catch (error) {
     console.error("MQTT command failed:", error);
+    if (setting) {
+      // Ngưỡng đã nằm trong DB, chỉ chưa áp được xuống thiết bị.
+      response.status(202).json({ accepted: true, saved: true, appliedRemotely: false, setting, sentAt });
+      return;
+    }
     response.status(503).json({ error: "MQTT unavailable" });
     return;
   }
 
   pendingCommands.set(commandId, {
     id: commandId,
-    deviceId: request.params.deviceId,
+    deviceId,
     command,
     expiresAt: Date.now() + DEVICE_TIMEOUT_MS * 2,
   });
 
   try {
-    logCommand(commandId, request.params.deviceId, command);
+    logCommand(commandId, deviceId, command);
   } catch (error) {
     console.error("Failed to log command:", error instanceof Error ? error.message : error);
   }
 
   response.status(202).json({
     accepted: true,
+    saved: setting !== undefined,
+    appliedRemotely: true,
     commandId,
-    deviceId: request.params.deviceId,
+    deviceId,
     command,
+    setting,
     sentAt,
   });
 });
@@ -416,6 +462,22 @@ const commandWatchdog = setInterval(() => {
   });
 }, 1000);
 commandWatchdog.unref();
+
+app.use((_request, response) => {
+  response.status(404).json({ error: "Not found" });
+});
+
+// Express 5 tự bắt lỗi async; middleware này giữ response luôn là JSON.
+app.use(
+  (error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? Number((error as { status: unknown }).status) || 500
+        : 500;
+    if (status >= 500) console.error("Unhandled request error:", error);
+    response.status(status).json({ error: status === 400 ? "Invalid JSON body" : "Internal server error" });
+  },
+);
 
 try {
   const removed = pruneHistory(config.dbRetentionDays);
@@ -446,7 +508,9 @@ function shutdown(signal: string) {
   clearInterval(commandWatchdog);
   clearInterval(retentionTimer);
   gateway.close();
+  webSockets.clients.forEach((socket) => socket.terminate());
   webSockets.close();
+  server.closeAllConnections();
   server.close(() => {
     try {
       closeDatabase();
@@ -455,6 +519,8 @@ function shutdown(signal: string) {
     }
     process.exit(0);
   });
+  // Không để process treo nếu còn kết nối chưa đóng.
+  setTimeout(() => process.exit(1), 5000).unref();
 }
 
 process.once("SIGINT", () => shutdown("SIGINT"));
