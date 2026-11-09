@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://cdn.phototourl.com/member/2026-11-06-3845b3f6-a722-4339-89db-f95ba525390d.png" alt="Smart Irrigation System" width="100%">
+<img src="docs\images\anh_nen.jpg" width="100%">
 
 # Smart Irrigation System
 
