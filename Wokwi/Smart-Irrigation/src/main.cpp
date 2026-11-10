@@ -37,6 +37,15 @@ const char* zoneNames[ZONE_COUNT] = {"T001", "T002", "T003", "T004", "T005", "T0
 const char* mqtt_server = "host.wokwi.internal";
 const int mqtt_port = 1883;
 
+// Thông tin xác thực MQTT (Bảo mật: allow_anonymous false)
+const char* mqtt_user = "esp32_device";
+const char* mqtt_password = "esp32_secret_123";
+
+// Cờ cấu hình xác thực MQTT:
+// - Đặt true: Gửi username & password khi kết nối Mosquitto (khuyến nghị cho môi trường có bảo mật).
+// - Đặt false: Kết nối anonymous. Dùng để demo tạm nếu broker cho phép anonymous hoặc Wokwi Bridge gặp lỗi xác thực.
+const bool USE_MQTT_AUTH = true;
+
 const char* topic_status = "smart-irrigation/status";
 const char* topic_cmd    = "smart-irrigation/cmd";
 
@@ -225,13 +234,26 @@ void reconnectMQTT() {
   while (!client.connected()) {
     Serial.print("Connecting to Mosquitto MQTT...");
     String clientId = "ESP32-SmartIrrigation-" + String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str())) {
+
+    bool connected = false;
+    if (USE_MQTT_AUTH && strlen(mqtt_user) > 0) {
+      connected = client.connect(clientId.c_str(), mqtt_user, mqtt_password);
+    } else {
+      // Demo tạm anonymous nếu broker cấu hình allow_anonymous true hoặc Wokwi không nối được với auth
+      connected = client.connect(clientId.c_str());
+    }
+
+    if (connected) {
       Serial.println(" Connected!");
       client.subscribe(topic_cmd);
     } else {
       Serial.print(" Failed, rc=");
       Serial.print(client.state());
       Serial.println(" Retrying in 2 seconds...");
+      // Ghi chú gỡ lỗi:
+      // rc=5: Not authorized (sai username/password hoặc broker cấm anonymous mà client không gửi credentials).
+      // Nếu Wokwi không nối được qua NAT/Bridge hoặc cần demo nhanh:
+      // Có thể tạm đặt USE_MQTT_AUTH = false và chuyển Mosquitto sang 'allow_anonymous true'.
       delay(2000);
     }
   }

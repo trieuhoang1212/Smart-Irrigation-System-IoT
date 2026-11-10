@@ -5,9 +5,16 @@ import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { config } from "./config.js";
 import { closeDatabase, databaseFile, db } from "./db.js";
-import { type CommandRequest, type Telemetry, ZONE_IDS, toMqttCommand } from "./domain.js";
+import { type CommandRequest, type Telemetry, type ZoneId, ZONE_IDS, toMqttCommand } from "./domain.js";
 import { MqttGateway } from "./mqtt-gateway.js";
 import { gardenConfig } from "./garden-config.js";
+import { createRateLimiter } from "./rate-limiter.js";
+import {
+  isZoneId,
+  parseOptionalInteger,
+  validateThreshold,
+  validateTimeRange,
+} from "./validation.js";
 import {
   getTelemetryHistory,
   listCommands,
@@ -19,10 +26,8 @@ import {
   timeoutStaleCommands,
 } from "./telemetry-repository.js";
 import {
-  clampThreshold,
   deriveStopThreshold,
   getZoneSettings,
-  isZoneId,
   listZoneSettingChanges,
   saveZoneSetting,
   seedZoneSettings,
@@ -58,12 +63,62 @@ for (const telemetry of loadAllLatestTelemetry()) {
 const gateway = new MqttGateway();
 const app = express();
 const server = http.createServer(app);
-const webSockets = new WebSocketServer({ server, path: "/realtime" });
+
+// Kiểm tra Origin bảo vệ WebSocket chống Cross-Site WebSocket Hijacking (CSWSH)
+const webSockets = new WebSocketServer({
+  server,
+  path: "/realtime",
+  verifyClient: (info, callback) => {
+    const origin = info.origin || (info.req.headers.origin as string | undefined);
+    // Cho phép kết nối không có header Origin (như native mobile app, curl, script backend)
+    if (!origin) {
+      return callback(true);
+    }
+    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, "");
+    const allowedOrigin = config.webOrigin.toLowerCase().replace(/\/$/, "");
+    if (normalizedOrigin === allowedOrigin) {
+      return callback(true);
+    }
+    console.warn(`[Security] WebSocket rejected unauthorized origin: ${origin}`);
+    return callback(false, 403, "Forbidden: Invalid Origin");
+  },
+});
 
 type LiveSocket = WebSocket & { isAlive?: boolean };
 
-app.use(cors({ origin: config.webOrigin }));
+// Security headers cơ bản ngăn chặn sniffing MIME, clickjacking, framing
+app.use((_request, response, next) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("X-Frame-Options", "DENY");
+  response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  next();
+});
+
+// CORS cấu hình đúng theo WEB_ORIGIN
+app.use(
+  cors({
+    origin: config.webOrigin,
+    methods: ["GET", "POST", "PUT", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "16kb" }));
+
+// Rate limiters bảo vệ chống spam lệnh phần cứng & spam ghi cấu hình CSDL
+const commandRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 30, // Tối đa 30 lệnh / phút / IP
+  message: "Too many commands sent, please wait before retrying.",
+});
+
+const configRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 30, // Tối đa 30 lần đổi ngưỡng / phút / IP
+  message: "Too many config updates, please wait before retrying.",
+});
 
 // Một nguồn device ID duy nhất; route nào có :deviceId đều trả 404 như nhau.
 app.param("deviceId", (_request, response, next, value: string) => {
@@ -251,12 +306,6 @@ const deviceWatchdog = setInterval(() => {
 }, 2000);
 deviceWatchdog.unref();
 
-function queryNumber(value: unknown): number | undefined {
-  if (typeof value !== "string" || value.trim() === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 app.get("/api/health", (_request, response) => {
   let database = false;
   try {
@@ -282,50 +331,68 @@ app.get("/api/config", (_request, response) => {
 });
 
 app.get("/api/devices/:deviceId/config", (request, response) => {
-  response.json(buildDeviceConfig(request.params.deviceId));
+  response.json(buildDeviceConfig(String(request.params.deviceId)));
 });
 
 app.get("/api/devices/:deviceId/config/changes", (request, response) => {
-  const limit = queryNumber(request.query.limit);
+  const deviceId = String(request.params.deviceId);
+  const limitResult = parseOptionalInteger(request.query.limit, "limit", 1, 500);
+  if (!limitResult.success) {
+    response.status(400).json({ error: limitResult.error });
+    return;
+  }
   response.json({
-    deviceId: request.params.deviceId,
-    changes: listZoneSettingChanges(request.params.deviceId, limit),
+    deviceId,
+    changes: listZoneSettingChanges(deviceId, limitResult.value),
   });
 });
 
-app.put("/api/devices/:deviceId/config/zones/:zoneId", async (request, response) => {
-  const { deviceId, zoneId } = request.params;
-  if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
-    response.status(404).json({ error: "Zone not found" });
-    return;
-  }
+app.put(
+  "/api/devices/:deviceId/config/zones/:zoneId",
+  configRateLimiter,
+  async (request, response) => {
+    const deviceId = String(request.params.deviceId);
+    const rawZoneId = request.params.zoneId;
+    if (!isZoneId(rawZoneId) || !gardenConfig.zones.some((zone) => zone.id === rawZoneId)) {
+      response.status(404).json({ error: "Zone not found" });
+      return;
+    }
+    const zoneId = rawZoneId;
 
-  const body = request.body as { threshold?: unknown } | undefined;
-  if (!body || typeof body !== "object" || typeof body.threshold !== "number" || !Number.isFinite(body.threshold)) {
-    response.status(400).json({ error: "threshold must be a number" });
-    return;
-  }
+    const body = request.body as { threshold?: unknown } | undefined;
+    if (!body || typeof body !== "object") {
+      response.status(400).json({ error: "Invalid request body" });
+      return;
+    }
 
-  const threshold = clampThreshold(body.threshold);
-  const stopThreshold = deriveStopThreshold(threshold);
-  const setting = saveZoneSetting(deviceId, zoneId, threshold, stopThreshold);
+    const thresholdResult = validateThreshold(body.threshold);
+    if (!thresholdResult.success) {
+      response.status(400).json({ error: thresholdResult.error });
+      return;
+    }
 
-  let appliedRemotely = false;
-  try {
-    await gateway.publish(`SET_THRESHOLD_${zoneId}_${threshold}`);
-    appliedRemotely = true;
-  } catch (error) {
-    console.error(
-      "Threshold saved but MQTT publish failed:",
-      error instanceof Error ? error.message : error,
-    );
-  }
+    const threshold = thresholdResult.value;
+    const stopThreshold = deriveStopThreshold(threshold);
+    const setting = saveZoneSetting(deviceId, zoneId, threshold, stopThreshold);
 
-  response.json({ ...setting, appliedRemotely });
-});
+    let appliedRemotely = false;
+    try {
+      await gateway.publish(`SET_THRESHOLD_${zoneId}_${threshold}`);
+      appliedRemotely = true;
+    } catch (error) {
+      console.error(
+        "Threshold saved but MQTT publish failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    response.json({ ...setting, appliedRemotely });
+  },
+);
 
 app.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {
-  const telemetry = latestByDevice.get(request.params.deviceId);
+  const deviceId = String(request.params.deviceId);
+  const telemetry = latestByDevice.get(deviceId);
   if (!telemetry) {
     response.status(404).json({ error: "Telemetry not available" });
     return;
@@ -334,26 +401,43 @@ app.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {
 });
 
 app.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
-  const to = queryNumber(request.query.to) ?? Date.now();
-  const from = queryNumber(request.query.from) ?? to - 24 * 60 * 60 * 1000;
-  const limit = queryNumber(request.query.limit);
-  const requestedBucket = queryNumber(request.query.bucketMs);
-  const zoneId = typeof request.query.zoneId === "string" ? request.query.zoneId : undefined;
-
-  if (from >= to) {
-    response.status(400).json({ error: "from must be earlier than to" });
+  const deviceId = String(request.params.deviceId);
+  const timeRangeResult = validateTimeRange(request.query.from, request.query.to);
+  if (!timeRangeResult.success) {
+    response.status(400).json({ error: timeRangeResult.error });
     return;
   }
-  if (zoneId !== undefined && !isZoneId(zoneId)) {
-    response.status(400).json({ error: "Invalid zoneId" });
+  const { from, to } = timeRangeResult.value;
+
+  const limitResult = parseOptionalInteger(request.query.limit, "limit", 1, 10000);
+  if (!limitResult.success) {
+    response.status(400).json({ error: limitResult.error });
     return;
+  }
+  const limit = limitResult.value;
+
+  const bucketResult = parseOptionalInteger(request.query.bucketMs, "bucketMs", 1000, 86400000);
+  if (!bucketResult.success) {
+    response.status(400).json({ error: bucketResult.error });
+    return;
+  }
+  const requestedBucket = bucketResult.value;
+
+  const rawZoneId = request.query.zoneId;
+  let zoneId: ZoneId | undefined;
+  if (rawZoneId !== undefined && rawZoneId !== "") {
+    if (typeof rawZoneId !== "string" || !isZoneId(rawZoneId)) {
+      response.status(400).json({ error: "Invalid zoneId" });
+      return;
+    }
+    zoneId = rawZoneId;
   }
 
   // Luôn gộp bucket để chart dài ngày không trả về quá nhiều điểm.
   const bucketMs = Math.max(1000, Math.floor(requestedBucket ?? (to - from) / 500));
 
   const samples = getTelemetryHistory({
-    deviceId: request.params.deviceId,
+    deviceId,
     zoneId,
     from,
     to,
@@ -362,7 +446,7 @@ app.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
   });
 
   response.json({
-    deviceId: request.params.deviceId,
+    deviceId,
     zoneId: zoneId ?? null,
     from,
     to,
@@ -373,84 +457,105 @@ app.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
 });
 
 app.get("/api/devices/:deviceId/commands", (request, response) => {
-  const limit = queryNumber(request.query.limit);
+  const deviceId = String(request.params.deviceId);
+  const limitResult = parseOptionalInteger(request.query.limit, "limit", 1, 500);
+  if (!limitResult.success) {
+    response.status(400).json({ error: limitResult.error });
+    return;
+  }
   response.json({
-    deviceId: request.params.deviceId,
-    commands: listCommands(request.params.deviceId, limit),
+    deviceId,
+    commands: listCommands(deviceId, limitResult.value),
   });
 });
 
-app.post("/api/devices/:deviceId/commands", async (request, response) => {
-  const deviceId = request.params.deviceId;
-  const commandRequest = request.body as CommandRequest | undefined;
-  if (!commandRequest || typeof commandRequest !== "object") {
-    response.status(400).json({ error: "Invalid request body" });
-    return;
-  }
-
-  const command = toMqttCommand(commandRequest);
-  if (!command) {
-    response.status(400).json({ error: "Invalid command or zoneId" });
-    return;
-  }
-
-  // Firmware chỉ nhận lệnh bơm toàn vườn khi đang ở chế độ manual.
-  if (
-    (commandRequest.action === "PUMP_ON" || commandRequest.action === "PUMP_OFF") &&
-    commandRequest.zoneId === undefined &&
-    latestByDevice.get(deviceId)?.mode === "auto"
-  ) {
-    response.status(409).json({ error: "Global pump control requires manual mode" });
-    return;
-  }
-
-  // Lưu ngay ngưỡng mới để cấu hình không mất khi restart, kể cả khi MQTT lỗi.
-  let setting: ReturnType<typeof saveZoneSetting> | undefined;
-  if (commandRequest.action === "SET_THRESHOLD" && commandRequest.zoneId && isZoneId(commandRequest.zoneId)) {
-    const threshold = clampThreshold(Number(commandRequest.value));
-    setting = saveZoneSetting(deviceId, commandRequest.zoneId, threshold, deriveStopThreshold(threshold));
-  }
-
-  const commandId = randomUUID();
-  const sentAt = new Date().toISOString();
-
-  try {
-    await gateway.publish(command);
-  } catch (error) {
-    console.error("MQTT command failed:", error);
-    if (setting) {
-      // Ngưỡng đã nằm trong DB, chỉ chưa áp được xuống thiết bị.
-      response.status(202).json({ accepted: true, saved: true, appliedRemotely: false, setting, sentAt });
+app.post(
+  "/api/devices/:deviceId/commands",
+  commandRateLimiter,
+  async (request, response) => {
+    const deviceId = String(request.params.deviceId);
+    const commandRequest = request.body as CommandRequest | undefined;
+    if (!commandRequest || typeof commandRequest !== "object") {
+      response.status(400).json({ error: "Invalid request body" });
       return;
     }
-    response.status(503).json({ error: "MQTT unavailable" });
-    return;
-  }
 
-  pendingCommands.set(commandId, {
-    id: commandId,
-    deviceId,
-    command,
-    expiresAt: Date.now() + DEVICE_TIMEOUT_MS * 2,
-  });
+    if (commandRequest.action === "SET_THRESHOLD") {
+      if (!commandRequest.zoneId || !isZoneId(commandRequest.zoneId)) {
+        response.status(400).json({ error: "Valid zoneId is required for SET_THRESHOLD" });
+        return;
+      }
+      const valResult = validateThreshold(commandRequest.value);
+      if (!valResult.success) {
+        response.status(400).json({ error: valResult.error });
+        return;
+      }
+    }
 
-  try {
-    logCommand(commandId, deviceId, command);
-  } catch (error) {
-    console.error("Failed to log command:", error instanceof Error ? error.message : error);
-  }
+    const command = toMqttCommand(commandRequest);
+    if (!command) {
+      response.status(400).json({ error: "Invalid command or parameters" });
+      return;
+    }
 
-  response.status(202).json({
-    accepted: true,
-    saved: setting !== undefined,
-    appliedRemotely: true,
-    commandId,
-    deviceId,
-    command,
-    setting,
-    sentAt,
-  });
-});
+    // Firmware chỉ nhận lệnh bơm toàn vườn khi đang ở chế độ manual.
+    if (
+      (commandRequest.action === "PUMP_ON" || commandRequest.action === "PUMP_OFF") &&
+      commandRequest.zoneId === undefined &&
+      latestByDevice.get(deviceId)?.mode === "auto"
+    ) {
+      response.status(409).json({ error: "Global pump control requires manual mode" });
+      return;
+    }
+
+    // Lưu ngay ngưỡng mới để cấu hình không mất khi restart, kể cả khi MQTT lỗi.
+    let setting: ReturnType<typeof saveZoneSetting> | undefined;
+    if (commandRequest.action === "SET_THRESHOLD" && commandRequest.zoneId && isZoneId(commandRequest.zoneId)) {
+      const threshold = Number(commandRequest.value);
+      setting = saveZoneSetting(deviceId, commandRequest.zoneId, threshold, deriveStopThreshold(threshold));
+    }
+
+    const commandId = randomUUID();
+    const sentAt = new Date().toISOString();
+
+    try {
+      await gateway.publish(command);
+    } catch (error) {
+      console.error("MQTT command failed:", error);
+      if (setting) {
+        // Ngưỡng đã nằm trong DB, chỉ chưa áp được xuống thiết bị.
+        response.status(202).json({ accepted: true, saved: true, appliedRemotely: false, setting, sentAt });
+        return;
+      }
+      response.status(503).json({ error: "MQTT unavailable" });
+      return;
+    }
+
+    pendingCommands.set(commandId, {
+      id: commandId,
+      deviceId,
+      command,
+      expiresAt: Date.now() + DEVICE_TIMEOUT_MS * 2,
+    });
+
+    try {
+      logCommand(commandId, deviceId, command);
+    } catch (error) {
+      console.error("Failed to log command:", error instanceof Error ? error.message : error);
+    }
+
+    response.status(202).json({
+      accepted: true,
+      saved: setting !== undefined,
+      appliedRemotely: true,
+      commandId,
+      deviceId,
+      command,
+      setting,
+      sentAt,
+    });
+  },
+);
 
 const commandWatchdog = setInterval(() => {
   const now = Date.now();
@@ -467,15 +572,23 @@ app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
 });
 
-// Express 5 tự bắt lỗi async; middleware này giữ response luôn là JSON.
+// Express 5 tự bắt lỗi async; middleware này giữ response luôn là JSON và triệt tiêu rò rỉ stack trace / SQLite query ra client.
 app.use(
   (error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
     const status =
       typeof error === "object" && error !== null && "status" in error
         ? Number((error as { status: unknown }).status) || 500
         : 500;
-    if (status >= 500) console.error("Unhandled request error:", error);
-    response.status(status).json({ error: status === 400 ? "Invalid JSON body" : "Internal server error" });
+    // Ghi log chi tiết ở phía máy chủ để phục vụ gỡ lỗi
+    console.error("Unhandled request error:", error);
+    // Phản hồi cho client luôn là thông điệp an toàn, tuyệt đối không lộ stack trace hay cấu trúc CSDL
+    const message =
+      status === 400
+        ? "Invalid request format or JSON body"
+        : status === 404
+          ? "Resource not found"
+          : "Internal server error";
+    response.status(status).json({ error: message });
   },
 );
 

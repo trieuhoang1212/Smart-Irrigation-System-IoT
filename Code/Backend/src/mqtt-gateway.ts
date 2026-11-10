@@ -16,6 +16,8 @@ export class MqttGateway {
     this.client = mqtt.connect(config.mqttUrl, {
       reconnectPeriod: 2000,
       clientId: `smart-irrigation-backend-${Math.random().toString(16).slice(2)}`,
+      ...(config.mqttUsername ? { username: config.mqttUsername } : {}),
+      ...(config.mqttPassword ? { password: config.mqttPassword } : {}),
     });
     this.client.on("connect", () => {
       console.log(`MQTT connected: ${config.mqttUrl}`);

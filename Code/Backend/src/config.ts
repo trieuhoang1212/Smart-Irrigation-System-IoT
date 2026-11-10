@@ -11,6 +11,8 @@ function requiredNumber(value: string | undefined, fallback: number): number {
 export const config = {
   port: requiredNumber(process.env.PORT, 3001),
   mqttUrl: process.env.MQTT_URL ?? "mqtt://127.0.0.1:1883",
+  mqttUsername: process.env.MQTT_USERNAME || undefined,
+  mqttPassword: process.env.MQTT_PASSWORD || undefined,
   statusTopic: process.env.MQTT_STATUS_TOPIC ?? "smart-irrigation/status",
   commandTopic: process.env.MQTT_COMMAND_TOPIC ?? "smart-irrigation/cmd",
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",

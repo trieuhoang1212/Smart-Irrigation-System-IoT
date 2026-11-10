@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="/images/favicon.svg" width="25%">
+<img src="images/favicon.svg" width="100%">
 
 # Smart Irrigation System
 
@@ -120,8 +120,17 @@ Wokwi/
 ### Yêu cầu
 
 - Node.js 18+
-- Mosquitto MQTT Broker
+- Mosquitto MQTT Broker (xem hướng dẫn tại [mosquitto/README.md](mosquitto/README.md))
 - PlatformIO hoặc Wokwi (cho firmware)
+
+### 0. Khởi chạy Mosquitto Broker
+
+```powershell
+cd mosquitto
+# Tạo password.txt từ password.example (hoặc dùng mosquitto_passwd)
+Copy-Item password.example password.txt
+mosquitto -c mosquitto.conf -v
+```
 
 ### 1. Khởi chạy Backend
 
@@ -165,6 +174,9 @@ Mở thư mục `Wokwi\Smart-Irrigation` bằng PlatformIO hoặc Wokwi, sau đ�
 
 ## 📚 Tài liệu kỹ thuật
 
+- [Security Guide & Threat Model](docs/SECURITY.md)
+- [Báo cáo nâng cấp bảo mật](REPORT_SECURITY_IMPROVEMENTS.md)
+- [Mosquitto Setup Guide](mosquitto/README.md)
 - [Backend README](Code/Backend/README.md)
 - [PlatformIO configuration](Wokwi/Smart-Irrigation/platformio.ini)
 - [Wokwi circuit diagram](Wokwi/Smart-Irrigation/diagram.json)

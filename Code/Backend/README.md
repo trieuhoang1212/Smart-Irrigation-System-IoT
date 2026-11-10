@@ -18,13 +18,22 @@ Backend cung cấp:
 - `GET /api/devices/:deviceId/telemetry/history?from=&to=&zoneId=&limit=&bucketMs=`
   (`bucketMs` gộp mẫu theo khoảng thời gian để chart 1h/24h/7 ngày nhẹ hơn)
 - `GET /api/devices/:deviceId/commands?limit=`
-- `POST /api/devices/:deviceId/commands`
-- `PUT /api/devices/:deviceId/config/zones/:zoneId` — lưu ngưỡng tưới (`{ "threshold": 55 }`)
+- `POST /api/devices/:deviceId/commands` (áp dụng Rate Limit 30 req/phút)
+- `PUT /api/devices/:deviceId/config/zones/:zoneId` — lưu ngưỡng tưới (`{ "threshold": 55 }`) (Rate Limit 30 req/phút)
 - `GET /api/devices/:deviceId/config/changes?limit=` — lịch sử đổi ngưỡng
-- WebSocket realtime tại `/realtime`
+- WebSocket realtime tại `/realtime` (kiểm tra Origin nghiêm ngặt chống CSWSH)
 
 Backend subscribe `smart-irrigation/status` và publish lệnh lên
-`smart-irrigation/cmd`. Firmware Wokwi hiện tại vẫn dùng được nguyên trạng.
+`smart-irrigation/cmd`. Hỗ trợ xác thực MQTT với Mosquitto qua `MQTT_USERNAME` và `MQTT_PASSWORD`.
+
+## Bảo mật Backend
+
+- **Xác thực MQTT**: Hỗ trợ kết nối với Mosquitto broker bật `allow_anonymous false` bằng thông tin người dùng từ file `.env`.
+- **Validation toàn bộ đầu vào**: `threshold` (10..90), `limit`, `bucketMs`, `from`/`to`, `zoneId` (`T001`..`T006`).
+- **Rate limiting**: Giới hạn tần suất gọi API thay đổi trạng thái phần cứng (`POST /commands`, `PUT /config`).
+- **Security Headers & CORS**: Bổ sung `nosniff`, `DENY` clickjack, whitelist `WEB_ORIGIN`.
+- **Bảo vệ WebSocket**: Chặn tấn công Cross-Site WebSocket Hijacking qua kiểm tra header Origin.
+- **Không leak thông tin nhạy cảm**: Tuyệt đối không trả về stack trace hoặc câu lệnh SQL nội bộ khi có lỗi.
 
 ## Database
 
