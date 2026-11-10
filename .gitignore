@@ -1,0 +1,28 @@
+# Dependencies
+**/node_modules/
+
+# Expo
+**/.expo/
+**/.expo-shared/
+
+# Next.js
+**/.next/
+**/out/
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build
+**/dist/
+**/build/
+**/coverage/
+
+# Logs
+**/*.log
+
+# Database runtime
+Code/Backend/data/*.db
+Code/Backend/data/*.db-shm
+Code/Backend/data/*.db-wal

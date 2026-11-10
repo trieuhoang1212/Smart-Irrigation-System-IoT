@@ -24,5 +24,9 @@
     "@types/ws": "^8.18.1",
     "tsx": "^4.20.6",
     "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true,
+    "esbuild@0.28.2": true
   }
 }
