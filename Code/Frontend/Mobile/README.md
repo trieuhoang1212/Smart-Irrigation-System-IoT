@@ -54,33 +54,8 @@ WebSocket
 
 MQTT (thông qua Backend)
 
-3. Cấu trúc thư mục
 
-Mobile/
-├── src/
-│   ├── app/
-│   │   ├── _layout.tsx
-│   │   ├── (tabs)/
-│   │   │   ├── _layout.tsx
-│   │   │   ├── index.tsx
-│   │   │   └── settings.tsx
-│   │   └── zone/
-│   │       ├── [id].tsx
-│   │       └── [id]/
-│   │           └── settings.tsx
-│   ├── api/
-│   │   ├── client.ts
-│   │   └── config.ts
-│   ├── components/
-│   │   └── app-tabs.tsx
-│   └── hooks/
-│       └── useLiveTelemetry.ts
-├── assets/
-├── .env.example
-├── package.json
-└── package-lock.json
-
-4. Yêu cầu môi trường
+3. Yêu cầu môi trường
 
 Node.js và npm.
 
@@ -90,7 +65,7 @@ Backend đang hoạt động.
 
 Máy chạy Mobile và Backend có thể kết nối với nhau qua mạng.
 
-5. Cài đặt và chạy ứng dụng
+44. Cài đặt và chạy ứng dụng
 
 Bước 1: Di chuyển vào thư mục Mobile
 
