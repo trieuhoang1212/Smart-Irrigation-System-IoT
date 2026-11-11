@@ -1,5 +1,8 @@
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { getLatestTelemetry, sendCommand, type Telemetry } from '../../api/client';
+import { useLiveTelemetry } from '../../hooks/useLiveTelemetry';
 import {
   ScrollView,
   View,
@@ -10,18 +13,56 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const zones = [
-  { id: 'T001', name: 'Khu vực 1', moisture: 35, pump: true },
-  { id: 'T002', name: 'Khu vực 2', moisture: 62, pump: false },
-  { id: 'T003', name: 'Khu vực 3', moisture: 48, pump: false },
-  { id: 'T004', name: 'Khu vực 4', moisture: 28, pump: true },
-  { id: 'T005', name: 'Khu vực 5', moisture: 75, pump: false },
-  { id: 'T006', name: 'Khu vực 6', moisture: 55, pump: false },
-];
+const ZONE_NAMES: Record<string, string> = {
+  T001: 'Khu vực 1',
+  T002: 'Khu vực 2',
+  T003: 'Khu vực 3',
+  T004: 'Khu vực 4',
+  T005: 'Khu vực 5',
+  T006: 'Khu vực 6',
+};
 
 export default function HomeScreen() {
-  const [mode, setMode] = useState<'AUTO' | 'MANUAL'>('AUTO');
-  const [pump, setPump] = useState(false);
+  const { telemetry: liveTelemetry, online, connected, updateTelemetry } = useLiveTelemetry();
+  const [initialTelemetry, setInitialTelemetry] = useState<Telemetry | null>(null);
+  const [commandLoading, setCommandLoading] = useState(false);
+  const commandLock = useRef(false);
+  const telemetry = liveTelemetry ?? initialTelemetry;
+  const mode = telemetry?.mode ?? 'auto';
+  const pump = telemetry?.pump ?? false;
+
+  useEffect(() => {
+    let active = true;
+    getLatestTelemetry()
+      .then((data) => {
+        if (active && data) {
+          setInitialTelemetry(data);
+          updateTelemetry(data);
+        }
+      })
+      .catch((error) => {
+        console.warn('Không thể tải telemetry ban đầu:', error);
+      });
+    return () => {
+      active = false;
+    };
+  }, [updateTelemetry]);
+
+  const handleCommand = useCallback(async (action: string) => {
+    if (commandLock.current) return;
+    commandLock.current = true;
+    setCommandLoading(true);
+    try {
+      await sendCommand({ action });
+    } catch (error) {
+      console.warn('Gửi lệnh thất bại:', error);
+    } finally {
+      commandLock.current = false;
+      setCommandLoading(false);
+    }
+  }, []);
+
+  const zones = telemetry?.zones ?? [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -40,33 +81,33 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.onlineBadge}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.onlineText}>Online</Text>
+            <View style={[styles.onlineDot, { backgroundColor: online ? '#16A34A' : '#9CA3AF' }]} />
+            <Text style={styles.onlineText}>{online ? 'Online' : 'Offline'}</Text>
           </View>
         </View>
 
         {/* Overview */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Tổng quan</Text>
-          <Text style={styles.liveText}>● LIVE</Text>
+          <Text style={styles.liveText}>{connected ? '● LIVE' : '○ ĐANG KẾT NỐI'}</Text>
         </View>
 
         <View style={styles.metrics}>
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>🌡️</Text>
-            <Text style={styles.metricValue}>29°C</Text>
+            <Text style={styles.metricValue}>{telemetry?.temperature == null ? '--' : `${telemetry.temperature.toFixed(1)}°C`}</Text>
             <Text style={styles.metricLabel}>Nhiệt độ</Text>
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>💧</Text>
-            <Text style={styles.metricValue}>72%</Text>
+            <Text style={styles.metricValue}>{telemetry?.humidity == null ? '--' : `${telemetry.humidity.toFixed(0)}%`}</Text>
             <Text style={styles.metricLabel}>Độ ẩm không khí</Text>
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>🌧️</Text>
-            <Text style={styles.metricValue}>Không</Text>
+            <Text style={styles.metricValue}>{telemetry ? (telemetry.raining ? 'Có mưa' : 'Không') : '--'}</Text>
             <Text style={styles.metricLabel}>Trạng thái mưa</Text>
           </View>
         </View>
@@ -81,16 +122,17 @@ export default function HomeScreen() {
             {(['AUTO', 'MANUAL'] as const).map((item) => (
               <Pressable
                 key={item}
-                onPress={() => setMode(item)}
+                onPress={() => handleCommand(item === 'AUTO' ? 'MODE_AUTO' : 'MODE_MANUAL')}
+                disabled={commandLoading || !telemetry}
                 style={[
                   styles.modeButton,
-                  mode === item && styles.modeActive,
+                  mode === item.toLowerCase() && styles.modeActive,
                 ]}
               >
                 <Text
                   style={[
                     styles.modeText,
-                    mode === item && styles.modeTextActive,
+                    mode === item.toLowerCase() && styles.modeTextActive,
                   ]}
                 >
                   {item === 'AUTO' ? 'Tự động' : 'Thủ công'}
@@ -108,12 +150,12 @@ export default function HomeScreen() {
             </View>
 
             <Pressable
-              disabled={mode === 'AUTO'}
-              onPress={() => setPump(!pump)}
+              disabled={mode === 'auto' || commandLoading || !telemetry}
+              onPress={() => handleCommand(pump ? 'PUMP_OFF' : 'PUMP_ON')}
               style={[
                 styles.pumpButton,
                 pump && styles.pumpActive,
-                mode === 'AUTO' && styles.disabledButton,
+                (mode === 'auto' || commandLoading || !telemetry) && styles.disabledButton,
               ]}
             >
               <Text style={styles.pumpButtonText}>
@@ -122,7 +164,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {mode === 'AUTO' && (
+          {mode === 'auto' && (
             <Text style={styles.note}>
               Chuyển sang chế độ thủ công để điều khiển máy bơm.
             </Text>
@@ -136,8 +178,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.zoneGrid}>
+          {!telemetry && <Text style={styles.note}>Đang chờ dữ liệu từ thiết bị...</Text>}
           {zones.map((zone) => (
-            <View key={zone.id} style={styles.zoneCard}>
+            <Pressable key={zone.id} style={styles.zoneCard} onPress={() => router.push({ pathname: '/zone/[id]', params: { id: zone.id } })}>
               <View style={styles.zoneHeader}>
                 <Text style={styles.zoneId}>{zone.id}</Text>
                 <View
@@ -148,7 +191,7 @@ export default function HomeScreen() {
                 />
               </View>
 
-              <Text style={styles.zoneName}>{zone.name}</Text>
+              <Text style={styles.zoneName}>{ZONE_NAMES[zone.id] ?? zone.id}</Text>
 
               <Text style={styles.moistureValue}>
                 {zone.moisture}%
@@ -179,7 +222,7 @@ export default function HomeScreen() {
                   {zone.pump ? 'Đang chạy' : 'Đang tắt'}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
 

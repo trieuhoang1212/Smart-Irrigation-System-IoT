@@ -26,3 +26,26 @@
 Code/Backend/data/*.db
 Code/Backend/data/*.db-shm
 Code/Backend/data/*.db-wal
+# IDE
+**/.vscode/
+**/.idea/
+
+# OS
+**/Thumbs.db
+**/.DS_Store
+
+# Temporary files
+**/*.tmp
+**/*.bak
+
+# Database files
+**/*.sqlite
+**/*.sqlite3
+# Next.js
+**/.next/
+
+# Mobile environment
+**/.env
+
+# Backend database runtime
+Code/Backend/data/*.db*

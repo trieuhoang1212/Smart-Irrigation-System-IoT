@@ -414,19 +414,8 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
   const commandId = randomUUID();
   const sentAt = new Date().toISOString();
 
-  try {
-    await gateway.publish(command);
-  } catch (error) {
-    console.error("MQTT command failed:", error);
-    if (setting) {
-      // Ngưỡng đã nằm trong DB, chỉ chưa áp được xuống thiết bị.
-      response.status(202).json({ accepted: true, saved: true, appliedRemotely: false, setting, sentAt });
-      return;
-    }
-    response.status(503).json({ error: "MQTT unavailable" });
-    return;
-  }
-
+  // Đăng ký lệnh chờ và ghi DB trước khi publish để không bỏ lỡ
+  // telemetry phản hồi có thể đến ngay sau khi ESP32 nhận lệnh.
   pendingCommands.set(commandId, {
     id: commandId,
     deviceId,
@@ -438,6 +427,21 @@ app.post("/api/devices/:deviceId/commands", async (request, response) => {
     logCommand(commandId, deviceId, command);
   } catch (error) {
     console.error("Failed to log command:", error instanceof Error ? error.message : error);
+  }
+
+  try {
+    await gateway.publish(command);
+  } catch (error) {
+    pendingCommands.delete(commandId);
+    resolveCommand(commandId, "timeout");
+    console.error("MQTT command failed:", error);
+    if (setting) {
+      // Ngưỡng đã nằm trong DB, chỉ chưa áp được xuống thiết bị.
+      response.status(202).json({ accepted: true, saved: true, appliedRemotely: false, setting, sentAt });
+      return;
+    }
+    response.status(503).json({ error: "MQTT unavailable" });
+    return;
   }
 
   response.status(202).json({

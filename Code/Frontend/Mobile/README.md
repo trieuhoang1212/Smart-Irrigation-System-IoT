@@ -1,56 +1,123 @@
-# Welcome to your Expo app 👋
+Smart Irrigation System – Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Ứng dụng di động quản lý và giám sát hệ thống tưới cây thông minh, được xây dựng bằng React Native và Expo.
 
-## Get started
+1. Chức năng chính
 
-1. Install dependencies
+Dashboard
 
-   ```bash
-   npm install
-   ```
+Hiển thị trạng thái hoạt động của hệ thống.
 
-2. Start the app
+Theo dõi dữ liệu cảm biến: độ ẩm đất, nhiệt độ, độ ẩm không khí.
 
-   ```bash
-   npx expo start
-   ```
+Hiển thị trạng thái máy bơm và chế độ hoạt động.
 
-In the output, you'll find options to open the app in a
+Chuyển đổi giữa chế độ AUTO và MANUAL.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Điều khiển bật/tắt máy bơm.
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Quản lý vùng tưới
 
-## Get a fresh project
+Hiển thị danh sách 6 vùng tưới: T001–T006.
 
-When you're ready, run:
+Xem thông tin chi tiết từng vùng.
 
-```bash
-npm run reset-project
-```
+Theo dõi độ ẩm đất và trạng thái máy bơm.
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Điều chỉnh ngưỡng độ ẩm bật/tắt tưới.
 
-### Other setup steps
+Settings
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Xem cấu hình các vùng tưới.
 
-## Learn more
+Theo dõi lịch sử thay đổi cấu hình.
 
-To learn more about developing your project with Expo, look at the following resources:
+Real-time
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Sử dụng WebSocket để nhận dữ liệu cảm biến theo thời gian thực.
 
-## Join the community
+Đồng bộ trạng thái thiết bị và kết quả thực hiện lệnh từ Backend.
 
-Join our community of developers creating universal apps.
+2. Công nghệ sử dụng
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+React Native
+
+Expo SDK 58
+
+Expo Router
+
+TypeScript
+
+REST API
+
+WebSocket
+
+MQTT (thông qua Backend)
+
+3. Cấu trúc thư mục
+
+Mobile/
+├── src/
+│   ├── app/
+│   │   ├── _layout.tsx
+│   │   ├── (tabs)/
+│   │   │   ├── _layout.tsx
+│   │   │   ├── index.tsx
+│   │   │   └── settings.tsx
+│   │   └── zone/
+│   │       ├── [id].tsx
+│   │       └── [id]/
+│   │           └── settings.tsx
+│   ├── api/
+│   │   ├── client.ts
+│   │   └── config.ts
+│   ├── components/
+│   │   └── app-tabs.tsx
+│   └── hooks/
+│       └── useLiveTelemetry.ts
+├── assets/
+├── .env.example
+├── package.json
+└── package-lock.json
+
+4. Yêu cầu môi trường
+
+Node.js và npm.
+
+Điện thoại Android/iOS hoặc thiết bị giả lập.
+
+Backend đang hoạt động.
+
+Máy chạy Mobile và Backend có thể kết nối với nhau qua mạng.
+
+5. Cài đặt và chạy ứng dụng
+
+Bước 1: Di chuyển vào thư mục Mobile
+
+cd Code/Frontend/Mobile
+
+Bước 2: Cài đặt dependencies
+
+npm install
+
+Bước 3: Cấu hình kết nối Backend
+
+Tạo file .env trong thư mục Code/Frontend/Mobile.
+
+Thêm cấu hình:
+
+EXPO_PUBLIC_API_URL=http://IP_MAY_CHAY_BACKEND:3001
+
+Ví dụ:
+
+EXPO_PUBLIC_API_URL=http://192.168.110.2:3001
+
+Lưu ý:
+
+Thay 192.168.110.2 bằng địa chỉ IPv4 thực tế của máy chạy Backend.
+
+Không sử dụng localhost khi chạy ứng dụng trên điện thoại thật vì localhost lúc này là chính điện thoại.
+
+File .env chứa cấu hình riêng của từng thành viên, không đưa lên GitHub.
+
+Có thể tham khảo .env.example để tạo file cấu hình.
