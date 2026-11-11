@@ -26,3 +26,5 @@
 Code/Backend/data/*.db
 Code/Backend/data/*.db-shm
 Code/Backend/data/*.db-wal
+
+docs
