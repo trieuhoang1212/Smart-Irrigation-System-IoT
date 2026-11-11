@@ -386,6 +386,7 @@ void loop() {
       json += "\"pump\":" + String(pumpRunning[zone] ? "true" : "false") + "}";
     }
     json += "],";
+    json += "\"servoAngle\":" + String(anyPumpRunning() ? MASTER_VALVE_OPEN : MASTER_VALVE_CLOSED) + ",";
     json += "\"mode\":\"" + String(isAutoMode ? "auto" : "manual") + "\"";
     json += "}";
 

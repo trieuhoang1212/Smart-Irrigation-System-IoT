@@ -15,12 +15,12 @@ type ZoneConfigTuple = [
 ];
 
 const zoneRows: ZoneConfigTuple[] = [
-  ["T001", "Rau muong", "Chau am lien tuc", 60, 80, "Phun suong", 3, 45, 48, 0.8, "#2ed573"],
-  ["T002", "Ca chua", "Tranh nut qua", 45, 65, "Tuoi nho giot", 6, 90, 60, 1.5, "#ff4757"],
-  ["T003", "Ca rot", "Dat toi xop", 35, 55, "Tuoi nho giot", 8, 120, 60, 2, "#ffa502"],
-  ["T004", "Khoai lang", "Chiu han tot", 30, 50, "Tuoi nho giot", 8, 120, 60, 1.8, "#b77a4e"],
-  ["T005", "Dua leo", "Can nhieu nuoc", 45, 65, "Tuoi nho giot", 6, 90, 60, 1.5, "#1e90ff"],
-  ["T006", "Rau xa lach", "Nhay cam voi kho han", 55, 75, "Phun suong", 4, 60, 48, 0.8, "#2bcbba"],
+  ["T001", "Rau muống", "Chậu ẩm liên tục", 60, 80, "Phun sương", 3, 45, 48, 0.8, "#5f9370"],
+  ["T002", "Cà chua", "Tránh nứt quả", 45, 65, "Tưới nhỏ giọt", 6, 90, 60, 1.5, "#b8685c"],
+  ["T003", "Cà rốt", "Đất tơi xốp", 35, 55, "Tưới nhỏ giọt", 8, 120, 60, 2, "#c1953f"],
+  ["T004", "Khoai lang", "Chịu hạn tốt", 30, 50, "Tưới nhỏ giọt", 8, 120, 60, 1.8, "#9c7452"],
+  ["T005", "Dưa leo", "Cần nhiều nước", 45, 65, "Tưới nhỏ giọt", 6, 90, 60, 1.5, "#5f8ea8"],
+  ["T006", "Rau xà lách", "Nhạy cảm với khô hạn", 55, 75, "Phun sương", 4, 60, 48, 0.8, "#78a68c"],
 ];
 
 export const gardenConfig = {
@@ -42,7 +42,7 @@ export const gardenConfig = {
       id,
       name,
       crop,
-      group: "Vuon rau cu qua",
+      group: "Vườn rau củ quả",
       threshold,
       stopThreshold,
       method,

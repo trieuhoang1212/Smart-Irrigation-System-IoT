@@ -32,7 +32,6 @@ export type HistoryQuery = {
   from?: number;
   to?: number;
   limit?: number;
-  /** Gộp nhiều mẫu vào một điểm (mili-giây) để chart dài ngày nhẹ hơn. */
   bucketMs?: number;
 };
 
@@ -169,8 +168,6 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
   }
 
   if (query.bucketMs && query.bucketMs > 0) {
-    // Giá trị đo lấy trung bình, còn trạng thái (ngưỡng, bơm, mode) lấy mẫu mới nhất
-    // trong bucket để chart không hiển thị trạng thái cũ.
     const rows = db
       .prepare(`
         WITH bucketed AS (
@@ -209,7 +206,6 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
     return rows.reverse().map(toHistoryRow);
   }
 
-  // Lấy mẫu mới nhất trước rồi đảo lại để trả về theo thứ tự thời gian tăng dần.
   const rows = db
     .prepare(`
       SELECT
@@ -279,7 +275,6 @@ export function listCommands(deviceId: string, limit = 50): CommandLogRow[] {
   }));
 }
 
-// Lệnh pending nằm trong RAM, restart sẽ mất dấu nên phải đóng sổ lúc khởi động.
 export function timeoutStaleCommands(): number {
   return db
     .prepare(`
@@ -299,6 +294,7 @@ export function pruneHistory(retentionDays: number): number {
     .run(cutoff);
 
   db.prepare("DELETE FROM command_log WHERE created_at < ?").run(cutoff);
+  db.prepare("DELETE FROM zone_setting_changes WHERE changed_at < ?").run(cutoff);
 
   return removedSamples.changes;
 }
