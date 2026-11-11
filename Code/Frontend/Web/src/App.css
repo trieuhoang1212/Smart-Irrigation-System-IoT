@@ -2,9 +2,10 @@
 @import "./styles/shell.css";
 @import "./styles/dashboard.css";
 @import "./styles/garden.css";
+@import "./styles/garden-map.css";
 @import "./styles/metrics.css";
 @import "./styles/controls.css";
 @import "./styles/activity.css";
-@import "./styles/responsive.css";
-@import "./styles/garden-map.css";
 @import "./styles/history.css";
+@import "./styles/toast.css";
+@import "./styles/responsive.css";

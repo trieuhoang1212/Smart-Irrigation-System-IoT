@@ -1,23 +1,70 @@
 :root {
-  --ink: #17231e;
-  --muted: #75817b;
-  --green: #168c5b;
-  --deep: #123e34;
-  --line: #e4e9e3;
-  --cream: #f6faf1;
+  --ink: #1d2b24;
+  --ink-soft: #3c4d43;
+  --muted: #6d7c73;
+  --faint: #93a097;
+  --line: #e3e8e1;
+  --line-soft: #edf1eb;
+  --surface: #ffffff;
+  --canvas: #f5f7f3;
+  --green: #2f6f4e;
+  --green-strong: #235c40;
+  --green-soft: #eef3ec;
+  --deep: #17362a;
+  --amber: #a5762c;
+  --amber-soft: #faf3e6;
+  --red: #a44b4b;
+  --red-soft: #fbefee;
+  --blue: #3d6f8c;
+  --radius: 12px;
 }
+
 * {
   box-sizing: border-box;
 }
-html,
-body {
-  font-family: var(--font-lexend), sans-serif;
+
+html {
+  scroll-behavior: smooth;
 }
-button {
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-lexend), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
   font: inherit;
+  color: inherit;
+}
+
+button {
   cursor: pointer;
 }
+
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.55;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid #7aa78a;
+  outline-offset: 2px;
 }
