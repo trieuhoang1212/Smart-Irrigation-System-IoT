@@ -1,66 +1,46 @@
 "use client";
 
-import React from "react";
 import { GardenMap } from "./GardenMap";
 import { type Zone } from "../garden-data";
+import { DropletIcon } from "./icons";
 
 export function GardenOverview({
   zones,
   activeZone,
-  view,
   connected,
   onSelectZone,
-  onChangeView,
   onToggleIrrigation,
 }: {
   zones: Zone[];
   activeZone: string;
-  view: "2d" | "map";
   connected: boolean;
   onSelectZone: (zoneId: string) => void;
-  onChangeView: (view: "2d" | "map") => void;
   onToggleIrrigation: () => void;
 }) {
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
+  const moistureStatus =
+    selectedZone.moisture === null
+      ? null
+      : selectedZone.moisture < selectedZone.threshold
+        ? "Cần tưới nước"
+        : "Độ ẩm tốt";
 
   return (
     <section className="garden-panel panel">
       <div className="panel-heading">
         <div>
-          <h2>Garden overview</h2>
+          <h2>Tổng quan khu vườn</h2>
           <p>
-            Vùng <strong>{selectedZone.id} ({selectedZone.name})</strong> đang được
-            chọn · dữ liệu realtime từ ESP32
+            Vùng <strong>{selectedZone.id} · {selectedZone.name}</strong> đang được chọn ·
+            dữ liệu realtime từ ESP32
           </p>
         </div>
-        <div className="view-switch">
-          <button
-            className={view === "2d" ? "selected" : ""}
-            onClick={() => onChangeView("2d")}
-          >
-            2D view
-          </button>
-          <button
-            className={view === "map" ? "selected" : ""}
-            onClick={() => onChangeView("map")}
-          >
-            Map
-          </button>
-        </div>
-      </div>
-
-      <div className="group-caption" style={{ marginTop: "12px" }}>
-        <strong>Khu vườn thông minh Greenflow</strong>
-        <span>
-          6 luống cây trồng chuyên biệt (T001 - T006) · Điều khiển tưới tự động & van độc lập
-        </span>
       </div>
 
       <GardenMap
         zones={zones}
         activeZone={activeZone}
         onSelect={onSelectZone}
-        view={view}
       />
 
       <div className="selected-zone">
@@ -75,17 +55,21 @@ export function GardenOverview({
           <div className="progress">
             <i style={{ width: `${selectedZone.moisture ?? 0}%` }} />
           </div>
+          {moistureStatus && (
+            <em
+              className={
+                selectedZone.moisture !== null && selectedZone.moisture < selectedZone.threshold
+                  ? "dry"
+                  : "ok"
+              }
+            >
+              {moistureStatus}
+            </em>
+          )}
         </div>
         <div className="zone-stat">
           <span>Ngưỡng kích hoạt</span>
-          <strong>
-            {selectedZone.threshold}%{" "}
-            <em>
-              {selectedZone.moisture !== null && selectedZone.moisture < selectedZone.threshold
-                ? "Cần tưới nước"
-                : "Độ ẩm tốt"}
-            </em>
-          </strong>
+          <strong>{selectedZone.threshold}%</strong>
         </div>
         <button
           className={`water-button ${selectedZone.pump ? "watering" : ""}`}
@@ -93,9 +77,8 @@ export function GardenOverview({
           disabled={!connected}
           title={connected ? "Tưới khu vực đang chọn" : "Cần kết nối MQTT"}
         >
-          {selectedZone.pump
-            ? `◌ ${selectedZone.name} đang tưới...`
-            : "♧ Tưới khu vực này"}
+          <DropletIcon size={15} />
+          {selectedZone.pump ? `${selectedZone.name} đang tưới...` : "Tưới khu vực này"}
         </button>
       </div>
     </section>

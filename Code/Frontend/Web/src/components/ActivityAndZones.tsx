@@ -2,20 +2,31 @@
 
 import React from "react";
 import { type Zone } from "../garden-data";
+import { type ActivityEvent } from "../hooks/useActivity";
+
+const STATUS_LABEL: Record<NonNullable<ActivityEvent["status"]>, string> = {
+  pending: "chờ xác nhận",
+  confirmed: "đã xác nhận",
+  timeout: "không phản hồi",
+};
 
 interface ActivityAndZonesProps {
-  logs: string[];
+  events: ActivityEvent[];
+  eventsLoading: boolean;
+  eventsError: string | null;
+  onRefreshEvents: () => void;
   visibleZones: Zone[];
   activeZone: string;
-  onClearLogs: () => void;
   onSelectZone: (zoneId: string) => void;
 }
 
 export function ActivityAndZones({
-  logs,
+  events,
+  eventsLoading,
+  eventsError,
+  onRefreshEvents,
   visibleZones,
   activeZone,
-  onClearLogs,
   onSelectZone,
 }: ActivityAndZonesProps) {
   const onlineZones = visibleZones.filter((zone) => zone.online);
@@ -27,26 +38,34 @@ export function ActivityAndZones({
 
   return (
     <section className="below-grid">
-      <article className="panel activity-card">
+      <article className="panel activity-card" id="activity">
         <div className="panel-heading">
           <div>
-            <h2>Nhật ký MQTT Events</h2>
-            <p>Lịch sử truyền nhận dữ liệu</p>
+            <h2>Nhật ký hoạt động</h2>
+            <p>Lệnh điều khiển & thay đổi ngưỡng lưu trên Backend</p>
           </div>
-          <button className="link-button" onClick={onClearLogs}>
-            Xóa log
+          <button className="link-button" onClick={onRefreshEvents} disabled={eventsLoading}>
+            {eventsLoading ? "Đang tải..." : "Làm mới"}
           </button>
         </div>
         <div className="activity-list">
-          {logs.length ? (
-            logs.slice(0, 5).map((log, index) => (
-              <div className="activity-item" key={index}>
+          {eventsError ? (
+            <div className="empty-state error">{eventsError}</div>
+          ) : events.length ? (
+            events.map((event) => (
+              <div className={`activity-item ${event.status ?? ""}`} key={event.id}>
                 <i />
-                {log}
+                <time>{new Date(event.at).toLocaleTimeString("vi-VN")}</time>
+                <span>{event.text}</span>
+                {event.status && (
+                  <small className="activity-status">{STATUS_LABEL[event.status]}</small>
+                )}
               </div>
             ))
           ) : (
-            <div className="empty-state">Chưa có sự kiện mới.</div>
+            <div className="empty-state">
+              {eventsLoading ? "Đang tải nhật ký..." : "Chưa có lệnh hoặc thay đổi ngưỡng nào."}
+            </div>
           )}
         </div>
       </article>

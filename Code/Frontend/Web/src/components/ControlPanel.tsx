@@ -1,7 +1,9 @@
 "use client";
 
-import React from "react";
 import { type Zone } from "../garden-data";
+import type { ZoneConfigInput } from "../hooks/useMqtt";
+import { ZoneConfigCard } from "./ZoneConfigCard";
+import { CloudIcon, DropletIcon, RainIcon, ThermometerIcon } from "./icons";
 
 interface ControlPanelProps {
   mode: "auto" | "manual";
@@ -16,6 +18,7 @@ interface ControlPanelProps {
   onTogglePump: () => void;
   onChangeThreshold: (val: number) => void;
   onToggleWeatherGate: (enabled: boolean) => void;
+  onSaveZoneConfig: (input: ZoneConfigInput) => Promise<boolean>;
 }
 
 export function ControlPanel({
@@ -31,64 +34,67 @@ export function ControlPanel({
   onTogglePump,
   onChangeThreshold,
   onToggleWeatherGate,
+  onSaveZoneConfig,
 }: ControlPanelProps) {
   return (
     <section className="control-grid">
-      {/* 1. ĐIỀU KHIỂN BƠM */}
       <article className="panel control-card">
         <div className="panel-heading">
           <div>
-            <h2>Điều khiển Bơm</h2>
+            <h2>Điều khiển bơm</h2>
             <p>
-              Tự động theo thuật toán Hysteresis ({selectedZone.threshold}% -{" "}
-              {selectedZone.stopThreshold}%)
+              Ngưỡng tưới {selectedZone.threshold}% · dừng ở {selectedZone.stopThreshold}%
             </p>
           </div>
           <span className={`live-badge ${selectedZone.pump ? "active" : ""}`}>
-            <i />{" "}
-            {selectedZone.pump
-              ? `${selectedZone.name} đang tưới`
-              : "Máy bơm đang tắt"}
+            <i />
+            {selectedZone.pump ? "Đang tưới" : "Bơm đang tắt"}
           </span>
         </div>
+
         <div className="mode-row">
           <span>Chế độ vận hành</span>
           <div className="mode-switch">
             <button
+              type="button"
               className={mode === "auto" ? "selected" : ""}
               onClick={() => onChangeMode("auto")}
             >
-              Automatic
+              Tự động
             </button>
             <button
+              type="button"
               className={mode === "manual" ? "selected" : ""}
               onClick={() => onChangeMode("manual")}
             >
-              Manual
+              Thủ công
             </button>
           </div>
         </div>
+
         <div className="control-row">
           <div>
             <strong>
-              {mode === "auto"
-                ? "Chế độ Tự động (Auto)"
-                : "Chế độ Thủ công (Manual)"}
+              {mode === "auto" ? "ESP32 tự quyết định" : "Điều khiển bằng tay"}
             </strong>
             <small>
               {mode === "auto"
-                ? `ESP32 tự bật khi < ${selectedZone.threshold}%, tắt khi > ${selectedZone.stopThreshold}%`
-                : "Bạn có thể bật/tắt bơm tự do bằng công tắc bên cạnh"}
+                ? `Bật khi độ ẩm < ${selectedZone.threshold}%, tắt khi > ${selectedZone.stopThreshold}%`
+                : "Công tắc gửi lệnh PUMP_ON/OFF tới khu vực đang chọn"}
             </small>
           </div>
           <button
-            aria-label="Toggle pump"
+            type="button"
+            role="switch"
+            aria-checked={selectedZone.pump}
+            aria-label="Bật tắt bơm khu vực đang chọn"
             className={`big-toggle ${selectedZone.pump ? "on" : ""}`}
             onClick={onTogglePump}
           >
             <i />
           </button>
         </div>
+
         <div className="threshold-control">
           <label htmlFor="threshold">
             Ngưỡng đất khô <strong>{selectedZone.threshold}%</strong>
@@ -96,40 +102,41 @@ export function ControlPanel({
           <input
             id="threshold"
             type="range"
-            min="20"
-            max="80"
+            min="10"
+            max="90"
             value={selectedZone.threshold}
-            onChange={(event) =>
-              onChangeThreshold(Number(event.target.value))
-            }
+            onChange={(event) => onChangeThreshold(Number(event.target.value))}
           />
           <div>
-            <span>20% Khô</span>
-            <span>80% Ẩm</span>
+            <span>10% · khô</span>
+            <span>90% · ẩm</span>
           </div>
         </div>
       </article>
 
-      {/* 2. CẢM BIẾN DHT22 & MƯA */}
       <article className="panel weather-card">
         <div className="panel-heading">
           <div>
             <h2>Cảm biến DHT22</h2>
-            <p>Nhiệt độ & Độ ẩm môi trường</p>
+            <p>Nhiệt độ và độ ẩm không khí</p>
           </div>
-          <span className="weather-icon">⛅</span>
+          <span className="card-icon">
+            <ThermometerIcon size={18} />
+          </span>
         </div>
+
         <div className="weather-main">
           <strong>{temperature === null ? "--" : `${temperature}°`}</strong>
           <span>°C · {humidity === null ? "--" : `${humidity}%`} độ ẩm</span>
         </div>
+
         <div className="weather-details">
           <span>
-            <b>☁</b> Trạng thái
+            <CloudIcon size={15} /> Trạng thái
           </span>
           <strong>
             {raining
-              ? `Đang mưa (${rainPercent}%)`
+              ? `Đang mưa (${rainPercent === null ? "--" : `${rainPercent}%`})`
               : temperature !== null && temperature > 32
                 ? "Nắng nóng"
                 : "Ổn định"}
@@ -137,82 +144,36 @@ export function ControlPanel({
         </div>
         <div className="weather-details">
           <span>
-            <b>☂</b> Cảm biến mưa
+            <DropletIcon size={15} /> Độ ẩm không khí
           </span>
-          <strong>{rainPercent === null ? "--" : `${rainPercent}%`}</strong>
+          <strong>{humidity === null ? "--" : `${humidity}%`}</strong>
         </div>
         <div className="weather-details">
           <span>
-            <b>≋</b> MQTT Topic
+            <RainIcon size={15} /> Cảm biến mưa
           </span>
-          <strong>smart-irrigation/status</strong>
+          <strong>{rainPercent === null ? "--" : `${rainPercent}%`}</strong>
         </div>
+
         <label className="check-row">
           <input
             type="checkbox"
             checked={rainBlock}
             onChange={(event) => onToggleWeatherGate(event.target.checked)}
           />
-          <span>Hoãn tưới nếu có mưa</span>
+          <span>Hoãn tưới khi có mưa</span>
         </label>
-        <div className="weather-alert">
-          {rainBlock
-            ? "● Đang bật bảo vệ thời tiết"
-            : "○ Weather gate đang tắt"}
+        <div className={`weather-alert ${rainBlock ? "" : "off"}`}>
+          {rainBlock ? "Đang bật bảo vệ thời tiết" : "Weather gate đang tắt"}
         </div>
       </article>
 
-      {/* 3. HỒ SƠ CÂY TRỒNG */}
-      <article className="panel profile-card">
-        <div className="panel-heading">
-          <div>
-            <h2>Hồ sơ cây trồng</h2>
-            <p>Khuyến nghị cho {selectedZone.name}</p>
-          </div>
-          <button className="dots">•••</button>
-        </div>
-        <div className="plant-name">
-          <span className="plant-emoji">🌿</span>
-          <div>
-            <strong>{selectedZone.name}</strong>
-            <small>Nhu cầu nước: trung bình</small>
-          </div>
-        </div>
-        <div className="profile-line">
-          <span>Phương pháp</span>
-          <strong>{selectedZone.method}</strong>
-        </div>
-        <div className="profile-line">
-          <span>Thời lượng mỗi lần</span>
-          <strong>{selectedZone.duration} phút</strong>
-        </div>
-        <div className="recommendation">
-          ✦{" "}
-          <span>
-            {selectedZone.group}: bật dưới {selectedZone.threshold}%,
-            dừng ở {selectedZone.stopThreshold}%. Chu kỳ{" "}
-            {selectedZone.pumpSeconds}s, khoảng{" "}
-            {selectedZone.flowLitersPerHour} L/giờ.
-          </span>
-        </div>
-        <div className="water-progress-detail">
-          <span>Lượng nước chu kỳ</span>
-          <strong>
-            {wateredLiters.toFixed(2)} /{" "}
-            {selectedZone.targetLiters.toFixed(2)} L
-          </strong>
-          <div className="progress">
-            <i
-              style={{
-                width: `${Math.min(
-                  (wateredLiters / selectedZone.targetLiters) * 100,
-                  100,
-                )}%`,
-              }}
-            />
-          </div>
-        </div>
-      </article>
+      <ZoneConfigCard
+        key={selectedZone.id}
+        zone={selectedZone}
+        wateredLiters={wateredLiters}
+        onSave={onSaveZoneConfig}
+      />
     </section>
   );
 }

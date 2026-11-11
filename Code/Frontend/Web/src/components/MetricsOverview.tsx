@@ -1,12 +1,20 @@
 "use client";
 
-import React from "react";
 import { type Zone } from "../garden-data";
+import {
+  ArrowRightIcon,
+  DropletIcon,
+  GaugeIcon,
+  ModeIcon,
+  ThermometerIcon,
+  ValveIcon,
+} from "./icons";
 
 interface MetricsOverviewProps {
   temperature: number | null;
   humidity: number | null;
   pumpOn: boolean;
+  servoAngle: number | null;
   mode: string;
   selectedZone: Zone;
 }
@@ -15,6 +23,7 @@ export function MetricsOverview({
   temperature,
   humidity,
   pumpOn,
+  servoAngle,
   mode,
   selectedZone,
 }: MetricsOverviewProps) {
@@ -23,88 +32,68 @@ export function MetricsOverview({
       <div className="section-title">
         <h2>Thông số thời gian thực</h2>
         <a className="link-button" href="#history">
-          Xem lịch sử cảm biến →
+          Xem lịch sử cảm biến <ArrowRightIcon size={14} />
         </a>
       </div>
 
       <section className="metrics-grid">
         <article className="metric-card">
-          <div className="metric-icon orange">☼</div>
+          <div className="metric-icon orange">
+            <ThermometerIcon size={17} />
+          </div>
           <span>Nhiệt độ không khí</span>
           <strong>
-            {temperature === null ? "--" : `${temperature}°`}<small>C</small>
+            {temperature === null ? "--" : `${temperature}°`}
+            <small>C</small>
           </strong>
-          <p>Đọc từ DHT22 ESP32</p>
+          <p>Đọc từ DHT22 trên ESP32</p>
         </article>
 
         <article className="metric-card">
-          <div className="metric-icon blue">≋</div>
+          <div className="metric-icon blue">
+            <DropletIcon size={17} />
+          </div>
           <span>Độ ẩm không khí</span>
           <strong>
-            {humidity === null ? "--" : `${humidity}%`} <small className="good">● DHT22</small>
+            {humidity === null ? "--" : `${humidity}%`}
           </strong>
-          <p>Thời tiết nhà vườn</p>
+          <p>{humidity === null ? "Cảm biến chưa trả dữ liệu" : "DHT22 · cập nhật 2 giây"}</p>
         </article>
 
-        <article className="metric-card">
-          <div className="metric-icon green">♧</div>
+        <article className="metric-card moisture-card">
+          <div className="metric-icon green">
+            <GaugeIcon size={17} />
+          </div>
           <span>
-            Độ ẩm đất (Zone {selectedZone.id} - {selectedZone.name})
+            Độ ẩm đất · {selectedZone.id} {selectedZone.name}
           </span>
           <strong>
-            {selectedZone.moisture === null ? "--" : `${selectedZone.moisture}%`}{" "}
+            {selectedZone.moisture === null ? "--" : `${selectedZone.moisture}%`}
             <small className={selectedZone.pump ? "good" : "warning"}>
-              {selectedZone.pump ? "● Đang tưới" : "● Bình thường"}
+              {selectedZone.pump ? "Đang tưới" : "Bình thường"}
             </small>
           </strong>
-          <p>Cảm biến độ ẩm đất · {selectedZone.method}</p>
+          <p>{selectedZone.method} · ngưỡng {selectedZone.threshold}%</p>
         </article>
 
-        <article className="metric-card resource-card">
-          <div className="resource-row">
+        <article className="metric-card system-card">
+          <div className="system-row">
             <span>
-              <b className="resource-icon blue">♒</b> Trạng thái Rơ-le
+              <ValveIcon size={16} /> Bơm khu vực
             </span>
-            <strong>{pumpOn ? "BẬT (Active)" : "TẮT (Idle)"}</strong>
+            <strong className={pumpOn ? "good" : ""}>{pumpOn ? "Bật" : "Tắt"}</strong>
           </div>
-          <div className="resource-progress">
-            <i
-              className="blue-fill"
-              style={{ width: pumpOn ? "100%" : "0%" }}
-            />
-          </div>
-          <div className="resource-row">
+          <div className="system-row">
             <span>
-              <b className="resource-icon purple">✥</b> Góc mở van Servo
+              <GaugeIcon size={16} /> Van servo
             </span>
-            <strong>{pumpOn ? "90 độ" : "0 độ"}</strong>
+            <strong>{servoAngle === null ? "--" : `${servoAngle}°`}</strong>
           </div>
-          <div className="resource-progress">
-            <i
-              className="purple-fill"
-              style={{ width: pumpOn ? "100%" : "0%" }}
-            />
-          </div>
-        </article>
-
-        <article className="metric-card resource-card">
-          <div className="resource-row">
+          <div className="system-row">
             <span>
-              <b className="resource-icon pink">✿</b> Chế độ tưới
+              <ModeIcon size={16} /> Chế độ
             </span>
-            <strong>{mode.toUpperCase()}</strong>
-          </div>
-          <div className="resource-progress">
-            <i className="pink-fill" />
-          </div>
-          <div className="resource-row">
-            <span>
-              <b className="resource-icon orange">◌</b> Kênh realtime
-            </span>
-            <strong>Backend /realtime</strong>
-          </div>
-          <div className="resource-progress">
-            <i className="orange-fill" />
+            <strong>{mode === "auto" ? "Tự động" : "Thủ công"}</strong>
           </div>
         </article>
       </section>
