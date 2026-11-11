@@ -12,18 +12,13 @@ export type Zone = {
   pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
-  wateredLiters: number;
   color: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   online: boolean;
 };
 
 export type GardenConfigResponse = {
   deviceId: string;
-  zones: Array<Omit<Zone, "moisture" | "pump" | "wateredLiters" | "x" | "y" | "width" | "height" | "online">>;
+  zones: Array<Omit<Zone, "moisture" | "pump" | "online">>;
 };
 
 export function zonesFromConfig(config: GardenConfigResponse): Zone[] {
@@ -31,11 +26,6 @@ export function zonesFromConfig(config: GardenConfigResponse): Zone[] {
     ...zone,
     moisture: null,
     pump: false,
-    wateredLiters: 0,
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
     online: false,
   }));
 }
