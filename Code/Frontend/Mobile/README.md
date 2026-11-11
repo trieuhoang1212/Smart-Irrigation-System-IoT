@@ -93,6 +93,4 @@ Thay 192.168.110.2 bằng địa chỉ IPv4 thực tế của máy chạy Backen
 
 Không sử dụng localhost khi chạy ứng dụng trên điện thoại thật vì localhost lúc này là chính điện thoại.
 
-File .env chứa cấu hình riêng của từng thành viên, không đưa lên GitHub.
-
 Có thể tham khảo .env.example để tạo file cấu hình.
