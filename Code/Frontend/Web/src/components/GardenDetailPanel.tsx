@@ -34,6 +34,20 @@ export function GardenDetailPanel({
         {zone.crop ? ` · ${zone.crop}` : ""}
       </p>
 
+      {zone.growth && (
+        <div className="garden-growth">
+          <div className="garden-growth-head">
+            <span>{zone.growth.label}</span>
+            <span>
+              Ngày {zone.growth.day}/{zone.growth.totalDays}
+            </span>
+          </div>
+          <div className="progress">
+            <i style={{ width: `${zone.growth.progress}%` }} />
+          </div>
+        </div>
+      )}
+
       <dl className="garden-facts">
         <div>
           <dt>Độ ẩm đất</dt>
@@ -42,6 +56,10 @@ export function GardenDetailPanel({
         <div>
           <dt>Ngưỡng tưới</dt>
           <dd>{zone.threshold}%</dd>
+        </div>
+        <div>
+          <dt>Loại đất</dt>
+          <dd>{zone.soil}</dd>
         </div>
         <div>
           <dt>Ngày trồng</dt>

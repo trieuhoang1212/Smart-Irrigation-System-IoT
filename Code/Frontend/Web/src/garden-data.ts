@@ -8,11 +8,51 @@ export const CROP_GROUPS = [
 
 export type CropGroup = (typeof CROP_GROUPS)[number];
 
+export const SOIL_TYPES = ["Đất thịt", "Đất cát pha", "Đất sét", "Giá thể"] as const;
+
+export type SoilType = (typeof SOIL_TYPES)[number];
+
+export type GrowthInfo = {
+  stage: string;
+  label: string;
+  day: number;
+  totalDays: number;
+  progress: number;
+  daysLeft: number;
+  overdueDays: number;
+};
+
+export type ZoneAdvice = {
+  zoneId: string;
+  growth: GrowthInfo | null;
+  advice: {
+    currentThreshold: number;
+    currentDuration: number;
+    suggestedThreshold: number;
+    suggestedDuration: number;
+    thresholdDelta: number;
+    durationDelta: number;
+    window: { start: string; end: string } | null;
+    windowNote: string;
+    summary: string;
+    reasons: string[];
+    weather: {
+      raining: boolean;
+      rain: number;
+      temperature: number | null;
+      humidity: number | null;
+      season: string;
+    };
+  };
+};
+
 export type Zone = {
   id: string;
   name: string;
   crop: string;
   group: string;
+  soil: SoilType;
+  growth: GrowthInfo | null;
   moisture: number | null;
   pump: boolean;
   threshold: number;
@@ -41,6 +81,8 @@ export function zonesFromConfig(config: GardenConfigResponse): Zone[] {
     moisture: null,
     pump: false,
     online: false,
+    soil: zone.soil ?? "Đất thịt",
+    growth: zone.growth ?? null,
     photoUrl: zone.photoUrl ?? null,
     plantedAt: zone.plantedAt ?? null,
     harvestDays: zone.harvestDays ?? null,

@@ -1,10 +1,11 @@
 import { BACKEND_URL, backendUrl } from "./backend";
-import type { CropGroup, GardenConfigResponse, Zone } from "../garden-data";
+import type { CropGroup, GardenConfigResponse, SoilType, Zone, ZoneAdvice } from "../garden-data";
 
 export type ZoneProfileInput = {
   name: string;
   crop: string;
   group: CropGroup;
+  soil: SoilType;
   plantedAt: number | null;
   harvestDays: number | null;
   notes: string;
@@ -31,6 +32,15 @@ export async function saveZoneProfile(
     body: JSON.stringify(input),
   });
   if (!response.ok) throw new Error(`Không lưu được hồ sơ cây (${response.status})`);
+}
+
+export async function fetchZoneAdvice(
+  deviceId: string,
+  zoneId: string,
+): Promise<ZoneAdvice> {
+  const response = await fetch(`${configUrl(deviceId)}/zones/${zoneId}/advice`);
+  if (!response.ok) throw new Error(`Không tải được khuyến nghị (${response.status})`);
+  return (await response.json()) as ZoneAdvice;
 }
 
 export async function uploadZonePhoto(

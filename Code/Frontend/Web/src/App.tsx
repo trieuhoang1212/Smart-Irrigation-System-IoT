@@ -93,7 +93,7 @@ export default function App() {
         }
       : null;
 
-  if (configLoading || configError || !selectedZone) {
+  if (configLoading || configError || !selectedZone || !deviceId) {
     return (
       <main className="app-shell">
         <section className="content status-page">
@@ -155,8 +155,10 @@ export default function App() {
           zones={zones}
           activeZone={activeZone}
           connected={connected}
+          deviceId={deviceId}
           onSelectZone={setActiveZone}
           onToggleIrrigation={handleToggleIrrigation}
+          onApplyAdvice={(input) => saveZoneConfig(selectedZone.id, input)}
         />
 
         <ControlPanel

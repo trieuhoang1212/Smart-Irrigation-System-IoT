@@ -233,6 +233,33 @@
   font-size: 11.5px;
 }
 
+.garden-growth {
+  margin: 8px 14px 0;
+}
+
+.garden-growth-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.garden-growth .progress {
+  height: 5px;
+  border-radius: 999px;
+  background: #e7ece5;
+  overflow: hidden;
+}
+
+.garden-growth .progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #7fa98b;
+}
+
 .garden-facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -284,6 +311,101 @@
   flex: 1;
 }
 
+.advice-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.advice-tag {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eef2ec;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.advice-tag.rain {
+  background: #eaf1f6;
+  color: #41697f;
+}
+
+.advice-summary {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.advice-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.advice-metrics > div {
+  padding: 9px 10px;
+  background: var(--surface);
+}
+
+.advice-metrics span {
+  color: var(--faint);
+  font-size: 10.5px;
+}
+
+.advice-metrics strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.advice-metrics em {
+  margin: 0 2px;
+  color: var(--faint);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.advice-weather {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.advice-reasons {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.advice-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.advice-footer .manager-hint {
+  max-width: 560px;
+  margin: 0;
+}
+
 @media (max-width: 1120px) {
   .garden-workspace {
     grid-template-columns: minmax(0, 1fr) 265px;
@@ -311,5 +433,18 @@
 
   .garden-detail-actions .ghost-button {
     flex: none;
+  }
+
+  .advice-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .advice-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .advice-footer .primary-button {
+    width: 100%;
   }
 }
