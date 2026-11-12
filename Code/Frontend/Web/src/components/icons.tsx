@@ -172,6 +172,15 @@ export function ArrowRightIcon(props: IconProps) {
   );
 }
 
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M20 12H5" />
+      <path d="m11 6-6 6 6 6" />
+    </Base>
+  );
+}
+
 export function SaveIcon(props: IconProps) {
   return (
     <Base {...props}>
@@ -187,6 +196,36 @@ export function ClockIcon(props: IconProps) {
     <Base {...props}>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M12 7.5V12l3 2" />
+    </Base>
+  );
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m4 20 4.5-1 9.8-9.8a2.1 2.1 0 0 0-3-3L5.5 16 4 20Z" />
+      <path d="m13.8 7.7 3 3" />
+    </Base>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 16V4" />
+      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+      <path d="M5 16v3.5h14V16" />
+    </Base>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4.5 6.5h15" />
+      <path d="M9 6.5V4.5h6v2" />
+      <path d="m6.5 6.5.8 13h9.4l.8-13" />
+      <path d="M10 10.5v5.5M14 10.5v5.5" />
     </Base>
   );
 }

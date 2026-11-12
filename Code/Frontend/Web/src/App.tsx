@@ -12,9 +12,8 @@ import { HistoryChart } from "./components/HistoryChart";
 import { MetricsOverview } from "./components/MetricsOverview";
 import { ActivityAndZones } from "./components/ActivityAndZones";
 import { ToastStack } from "./components/ToastStack";
+import { BACKEND_URL } from "./lib/backend";
 import { type ToastMessage, type ToastTone } from "./notifications";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
 
 export default function App() {
   const [activeZone, setActiveZone] = useState("T002");
@@ -200,9 +199,6 @@ export default function App() {
           eventsLoading={eventsLoading}
           eventsError={eventsError}
           onRefreshEvents={refreshEvents}
-          visibleZones={zones}
-          activeZone={activeZone}
-          onSelectZone={setActiveZone}
         />
       </section>
     </main>

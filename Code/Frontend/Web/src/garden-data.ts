@@ -1,3 +1,13 @@
+export const CROP_GROUPS = [
+  "Rau ăn lá",
+  "Rau ăn quả",
+  "Cây lấy củ",
+  "Cây gia vị",
+  "Khác",
+] as const;
+
+export type CropGroup = (typeof CROP_GROUPS)[number];
+
 export type Zone = {
   id: string;
   name: string;
@@ -14,6 +24,10 @@ export type Zone = {
   targetLiters: number;
   color: string;
   online: boolean;
+  photoUrl: string | null;
+  plantedAt: number | null;
+  harvestDays: number | null;
+  notes: string;
 };
 
 export type GardenConfigResponse = {
@@ -27,5 +41,9 @@ export function zonesFromConfig(config: GardenConfigResponse): Zone[] {
     moisture: null,
     pump: false,
     online: false,
+    photoUrl: zone.photoUrl ?? null,
+    plantedAt: zone.plantedAt ?? null,
+    harvestDays: zone.harvestDays ?? null,
+    notes: zone.notes ?? "",
   }));
 }

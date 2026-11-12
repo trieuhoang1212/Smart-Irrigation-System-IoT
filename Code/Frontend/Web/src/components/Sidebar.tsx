@@ -1,6 +1,7 @@
 "use client";
 
-import { ChartIcon, ClockIcon, GridIcon, LeafIcon, RefreshIcon } from "./icons";
+import Link from "next/link";
+import { ChartIcon, ClockIcon, EditIcon, GridIcon, LeafIcon, RefreshIcon } from "./icons";
 
 interface SidebarProps {
   connected: boolean;
@@ -49,6 +50,10 @@ export function Sidebar({
           <ClockIcon size={17} />
           Nhật ký hoạt động
         </a>
+        <Link className="nav-item" href="/garden">
+          <EditIcon size={17} />
+          Quản lý khu vườn
+        </Link>
       </nav>
 
       <div className="sidebar-bottom">
