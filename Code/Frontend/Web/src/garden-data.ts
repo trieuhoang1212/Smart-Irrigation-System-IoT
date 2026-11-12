@@ -8,7 +8,7 @@ export const CROP_GROUPS = [
 
 export type CropGroup = (typeof CROP_GROUPS)[number];
 
-export const SOIL_TYPES = ["Đất thịt", "Đất cát pha", "Đất sét", "Giá thể"] as const;
+export const SOIL_TYPES = ["Đất phù sa", "Đất đỏ bazan", "Đất cát"] as const;
 
 export type SoilType = (typeof SOIL_TYPES)[number];
 
@@ -46,12 +46,19 @@ export type ZoneAdvice = {
   };
 };
 
+export type GardenZoneAdvice = ZoneAdvice & { name: string };
+
+export type GardenAdviceResponse = {
+  deviceId: string;
+  soil: SoilType;
+  zones: GardenZoneAdvice[];
+};
+
 export type Zone = {
   id: string;
   name: string;
   crop: string;
   group: string;
-  soil: SoilType;
   growth: GrowthInfo | null;
   moisture: number | null;
   pump: boolean;
@@ -72,6 +79,7 @@ export type Zone = {
 
 export type GardenConfigResponse = {
   deviceId: string;
+  soil: SoilType;
   zones: Array<Omit<Zone, "moisture" | "pump" | "online">>;
 };
 
@@ -81,7 +89,6 @@ export function zonesFromConfig(config: GardenConfigResponse): Zone[] {
     moisture: null,
     pump: false,
     online: false,
-    soil: zone.soil ?? "Đất thịt",
     growth: zone.growth ?? null,
     photoUrl: zone.photoUrl ?? null,
     plantedAt: zone.plantedAt ?? null,

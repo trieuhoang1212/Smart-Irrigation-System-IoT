@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { type GardenConfigResponse, type Zone, zonesFromConfig } from "../garden-data";
+import { type GardenConfigResponse, type SoilType, type Zone, zonesFromConfig } from "../garden-data";
 import type { ToastTone } from "../notifications";
 
 type BackendTelemetry = {
@@ -44,6 +44,7 @@ const THRESHOLD_DEBOUNCE_MS = 400;
 
 export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const [zones, setZones] = useState<Zone[]>([]);
+  const [soil, setSoil] = useState<SoilType>("Đất phù sa");
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
           return;
         }
         setDeviceId(config.deviceId);
+        setSoil(config.soil ?? "Đất phù sa");
         setZones(zonesFromConfig(config));
       })
       .catch(() => {
@@ -481,7 +483,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   }, []);
 
   return {
-    zones, setZones, connected, mode, pumpOn, setPumpOn, temperature, humidity,
+    zones, setZones, soil, connected, mode, pumpOn, setPumpOn, temperature, humidity,
     rainPercent, raining, rainBlock, lastUpdated, sendCommand, togglePump,
     changeMode, toggleWeatherGate, reconnect, setZoneThreshold, saveZoneConfig,
     configLoading, configError, deviceId, deviceOnline, brokerConnected,

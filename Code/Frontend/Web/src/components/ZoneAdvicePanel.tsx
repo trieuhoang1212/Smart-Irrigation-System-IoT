@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Zone, ZoneAdvice } from "../garden-data";
+import type { SoilType, Zone, ZoneAdvice } from "../garden-data";
 import { fetchZoneAdvice } from "../lib/garden-api";
 
 export function ZoneAdvicePanel({
   deviceId,
   zone,
+  soil,
   onApply,
 }: {
   deviceId: string;
   zone: Zone;
+  soil: SoilType;
   onApply: (input: { threshold: number; duration: number }) => Promise<boolean>;
 }) {
   const [data, setData] = useState<ZoneAdvice | null>(null);
@@ -105,7 +107,7 @@ export function ZoneAdvicePanel({
         <div>
           <h2>Khuyến nghị cho {zone.id}</h2>
           <p>
-            {zone.name} · {zone.soil}
+            {zone.name} · {soil}
             {growth ? ` · ${growth.label} ngày ${growth.day}/${growth.totalDays}` : ""}
           </p>
         </div>

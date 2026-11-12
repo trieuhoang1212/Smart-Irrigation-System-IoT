@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import { type GardenConfigResponse, type Zone, zonesFromConfig } from "../garden-data";
+import { type GardenConfigResponse, type SoilType, type Zone, zonesFromConfig } from "../garden-data";
 import { fetchGardenConfig } from "../lib/garden-api";
 import { ArrowLeftIcon, LeafIcon } from "./icons";
+import { GardenSoilPlan } from "./GardenSoilPlan";
 import { ZonePhoto } from "./ZonePhoto";
 import { ZoneProfileEditor } from "./ZoneProfileEditor";
 
 export function GardenManager() {
   const [zones, setZones] = useState<Zone[]>([]);
+  const [soil, setSoil] = useState<SoilType | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [activeZoneId, setActiveZoneId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +22,7 @@ export function GardenManager() {
     const nextZones = zonesFromConfig(config);
     const requested = new URLSearchParams(window.location.search).get("zone");
     setDeviceId(config.deviceId);
+    setSoil(config.soil);
     setZones(nextZones);
     setActiveZoneId((current) => {
       if (current && nextZones.some((zone) => zone.id === current)) return current;
@@ -128,7 +131,7 @@ export function GardenManager() {
         </div>
       )}
 
-      {!loading && !error && deviceId && activeZone && (
+      {!loading && !error && deviceId && soil && activeZone && (
         <div className="manager-layout">
           <aside className="manager-rail">
             <p className="nav-label">6 ô trồng</p>
@@ -158,6 +161,8 @@ export function GardenManager() {
                 Đổi loại cây, ảnh nhận diện và thông tin canh tác cho từng ô trồng.
               </p>
             </div>
+
+            <GardenSoilPlan deviceId={deviceId} initialSoil={soil} />
 
             <ZoneProfileEditor
               key={activeZone.id}

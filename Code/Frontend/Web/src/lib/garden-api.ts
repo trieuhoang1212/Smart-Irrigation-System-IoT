@@ -1,11 +1,17 @@
 import { BACKEND_URL, backendUrl } from "./backend";
-import type { CropGroup, GardenConfigResponse, SoilType, Zone, ZoneAdvice } from "../garden-data";
+import type {
+  CropGroup,
+  GardenAdviceResponse,
+  GardenConfigResponse,
+  SoilType,
+  Zone,
+  ZoneAdvice,
+} from "../garden-data";
 
 export type ZoneProfileInput = {
   name: string;
   crop: string;
   group: CropGroup;
-  soil: SoilType;
   plantedAt: number | null;
   harvestDays: number | null;
   notes: string;
@@ -41,6 +47,30 @@ export async function fetchZoneAdvice(
   const response = await fetch(`${configUrl(deviceId)}/zones/${zoneId}/advice`);
   if (!response.ok) throw new Error(`Không tải được khuyến nghị (${response.status})`);
   return (await response.json()) as ZoneAdvice;
+}
+
+export async function fetchGardenAdvice(deviceId: string): Promise<GardenAdviceResponse> {
+  const response = await fetch(`${configUrl(deviceId)}/advice`);
+  if (!response.ok) throw new Error(`Không tải được khuyến nghị (${response.status})`);
+  return (await response.json()) as GardenAdviceResponse;
+}
+
+export async function applyGardenAdvice(deviceId: string): Promise<void> {
+  const response = await fetch(`${configUrl(deviceId)}/advice/apply`, { method: "POST" });
+  if (!response.ok) throw new Error(`Không áp dụng được khuyến nghị (${response.status})`);
+}
+
+export async function saveGardenSoil(
+  deviceId: string,
+  soil: SoilType,
+): Promise<{ soil: SoilType; updatedAt: number }> {
+  const response = await fetch(`${configUrl(deviceId)}/soil`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ soil }),
+  });
+  if (!response.ok) throw new Error(`Không lưu được loại đất (${response.status})`);
+  return (await response.json()) as { soil: SoilType; updatedAt: number };
 }
 
 export async function uploadZonePhoto(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Zone } from "../garden-data";
+import type { SoilType, Zone } from "../garden-data";
 import { zoneStatus } from "../lib/zone-status";
 import { formatDate, harvestDate } from "../lib/zone-date";
 import { DropletIcon, EditIcon } from "./icons";
@@ -9,10 +9,12 @@ import { ZonePhoto } from "./ZonePhoto";
 
 export function GardenDetailPanel({
   zone,
+  soil,
   connected,
   onToggleIrrigation,
 }: {
   zone: Zone;
+  soil: SoilType;
   connected: boolean;
   onToggleIrrigation: () => void;
 }) {
@@ -59,7 +61,7 @@ export function GardenDetailPanel({
         </div>
         <div>
           <dt>Loại đất</dt>
-          <dd>{zone.soil}</dd>
+          <dd>{soil}</dd>
         </div>
         <div>
           <dt>Ngày trồng</dt>

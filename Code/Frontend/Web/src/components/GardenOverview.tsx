@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Zone } from "../garden-data";
+import type { SoilType, Zone } from "../garden-data";
 import type { ZoneConfigInput } from "../hooks/useMqtt";
 import { EditIcon } from "./icons";
 import { GardenBoard } from "./GardenBoard";
@@ -11,6 +11,7 @@ import { ZoneAdvicePanel } from "./ZoneAdvicePanel";
 export function GardenOverview({
   zones,
   activeZone,
+  soil,
   connected,
   deviceId,
   onSelectZone,
@@ -19,6 +20,7 @@ export function GardenOverview({
 }: {
   zones: Zone[];
   activeZone: string;
+  soil: SoilType;
   connected: boolean;
   deviceId: string;
   onSelectZone: (zoneId: string) => void;
@@ -54,6 +56,7 @@ export function GardenOverview({
         <GardenBoard zones={zones} activeZone={selectedZone.id} onSelect={onSelectZone} />
         <GardenDetailPanel
           zone={selectedZone}
+          soil={soil}
           connected={connected}
           onToggleIrrigation={onToggleIrrigation}
         />
@@ -63,6 +66,7 @@ export function GardenOverview({
         key={selectedZone.id}
         deviceId={deviceId}
         zone={selectedZone}
+        soil={soil}
         onApply={applyAdvice}
       />
     </section>

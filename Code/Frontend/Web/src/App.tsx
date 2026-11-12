@@ -31,6 +31,7 @@ export default function App() {
 
   const {
     zones,
+    soil,
     connected,
     mode,
     pumpOn,
@@ -154,6 +155,7 @@ export default function App() {
         <GardenOverview
           zones={zones}
           activeZone={activeZone}
+          soil={soil}
           connected={connected}
           deviceId={deviceId}
           onSelectZone={setActiveZone}

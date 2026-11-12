@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { CROP_GROUPS, SOIL_TYPES, type CropGroup, type SoilType, type Zone } from "../garden-data";
+import { CROP_GROUPS, type CropGroup, type Zone } from "../garden-data";
 import { deleteZonePhoto, saveZoneProfile, uploadZonePhoto } from "../lib/garden-api";
 import { compressImage } from "../lib/image";
 import { fromDateInput, harvestDate, toDateInput } from "../lib/zone-date";
@@ -28,7 +28,6 @@ export function ZoneProfileEditor({
   const [name, setName] = useState(zone.name);
   const [crop, setCrop] = useState(zone.crop);
   const [group, setGroup] = useState<CropGroup>(initialGroup(zone));
-  const [soil, setSoil] = useState<SoilType>(zone.soil);
   const [plantedDate, setPlantedDate] = useState(toDateInput(zone.plantedAt));
   const [harvestDays, setHarvestDays] = useState(
     zone.harvestDays === null ? "" : String(zone.harvestDays),
@@ -52,7 +51,6 @@ export function ZoneProfileEditor({
     name.trim() !== zone.name ||
     crop.trim() !== zone.crop ||
     group !== initialGroup(zone) ||
-    soil !== zone.soil ||
     fromDateInput(plantedDate) !== zone.plantedAt ||
     harvestDays.trim() !== baselineHarvest ||
     notes.trim() !== zone.notes;
@@ -84,7 +82,6 @@ export function ZoneProfileEditor({
       name: trimmedName,
       crop: crop.trim(),
       group,
-      soil,
       plantedAt: fromDateInput(plantedDate),
       harvestDays: harvestDays.trim() === "" ? null : parsedHarvest,
       notes: notes.trim(),
@@ -211,17 +208,6 @@ export function ZoneProfileEditor({
             <span>Nhóm cây</span>
             <select value={group} onChange={(event) => setGroup(event.target.value as CropGroup)}>
               {CROP_GROUPS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>Loại đất</span>
-            <select value={soil} onChange={(event) => setSoil(event.target.value as SoilType)}>
-              {SOIL_TYPES.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
