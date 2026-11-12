@@ -216,14 +216,22 @@ void handleButtons() {
     updateLcds();
   }
 
-  // Nút vật lý: bật cả 6 vùng ở chế độ thủ công, nhấn lại để tắt và về auto.
+  // Nút vật lý: bật/tắt cả 6 vùng ở chế độ thủ công, không cần Web/WiFi.
+  // Khi tắt vẫn giữ MANUAL để logic tự động không bật bơm lại ngay;
+  // muốn về AUTO thì bấm "Tự động" trên Web hoặc khởi động lại thiết bị.
   if (buttonPressed(MANUAL_BUTTON_PIN, manualButton)) {
-    manualOverride = !manualOverride;
-    isAutoMode = !manualOverride;
-    if (manualOverride) startAllZones();
-    else stopAllZones();
-    Serial.println(manualOverride ? "BTN: manual ON (T001-T006)"
-                                  : "BTN: manual OFF -> auto");
+    if (!manualOverride) {
+      manualOverride = true;
+      isAutoMode = false;
+      startAllZones();
+      Serial.println("BTN: manual ON (T001-T006)");
+    } else if (anyPumpRunning()) {
+      stopAllZones();
+      Serial.println("BTN: manual OFF (giu MANUAL)");
+    } else {
+      startAllZones();
+      Serial.println("BTN: manual ON (T001-T006)");
+    }
     beepOnce(150);
     updateLcds();
   }
