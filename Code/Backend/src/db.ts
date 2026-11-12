@@ -95,6 +95,20 @@ db.exec(`
     PRIMARY KEY (device_id, zone_id)
   );
 
+  CREATE TABLE IF NOT EXISTS zone_profiles (
+    device_id     TEXT NOT NULL,
+    zone_id       TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    description   TEXT NOT NULL,
+    crop_group    TEXT NOT NULL,
+    planted_at    INTEGER,
+    harvest_days  INTEGER,
+    notes         TEXT NOT NULL DEFAULT '',
+    photo_file    TEXT,
+    updated_at    INTEGER NOT NULL,
+    PRIMARY KEY (device_id, zone_id)
+  );
+
   CREATE TABLE IF NOT EXISTS zone_setting_changes (
     id                 INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id          TEXT NOT NULL,

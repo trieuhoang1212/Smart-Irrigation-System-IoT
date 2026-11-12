@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Router } from "express";
+import { Router, raw } from "express";
 import {
   type CommandRequest,
   ZONE_PROFILE_LIMITS,
@@ -16,34 +16,61 @@ import {
 import {
   clampThreshold,
   deriveStopThreshold,
+  getZoneSetting,
   getZoneSettings,
   isZoneId,
   listZoneSettingChanges,
   saveZoneSetting,
   updateZoneProfile,
 } from "./zone-settings-repository.js";
+import {
+  type ZoneProfilePatch,
+  getZoneProfile,
+  getZoneProfiles,
+  isCropGroup,
+  saveZoneProfile,
+  setZonePhoto,
+} from "./zone-profile-repository.js";
+import { imageExtension, removeUploadFile, saveZonePhotoFile } from "./uploads.js";
 
-/** gardenConfig gốc + ngưỡng đã lưu trong DB (DB là nguồn cấu hình thật). */
+/** gardenConfig gốc + ngưỡng trong DB + hồ sơ cây do người dùng chỉnh. */
 function buildDeviceConfig(deviceId: string) {
   const settings = new Map(
     getZoneSettings(deviceId).map((setting) => [setting.zoneId as string, setting]),
+  );
+  const profiles = new Map(
+    getZoneProfiles(deviceId).map((profile) => [profile.zoneId as string, profile]),
   );
 
   return {
     ...gardenConfig,
     zones: gardenConfig.zones.map((zone) => {
       const setting = settings.get(zone.id);
-      return setting
-        ? {
-            ...zone,
-            threshold: setting.threshold,
-            stopThreshold: setting.stopThreshold,
-            duration: setting.duration ?? zone.duration,
-            pumpSeconds: setting.pumpSeconds ?? zone.pumpSeconds,
-            flowLitersPerHour: setting.flowLitersPerHour ?? zone.flowLitersPerHour,
-            targetLiters: setting.targetLiters ?? zone.targetLiters,
-          }
-        : zone;
+      const profile = profiles.get(zone.id);
+      return {
+        ...zone,
+        ...(profile
+          ? {
+              name: profile.name,
+              crop: profile.description,
+              group: profile.group,
+              plantedAt: profile.plantedAt,
+              harvestDays: profile.harvestDays,
+              notes: profile.notes,
+            }
+          : {}),
+        photoUrl: profile?.photoFile ? `/uploads/${profile.photoFile}` : null,
+        ...(setting
+          ? {
+              threshold: setting.threshold,
+              stopThreshold: setting.stopThreshold,
+              duration: setting.duration ?? zone.duration,
+              pumpSeconds: setting.pumpSeconds ?? zone.pumpSeconds,
+              flowLitersPerHour: setting.flowLitersPerHour ?? zone.flowLitersPerHour,
+              targetLiters: setting.targetLiters ?? zone.targetLiters,
+            }
+          : {}),
+      };
     }),
   };
 }
@@ -101,7 +128,7 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
 
-    const profile: {
+    const irrigation: {
       duration?: number;
       pumpSeconds?: number;
       flowLitersPerHour?: number;
@@ -115,10 +142,72 @@ export function createApiRouter(gateway: MqttGateway) {
         response.status(400).json({ error: `${field} must be between ${limits.min} and ${limits.max}` });
         return;
       }
-      profile[field] = value;
+      irrigation[field] = value;
     }
 
-    if (!hasThreshold && Object.keys(profile).length === 0) {
+    const profilePatch: ZoneProfilePatch = {};
+
+    if (body.name !== undefined) {
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      if (name.length < 1 || name.length > 60) {
+        response.status(400).json({ error: "name must be 1-60 characters" });
+        return;
+      }
+      profilePatch.name = name;
+    }
+
+    if (body.crop !== undefined) {
+      const description = typeof body.crop === "string" ? body.crop.trim() : null;
+      if (description === null || description.length > 160) {
+        response.status(400).json({ error: "crop must be at most 160 characters" });
+        return;
+      }
+      profilePatch.description = description;
+    }
+
+    if (body.group !== undefined) {
+      if (typeof body.group !== "string" || !isCropGroup(body.group)) {
+        response.status(400).json({ error: "group is not supported" });
+        return;
+      }
+      profilePatch.group = body.group;
+    }
+
+    if (body.plantedAt !== undefined) {
+      const plantedAt = body.plantedAt;
+      if (plantedAt !== null && (typeof plantedAt !== "number" || !Number.isFinite(plantedAt) || plantedAt < 0)) {
+        response.status(400).json({ error: "plantedAt must be a timestamp or null" });
+        return;
+      }
+      profilePatch.plantedAt = plantedAt as number | null;
+    }
+
+    if (body.harvestDays !== undefined) {
+      const harvestDays = body.harvestDays;
+      if (
+        harvestDays !== null &&
+        (typeof harvestDays !== "number" ||
+          !Number.isInteger(harvestDays) ||
+          harvestDays < 1 ||
+          harvestDays > 365)
+      ) {
+        response.status(400).json({ error: "harvestDays must be an integer from 1 to 365" });
+        return;
+      }
+      profilePatch.harvestDays = harvestDays as number | null;
+    }
+
+    if (body.notes !== undefined) {
+      const notes = typeof body.notes === "string" ? body.notes.trim() : null;
+      if (notes === null || notes.length > 500) {
+        response.status(400).json({ error: "notes must be at most 500 characters" });
+        return;
+      }
+      profilePatch.notes = notes;
+    }
+
+    const hasProfile = Object.keys(profilePatch).length > 0;
+    if (!hasThreshold && Object.keys(irrigation).length === 0 && !hasProfile) {
       response.status(400).json({ error: "No configuration fields provided" });
       return;
     }
@@ -126,12 +215,14 @@ export function createApiRouter(gateway: MqttGateway) {
     const threshold = hasThreshold ? clampThreshold(body.threshold as number) : null;
     let setting = threshold !== null
       ? saveZoneSetting(deviceId, zoneId, threshold, deriveStopThreshold(threshold))
-      : null;
+      : getZoneSetting(deviceId, zoneId);
 
-    if (Object.keys(profile).length > 0) {
-      setting = updateZoneProfile(deviceId, zoneId, profile) ?? setting;
+    if (Object.keys(irrigation).length > 0) {
+      setting = updateZoneProfile(deviceId, zoneId, irrigation) ?? setting;
     }
-    if (!setting) {
+
+    const profile = hasProfile ? saveZoneProfile(deviceId, zoneId, profilePatch) : null;
+    if (!setting || (hasProfile && !profile)) {
       response.status(404).json({ error: "Zone setting not found" });
       return;
     }
@@ -149,7 +240,51 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    response.json({ ...setting, appliedRemotely });
+    response.json({ ...setting, profile, appliedRemotely });
+  });
+
+  const photoParser = raw({
+    type: ["image/jpeg", "image/png", "image/webp"],
+    limit: "4mb",
+  });
+
+  router.post(
+    "/api/devices/:deviceId/config/zones/:zoneId/photo",
+    photoParser,
+    (request, response) => {
+      const { deviceId, zoneId } = request.params;
+      if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
+        response.status(404).json({ error: "Zone not found" });
+        return;
+      }
+
+      const extension = imageExtension(request.headers["content-type"]);
+      if (!extension || !Buffer.isBuffer(request.body) || request.body.length === 0) {
+        response.status(400).json({ error: "Photo must be a JPEG, PNG or WebP image" });
+        return;
+      }
+
+      const previous = getZoneProfile(deviceId, zoneId);
+      const photoFile = saveZonePhotoFile(deviceId, zoneId, extension, request.body);
+      setZonePhoto(deviceId, zoneId, photoFile);
+      removeUploadFile(previous?.photoFile ?? null);
+
+      response.json({ photoUrl: `/uploads/${photoFile}` });
+    },
+  );
+
+  router.delete("/api/devices/:deviceId/config/zones/:zoneId/photo", (request, response) => {
+    const { deviceId, zoneId } = request.params;
+    if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
+      response.status(404).json({ error: "Zone not found" });
+      return;
+    }
+
+    const previous = getZoneProfile(deviceId, zoneId);
+    setZonePhoto(deviceId, zoneId, null);
+    removeUploadFile(previous?.photoFile ?? null);
+
+    response.json({ photoUrl: null });
   });
 
   router.get("/api/devices/:deviceId/telemetry/latest", (request, response) => {

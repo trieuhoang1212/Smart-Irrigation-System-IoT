@@ -27,6 +27,9 @@ Code/Backend/data/*.db
 Code/Backend/data/*.db-shm
 Code/Backend/data/*.db-wal
 
+# Ảnh khu vườn do người dùng upload
+Code/Backend/data/uploads/
+
 docs
 
 .pio

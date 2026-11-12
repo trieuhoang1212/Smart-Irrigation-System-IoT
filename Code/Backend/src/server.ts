@@ -10,9 +10,14 @@ import { MqttGateway } from "./mqtt-gateway.js";
 import { createApiRouter } from "./routes.js";
 import { pruneHistory, timeoutStaleCommands } from "./telemetry-repository.js";
 import { seedZoneSettings } from "./zone-settings-repository.js";
+import { seedZoneProfiles } from "./zone-profile-repository.js";
+import { uploadDir } from "./uploads.js";
 
 // Tạo ngưỡng mặc định trong DB cho zone chưa từng được lưu.
 seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
+
+// Hồ sơ cây (tên, nhóm, ngày trồng, ảnh) do người dùng chỉnh trên Web.
+seedZoneProfiles(gardenConfig.deviceId, gardenConfig.zones);
 
 // Lệnh pending chỉ nằm trong RAM; restart xong thì không còn ai xác nhận nữa.
 const staleCommands = timeoutStaleCommands();
@@ -25,6 +30,7 @@ const webSockets = new WebSocketServer({ server, path: "/realtime" });
 
 app.use(cors({ origin: config.webOrigin }));
 app.use(express.json({ limit: "16kb" }));
+app.use("/uploads", express.static(uploadDir, { maxAge: "7d", immutable: true }));
 
 startLive(webSockets, gateway);
 
