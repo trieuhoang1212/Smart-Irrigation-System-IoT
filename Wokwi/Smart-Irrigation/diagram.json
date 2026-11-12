@@ -233,7 +233,7 @@
       "id": "text1",
       "top": -115.2,
       "left": 633.6,
-      "attrs": { "text": "Nút giả lập mất WiFi + mạng" }
+      "attrs": { "text": "Nút giả lập cúp điện / mất mạng (ESP32 vẫn tự tưới)" }
     },
     {
       "type": "wokwi-pushbutton",
@@ -247,7 +247,7 @@
       "id": "text2",
       "top": 537.6,
       "left": 105.6,
-      "attrs": { "text": "Nút nhấn vật lý (bật tắt bơm thủ công)" }
+      "attrs": { "text": "Nút vật lý: bật/tắt bơm khi không có điện thoại" }
     }
   ],
   "connections": [
