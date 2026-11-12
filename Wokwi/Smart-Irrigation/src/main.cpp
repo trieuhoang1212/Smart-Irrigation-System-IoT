@@ -24,6 +24,8 @@
 #define MASTER_VALVE_OPEN 90
 #define RAIN_SENSOR_PIN 33
 #define RAIN_DIGITAL_PIN 36
+#define TANK_TRIG_PIN 27  // HC-SR04 đo mực nước bồn
+#define TANK_ECHO_PIN 26
 #define WIFI_BUTTON_PIN 35  // nút mô phỏng mất WiFi, active LOW, có trở kéo 10k ngoài
 #define MANUAL_BUTTON_PIN 32  // nút bật/tắt bơm thủ công, active LOW, pull-up nội bộ
 
@@ -62,6 +64,19 @@ float humidity = 0.0;
 unsigned long previousMillis = 0;
 const long interval = 2000;
 
+// Bảo vệ khi đi vắng: giới hạn thời gian tưới và thời gian giữ chế độ MANUAL.
+// Giảm xuống 1-2 phút nếu cần demo nhanh.
+const unsigned long MAX_ZONE_RUNTIME_MS = 10UL * 60UL * 1000UL;
+const unsigned long MAX_MANUAL_MS = 15UL * 60UL * 1000UL;
+// HC-SR04 gắn trên miệng bồn, đo khoảng cách tới mặt nước: xa quá nghĩa là bồn cạn.
+const float TANK_EMPTY_CM = 80.0;
+const float TANK_REFILL_CM = 60.0;
+unsigned long zoneStartedAt[ZONE_COUNT] = {0};
+bool zoneLocked[ZONE_COUNT] = {false};
+unsigned long manualStartedAt = 0;
+bool tankEmpty = false;
+float tankDistanceCm = 0.0;
+
 bool netWasOnline = false;
 unsigned long lastWifiAttempt = 0;
 unsigned long lastMqttAttempt = 0;
@@ -97,7 +112,8 @@ void updateLcds() {
 
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
     String status = String("PUMP ") + (pumpRunning[zone] ? "ON " : "OFF ");
-    if (!isNetOnline()) status += "OFFLINE";
+    if (tankEmpty) status = "TANK EMPTY";
+    else if (!isNetOnline()) status += "OFFLINE";
     else if (isRaining) status += "RAIN";
     else status += isAutoMode ? "AUTO" : "MAN";
 
@@ -141,7 +157,14 @@ void updateRainAlarm() {
 
 void startPump(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
+  if (tankEmpty || zoneLocked[zone]) {
+    Serial.print("BLOCK ");
+    Serial.print(zoneNames[zone]);
+    Serial.println(tankEmpty ? " tank empty" : " runtime lock");
+    return;
+  }
   pumpRunning[zone] = true;
+  zoneStartedAt[zone] = millis();
   digitalWrite(relayPins[zone], LOW); // Active LOW
   digitalWrite(LED_PIN, HIGH);
   masterValve.write(MASTER_VALVE_OPEN);
@@ -152,6 +175,7 @@ void startPump(int zone) {
 void stopPump(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
   pumpRunning[zone] = false;
+  zoneStartedAt[zone] = 0;
   digitalWrite(relayPins[zone], HIGH);
   
   bool anyRunning = false;
@@ -182,6 +206,63 @@ void startAllZones() {
 
 void stopAllZones() {
   for (int zone = 0; zone < ZONE_COUNT; zone++) stopPump(zone);
+}
+
+float readTankDistanceCm() {
+  digitalWrite(TANK_TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TANK_TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TANK_TRIG_PIN, LOW);
+
+  const unsigned long duration = pulseIn(TANK_ECHO_PIN, HIGH, 30000UL);
+  if (duration == 0) return -1;  // cảm biến không trả về xung
+  return duration / 58.0;
+}
+
+void updateTank() {
+  const float distance = readTankDistanceCm();
+  if (distance < 0 || distance > 400) return;  // bỏ qua lần đọc lỗi, giữ trạng thái cũ
+
+  tankDistanceCm = distance;
+  if (!tankEmpty && distance >= TANK_EMPTY_CM) {
+    tankEmpty = true;
+    Serial.println("TANK: EMPTY - stop all pumps");
+    stopAllZones();
+    beepOnce(400);
+    updateLcds();
+  } else if (tankEmpty && distance <= TANK_REFILL_CM) {
+    tankEmpty = false;
+    Serial.println("TANK: water back");
+    beepOnce(150);
+    updateLcds();
+  }
+}
+
+void enforceRuntimeLimits() {
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    if (pumpRunning[zone] &&
+        millis() - zoneStartedAt[zone] >= MAX_ZONE_RUNTIME_MS) {
+      Serial.print("SAFETY: ");
+      Serial.print(zoneNames[zone]);
+      Serial.println(" max runtime -> stop & lock");
+      stopPump(zone);
+      zoneLocked[zone] = true;
+    }
+    // Mở khóa khi đất đã đủ ẩm; cảm biến kẹt khô thì vẫn khóa để bơm không chạy mãi.
+    if (zoneLocked[zone] && moisturePercent[zone] >= moistureOff[zone]) {
+      zoneLocked[zone] = false;
+    }
+  }
+
+  if (!isAutoMode && manualStartedAt != 0 &&
+      millis() - manualStartedAt >= MAX_MANUAL_MS) {
+    isAutoMode = true;
+    manualOverride = false;
+    manualStartedAt = 0;
+    Serial.println("SAFETY: manual timeout -> AUTO");
+    updateLcds();
+  }
 }
 
 bool buttonPressed(int pin, ButtonState &state) {
@@ -217,22 +298,27 @@ void handleButtons() {
   }
 
   // Nút vật lý: bật/tắt cả 6 vùng ở chế độ thủ công, không cần Web/WiFi.
-  // Khi tắt vẫn giữ MANUAL để logic tự động không bật bơm lại ngay;
-  // muốn về AUTO thì bấm "Tự động" trên Web hoặc khởi động lại thiết bị.
+  // Khi tắt vẫn giữ MANUAL; sau MAX_MANUAL_MS tự về AUTO để không tưới mãi khi đi vắng.
   if (buttonPressed(MANUAL_BUTTON_PIN, manualButton)) {
     if (!manualOverride) {
       manualOverride = true;
       isAutoMode = false;
+      manualStartedAt = millis();
       startAllZones();
-      Serial.println("BTN: manual ON (T001-T006)");
+      Serial.println(tankEmpty ? "BTN: manual ON (tank empty, pump blocked)"
+                               : "BTN: manual ON (T001-T006)");
+      beepOnce(tankEmpty ? 400 : 150);
     } else if (anyPumpRunning()) {
       stopAllZones();
       Serial.println("BTN: manual OFF (giu MANUAL)");
+      beepOnce(150);
     } else {
+      manualStartedAt = millis();
       startAllZones();
-      Serial.println("BTN: manual ON (T001-T006)");
+      Serial.println(tankEmpty ? "BTN: manual ON (tank empty, pump blocked)"
+                               : "BTN: manual ON (T001-T006)");
+      beepOnce(tankEmpty ? 400 : 150);
     }
-    beepOnce(150);
     updateLcds();
   }
 }
@@ -315,10 +401,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if (message == "MODE_AUTO") {
       isAutoMode = true;
       manualOverride = false;
+      manualStartedAt = 0;
       Serial.println("Mode: AUTO");
     } else if (message == "MODE_MANUAL") {
       isAutoMode = false;
       manualOverride = false;
+      manualStartedAt = millis();
       Serial.println("Mode: MANUAL");
     } else if (message == "PUMP_ON") {
       if (!isAutoMode) startAllZones();
@@ -382,6 +470,8 @@ void setup() {
   pinMode(MUX_S2_PIN, OUTPUT);
   pinMode(MUX_S3_PIN, OUTPUT);
   pinMode(RAIN_DIGITAL_PIN, INPUT);
+  pinMode(TANK_TRIG_PIN, OUTPUT);
+  pinMode(TANK_ECHO_PIN, INPUT);
   pinMode(WIFI_BUTTON_PIN, INPUT);  // GPIO35 input-only, dùng trở kéo 10k ngoài
   pinMode(MANUAL_BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
@@ -448,6 +538,9 @@ void loop() {
     temperature = dht.readTemperature();
     humidity = dht.readHumidity();
 
+    updateTank();
+    enforceRuntimeLimits();
+
     // Logic Hysteresis Auto Mode cho từng luống
     if (isAutoMode) {
       for (int zone = 0; zone < ZONE_COUNT; zone++) {
@@ -456,7 +549,7 @@ void loop() {
         } else if (pumpRunning[zone] &&
                    moisturePercent[zone] >= moistureOff[zone]) {
           stopPump(zone);
-        } else if (!pumpRunning[zone] &&
+        } else if (!pumpRunning[zone] && !tankEmpty && !zoneLocked[zone] &&
                    (!weatherGateEnabled || !isRaining) &&
                    moisturePercent[zone] <= moistureOn[zone]) {
           startPump(zone);
@@ -474,6 +567,9 @@ void loop() {
     Serial.print(manualOverride ? "ON" : "OFF");
     Serial.print(" Rain=");
     Serial.print(isRaining ? "YES" : "NO");
+    Serial.print(" Tank=");
+    Serial.print(tankDistanceCm, 0);
+    Serial.print(tankEmpty ? "cm/EMPTY" : "cm/OK");
     Serial.print(" Moisture: ");
     for (int zone = 0; zone < ZONE_COUNT; zone++) {
       Serial.print(zoneNames[zone]);
