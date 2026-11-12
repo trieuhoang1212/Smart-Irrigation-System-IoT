@@ -11,11 +11,18 @@ export const CROP_GROUPS = [
 
 export type CropGroup = (typeof CROP_GROUPS)[number];
 
+export const SOIL_TYPES = ["Đất thịt", "Đất cát pha", "Đất sét", "Giá thể"] as const;
+
+export type SoilType = (typeof SOIL_TYPES)[number];
+
+export const DEFAULT_SOIL: SoilType = "Đất thịt";
+
 export type ZoneProfile = {
   zoneId: ZoneId;
   name: string;
   description: string;
   group: CropGroup;
+  soil: SoilType;
   plantedAt: number | null;
   harvestDays: number | null;
   notes: string;
@@ -34,6 +41,7 @@ export type ZoneProfilePatch = {
   name?: string;
   description?: string;
   group?: CropGroup;
+  soil?: SoilType;
   plantedAt?: number | null;
   harvestDays?: number | null;
   notes?: string;
@@ -44,6 +52,7 @@ type ZoneProfileRow = {
   name: string;
   description: string;
   crop_group: string;
+  soil: string;
   planted_at: number | null;
   harvest_days: number | null;
   notes: string;
@@ -55,12 +64,17 @@ export function isCropGroup(value: string): value is CropGroup {
   return CROP_GROUPS.includes(value as CropGroup);
 }
 
+export function isSoilType(value: string): value is SoilType {
+  return SOIL_TYPES.includes(value as SoilType);
+}
+
 function toProfile(row: ZoneProfileRow): ZoneProfile {
   return {
     zoneId: row.zone_id as ZoneId,
     name: row.name,
     description: row.description,
     group: isCropGroup(row.crop_group) ? row.crop_group : "Khác",
+    soil: isSoilType(row.soil) ? row.soil : DEFAULT_SOIL,
     plantedAt: row.planted_at,
     harvestDays: row.harvest_days,
     notes: row.notes,
@@ -97,7 +111,7 @@ export function seedZoneProfiles(deviceId: string, zones: ZoneProfileSeed[]): vo
 export function getZoneProfiles(deviceId: string): ZoneProfile[] {
   const rows = db
     .prepare(`
-      SELECT zone_id, name, description, crop_group, planted_at, harvest_days,
+      SELECT zone_id, name, description, crop_group, soil, planted_at, harvest_days,
              notes, photo_file, updated_at
       FROM zone_profiles
       WHERE device_id = ?
@@ -110,7 +124,7 @@ export function getZoneProfiles(deviceId: string): ZoneProfile[] {
 export function getZoneProfile(deviceId: string, zoneId: string): ZoneProfile | null {
   const row = db
     .prepare(`
-      SELECT zone_id, name, description, crop_group, planted_at, harvest_days,
+      SELECT zone_id, name, description, crop_group, soil, planted_at, harvest_days,
              notes, photo_file, updated_at
       FROM zone_profiles
       WHERE device_id = ? AND zone_id = ?
@@ -121,7 +135,7 @@ export function getZoneProfile(deviceId: string, zoneId: string): ZoneProfile | 
 
 const updateProfile = db.prepare(`
   UPDATE zone_profiles
-  SET name = ?, description = ?, crop_group = ?, planted_at = ?,
+  SET name = ?, description = ?, crop_group = ?, soil = ?, planted_at = ?,
       harvest_days = ?, notes = ?, updated_at = ?
   WHERE device_id = ? AND zone_id = ?
 `);
@@ -138,6 +152,7 @@ export function saveZoneProfile(
     patch.name ?? current.name,
     patch.description ?? current.description,
     patch.group ?? current.group,
+    patch.soil ?? current.soil,
     patch.plantedAt === undefined ? current.plantedAt : patch.plantedAt,
     patch.harvestDays === undefined ? current.harvestDays : patch.harvestDays,
     patch.notes ?? current.notes,

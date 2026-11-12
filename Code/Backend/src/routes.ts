@@ -11,6 +11,7 @@ import { getLatestTelemetry, trackCommand } from "./live.js";
 import {
   getTelemetryHistory,
   listCommands,
+  loadLatestTelemetry,
   logCommand,
 } from "./telemetry-repository.js";
 import {
@@ -24,13 +25,16 @@ import {
   updateZoneProfile,
 } from "./zone-settings-repository.js";
 import {
+  DEFAULT_SOIL,
   type ZoneProfilePatch,
   getZoneProfile,
   getZoneProfiles,
   isCropGroup,
+  isSoilType,
   saveZoneProfile,
   setZonePhoto,
 } from "./zone-profile-repository.js";
+import { buildZoneAdvice, growthFor } from "./zone-advice.js";
 import { imageExtension, removeUploadFile, saveZonePhotoFile } from "./uploads.js";
 
 /** gardenConfig gốc + ngưỡng trong DB + hồ sơ cây do người dùng chỉnh. */
@@ -47,6 +51,11 @@ function buildDeviceConfig(deviceId: string) {
     zones: gardenConfig.zones.map((zone) => {
       const setting = settings.get(zone.id);
       const profile = profiles.get(zone.id);
+      const growth = growthFor(
+        profile?.group ?? zone.group,
+        profile?.plantedAt ?? null,
+        profile?.harvestDays ?? null,
+      );
       return {
         ...zone,
         ...(profile
@@ -60,6 +69,8 @@ function buildDeviceConfig(deviceId: string) {
             }
           : {}),
         photoUrl: profile?.photoFile ? `/uploads/${profile.photoFile}` : null,
+        soil: profile?.soil ?? DEFAULT_SOIL,
+        growth,
         ...(setting
           ? {
               threshold: setting.threshold,
@@ -99,6 +110,39 @@ export function createApiRouter(gateway: MqttGateway) {
 
   router.get("/api/devices/:deviceId/config", (request, response) => {
     response.json(buildDeviceConfig(request.params.deviceId));
+  });
+
+  router.get("/api/devices/:deviceId/config/zones/:zoneId/advice", (request, response) => {
+    const { deviceId, zoneId } = request.params;
+    if (!isZoneId(zoneId)) {
+      response.status(404).json({ error: "Zone not found" });
+      return;
+    }
+
+    const zone = buildDeviceConfig(deviceId).zones.find((item) => item.id === zoneId);
+    const baseZone = gardenConfig.zones.find((item) => item.id === zoneId);
+    if (!zone || !baseZone) {
+      response.status(404).json({ error: "Zone not found" });
+      return;
+    }
+
+    const growth = growthFor(zone.group, zone.plantedAt ?? null, zone.harvestDays ?? null);
+    response.json({
+      zoneId,
+      growth,
+      advice: buildZoneAdvice(
+        {
+          group: zone.group,
+          soil: zone.soil,
+          threshold: zone.threshold,
+          duration: zone.duration,
+          baseThreshold: baseZone.threshold,
+          baseDuration: baseZone.duration,
+        },
+        growth,
+        loadLatestTelemetry(deviceId),
+      ),
+    });
   });
 
   router.get("/api/devices/:deviceId/config/changes", (request, response) => {
@@ -171,6 +215,14 @@ export function createApiRouter(gateway: MqttGateway) {
         return;
       }
       profilePatch.group = body.group;
+    }
+
+    if (body.soil !== undefined) {
+      if (typeof body.soil !== "string" || !isSoilType(body.soil)) {
+        response.status(400).json({ error: "soil is not supported" });
+        return;
+      }
+      profilePatch.soil = body.soil;
     }
 
     if (body.plantedAt !== undefined) {

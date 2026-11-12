@@ -101,6 +101,7 @@ db.exec(`
     name          TEXT NOT NULL,
     description   TEXT NOT NULL,
     crop_group    TEXT NOT NULL,
+    soil          TEXT NOT NULL DEFAULT 'Đất thịt',
     planted_at    INTEGER,
     harvest_days  INTEGER,
     notes         TEXT NOT NULL DEFAULT '',
@@ -186,6 +187,17 @@ function migrateZoneProfiles() {
 }
 
 migrateZoneProfiles();
+
+// DB cũ chưa có loại đất trong hồ sơ cây; mặc định đất thịt.
+function migrateZoneProfileSoil() {
+  const columns = db.prepare("PRAGMA table_info(zone_profiles)").all() as Array<{
+    name: string;
+  }>;
+  if (columns.some((column) => column.name === "soil")) return;
+  db.exec("ALTER TABLE zone_profiles ADD COLUMN soil TEXT NOT NULL DEFAULT 'Đất thịt'");
+}
+
+migrateZoneProfileSoil();
 
 export function closeDatabase() {
   if (db.open) db.close();
