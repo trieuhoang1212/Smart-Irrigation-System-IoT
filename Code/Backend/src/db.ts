@@ -18,10 +18,10 @@ function openDatabase(): Database.Database {
 
 export const db = openDatabase();
 
-// WAL cho phép đọc/ghi song song và bền hơn khi backend ghi liên tục.
 db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("foreign_keys = ON");
+db.pragma("busy_timeout = 5000");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS latest_telemetry (
@@ -64,6 +64,9 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_zone_samples_device_zone_time
     ON telemetry_zone_samples(device_id, zone_id, recorded_at);
+  -- Dùng cho JOIN theo sample_id và FK cascade khi prune xóa telemetry_samples.
+  CREATE INDEX IF NOT EXISTS idx_zone_samples_sample
+    ON telemetry_zone_samples(sample_id);
 
   CREATE TABLE IF NOT EXISTS command_log (
     command_id  TEXT PRIMARY KEY,
@@ -84,8 +87,32 @@ db.exec(`
     zone_id         TEXT NOT NULL,
     threshold       REAL NOT NULL,
     stop_threshold  REAL NOT NULL,
+    duration        INTEGER,
+    pump_seconds    INTEGER,
+    flow_lph        REAL,
+    target_liters   REAL,
     updated_at      INTEGER NOT NULL,
     PRIMARY KEY (device_id, zone_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS zone_profiles (
+    device_id     TEXT NOT NULL,
+    zone_id       TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    description   TEXT NOT NULL,
+    crop_group    TEXT NOT NULL,
+    planted_at    INTEGER,
+    harvest_days  INTEGER,
+    notes         TEXT NOT NULL DEFAULT '',
+    photo_file    TEXT,
+    updated_at    INTEGER NOT NULL,
+    PRIMARY KEY (device_id, zone_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS garden_settings (
+    device_id   TEXT PRIMARY KEY,
+    soil        TEXT NOT NULL DEFAULT 'Đất phù sa',
+    updated_at  INTEGER NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS zone_setting_changes (
@@ -145,6 +172,38 @@ function migrateSensorNullability() {
 }
 
 migrateSensorNullability();
+
+// DB cũ chưa có thông số tưới của từng vùng (thời lượng, chu kỳ, lưu lượng, mục tiêu nước).
+function migrateZoneProfiles() {
+  const columns = db.prepare("PRAGMA table_info(zone_settings)").all() as Array<{
+    name: string;
+  }>;
+  const existing = new Set(columns.map((column) => column.name));
+  const additions: Array<[string, string]> = [
+    ["duration", "INTEGER"],
+    ["pump_seconds", "INTEGER"],
+    ["flow_lph", "REAL"],
+    ["target_liters", "REAL"],
+  ];
+
+  for (const [name, type] of additions) {
+    if (!existing.has(name)) db.exec(`ALTER TABLE zone_settings ADD COLUMN ${name} ${type}`);
+  }
+}
+
+migrateZoneProfiles();
+
+// Loại đất chuyển từ hồ sơ từng ô sang cấu hình chung của khu vườn.
+function migrateGardenSoil() {
+  const columns = db.prepare("PRAGMA table_info(zone_profiles)").all() as Array<{
+    name: string;
+  }>;
+  if (columns.some((column) => column.name === "soil")) {
+    db.exec("ALTER TABLE zone_profiles DROP COLUMN soil");
+  }
+}
+
+migrateGardenSoil();
 
 export function closeDatabase() {
   if (db.open) db.close();

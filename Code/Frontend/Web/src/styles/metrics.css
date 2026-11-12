@@ -1,279 +1,107 @@
-.section-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 29px 0 13px;
-}
-.link-button {
-  border: 0;
-  background: none;
-  color: #168457;
-  font-size: 11px;
-  font-weight: 700;
-}
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr) 1.15fr 1.15fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 1.15fr;
   gap: 12px;
 }
+
 .metric-card {
-  background: #fff;
-  border: 1px solid #e4ece3;
-  border-radius: 13px;
-  padding: 15px;
-  min-height: 130px;
-}
-.metric-card > span {
-  color: #89958d;
-  font-size: 10px;
-  display: block;
-}
-.metric-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 12px;
-  font-size: 17px;
-}
-.orange {
-  background: #fff0df;
-  color: #ed9d44;
-}
-.blue {
-  background: #e1f4f4;
-  color: #2fa2aa;
-}
-.green {
-  background: #e2f5e6;
-  color: #25a262;
-}
-.metric-card > strong {
-  display: block;
-  color: #26382f;
-  font-size: 18px;
-  margin-top: 7px;
-}
-.metric-card > strong small {
-  color: #9aa69e;
-  font-size: 10px;
-  font-weight: 500;
-}
-.metric-card p {
-  color: #9ba69f;
-  font-size: 10px;
-  line-height: 1.45;
-  margin-top: 7px;
-}
-.good {
-  color: #28a36a !important;
-}
-.warning {
-  color: #d5a43e !important;
-}
-.resource-card {
-  padding: 16px 14px;
-  min-height: 130px;
-}
-.resource-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #738178;
-  font-size: 10px;
-  margin-bottom: 7px;
-}
-.resource-row strong {
-  color: #5f6e66;
-  font-size: 10px;
-}
-.resource-row strong small {
-  color: #a3afa7;
-  font-weight: 400;
-}
-.resource-icon {
-  display: inline-grid;
-  place-items: center;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  margin-right: 6px;
-  font-size: 11px;
-}
-.purple {
-  background: #f2e7fb;
-  color: #9c61c9;
-}
-.pink {
-  background: #f9e5ee;
-  color: #d05a91;
-}
-.resource-progress {
-  height: 4px;
-  background: #eff1ef;
-  border-radius: 5px;
-  margin-bottom: 15px;
-}
-.resource-progress i {
-  display: block;
-  height: 100%;
-  width: 72%;
-  border-radius: 5px;
-}
-.blue-fill {
-  background: #329fcb;
-}
-.purple-fill {
-  background: #a554ce;
-  width: 85% !important;
-}
-.pink-fill {
-  background: #c52e83;
-  width: 65% !important;
-}
-.orange-fill {
-  background: #ed7d3e;
-  width: 58% !important;
-}
-.bottom-grid {
-  display: grid;
-  grid-template-columns: 0.9fr 1.5fr;
-  gap: 13px;
-  margin-top: 13px;
-}
-.devices,
-.trends {
-  padding: 20px;
-}
-.dots {
-  border: 0;
-  background: none;
-  color: #99a49d;
-}
-.device-list {
-  margin-top: 19px;
-}
-.device {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  border-top: 1px solid #edf1ed;
-  padding: 11px 0;
-}
-.device-icon {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  font-size: 16px;
-}
-.pump {
-  background: #e1f3f5;
-  color: #37a6b2;
-}
-.sensor {
-  background: #e5f5e5;
-  color: #39a66b;
-}
-.sun {
-  background: #fff0dc;
-  color: #d99a40;
-}
-.device strong {
-  display: block;
-  font-size: 11px;
-}
-.device small {
-  display: block;
-  color: #9ba69f;
-  font-size: 9px;
-  margin-top: 2px;
-}
-.online {
-  margin-left: auto;
-  color: #25a46b;
-  font-size: 9px;
-}
-.toggle {
-  width: 27px;
-  height: 15px;
-  border: 0;
-  background: #c8d1cc;
-  border-radius: 12px;
-  padding: 2px;
-}
-.toggle i {
-  display: block;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: white;
-}
-.toggle.on {
-  background: #27a66a;
-}
-.toggle.on i {
-  margin-left: 12px;
-}
-.period {
-  border: 1px solid #e4ebe4;
-  color: #718078;
-}
-.chart {
-  position: relative;
-  height: 167px;
-  margin-top: 15px;
-  padding: 0 0 23px 34px;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 32px,
-    #edf2ee 33px
-  );
-}
-.chart svg {
-  width: 100%;
-  height: 140px;
-  overflow: visible;
-}
-.chart-y {
-  position: absolute;
-  left: 0;
-  top: -5px;
-  bottom: 23px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  color: #aab4ae;
-  font-size: 8px;
+  min-height: 132px;
+  padding: 15px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
-.chart-x {
+
+.metric-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  border-radius: 7px;
+}
+
+.metric-icon.orange {
+  background: #faf1e4;
+  color: #9a6b2b;
+}
+
+.metric-icon.blue {
+  background: #ecf2f5;
+  color: var(--blue);
+}
+
+.metric-icon.green {
+  background: #edf3ec;
+  color: #3f7a56;
+}
+
+.metric-card > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-card > strong {
   display: flex;
-  justify-content: space-between;
-  color: #aab4ae;
-  font-size: 8px;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 600;
+  margin-top: 4px;
 }
-.chart-legend {
+
+.metric-card > strong small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.metric-card p {
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.45;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.good {
+  color: #3f8f63 !important;
+}
+
+.warning {
+  color: var(--amber) !important;
+}
+
+.system-card {
+  justify-content: center;
+}
+
+.system-row {
   display: flex;
-  gap: 18px;
-  color: #8d9991;
-  font-size: 9px;
-  margin: 7px 0 0 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 12px;
 }
-.chart-legend i {
-  width: 14px;
-  display: inline-block;
-  border-top: 2px solid;
-  margin: 0 4px 3px 0;
+
+.system-row:last-child {
+  border-bottom: 0;
 }
-.blue-line {
-  border-color: #28a6bd !important;
+
+.system-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
-.light-line {
-  border-color: #a9dce1 !important;
-}
-.green-line {
-  border-color: #82c98d !important;
+
+.system-row strong {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
 }

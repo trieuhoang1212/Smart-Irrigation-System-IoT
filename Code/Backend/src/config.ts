@@ -16,5 +16,6 @@ export const config = {
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
   deviceId: process.env.DEFAULT_DEVICE_ID ?? "esp32-garden-01",
   dbPath: process.env.DB_PATH ?? "data/smart-irrigation.db",
+  uploadDir: process.env.UPLOAD_DIR ?? "data/uploads",
   dbRetentionDays: requiredNumber(process.env.DB_RETENTION_DAYS, 30),
 };

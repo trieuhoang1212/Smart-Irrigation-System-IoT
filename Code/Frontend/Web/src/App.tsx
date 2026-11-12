@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useMqtt } from "./hooks/useMqtt";
+import { useActivity } from "./hooks/useActivity";
 import { useWateredLiters } from "./hooks/useWateredLiters";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -10,25 +11,27 @@ import { ControlPanel } from "./components/ControlPanel";
 import { HistoryChart } from "./components/HistoryChart";
 import { MetricsOverview } from "./components/MetricsOverview";
 import { ActivityAndZones } from "./components/ActivityAndZones";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
-const MAX_LOGS = 50;
+import { ToastStack } from "./components/ToastStack";
+import { BACKEND_URL } from "./lib/backend";
+import { type ToastMessage, type ToastTone } from "./notifications";
 
 export default function App() {
-  const [logs, setLogs] = useState<string[]>([
-    `Backend: ${BACKEND_URL}`,
-    "Chờ nhận dữ liệu từ ESP32 Wokwi...",
-  ]);
   const [activeZone, setActiveZone] = useState("T002");
-  const [view, setView] = useState<"2d" | "map">("2d");
-  const [syncing, setSyncing] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const toastIdRef = useRef(0);
 
-  const appendLog = useCallback((message: string) => {
-    setLogs((current) => [message, ...current].slice(0, MAX_LOGS));
+  const notify = useCallback((message: string, tone: ToastTone) => {
+    const id = ++toastIdRef.current;
+    setToasts((current) => [...current.slice(-2), { id, message, tone }]);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
   const {
     zones,
+    soil,
     connected,
     mode,
     pumpOn,
@@ -46,15 +49,52 @@ export default function App() {
     configLoading,
     configError,
     deviceId,
+    deviceOnline,
+    brokerConnected,
+    commandVersion,
+    servoAngle,
+    lastTelemetryAt,
+    saveZoneConfig,
   } = useMqtt({
     backendUrl: BACKEND_URL,
-    onLog: appendLog,
+    onNotify: notify,
+  });
+
+  const {
+    events,
+    loading: eventsLoading,
+    error: eventsError,
+    refresh: refreshEvents,
+  } = useActivity({
+    backendUrl: BACKEND_URL,
+    deviceId,
+    refreshToken: commandVersion,
   });
 
   const wateredLitersByZone = useWateredLiters(zones);
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
 
-  if (configLoading || configError || !selectedZone) {
+  const liveSample =
+    selectedZone &&
+    selectedZone.online &&
+    selectedZone.moisture !== null &&
+    lastTelemetryAt !== null
+      ? {
+          recordedAt: lastTelemetryAt,
+          zoneId: selectedZone.id,
+          moisture: selectedZone.moisture,
+          threshold: selectedZone.threshold,
+          stopThreshold: selectedZone.stopThreshold,
+          pump: selectedZone.pump,
+          temperature,
+          humidity,
+          rain: rainPercent ?? 0,
+          raining,
+          mode,
+        }
+      : null;
+
+  if (configLoading || configError || !selectedZone || !deviceId) {
     return (
       <main className="app-shell">
         <section className="content status-page">
@@ -73,7 +113,7 @@ export default function App() {
 
   const handleTogglePump = async () => {
     if (!connected) {
-      appendLog("Mất kết nối thiết bị!");
+      notify("Chưa kết nối Backend realtime, chưa gửi được lệnh.", "error");
       return;
     }
     if (mode === "auto") await changeMode("manual");
@@ -84,29 +124,20 @@ export default function App() {
     void handleTogglePump();
   };
 
-  const handleSyncLiveData = () => {
-    setSyncing(true);
-    const timer = window.setTimeout(() => {
-      setSyncing(false);
-      appendLog(
-        connected
-          ? "Đang chờ dữ liệu cảm biến realtime từ ESP32"
-          : "Không thể đồng bộ khi mất kết nối MQTT",
-      );
-    }, 500);
-    return () => window.clearTimeout(timer);
-  };
-
   return (
-    <main className="app-shell">
+    <main className="app-shell" id="top">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
       <Sidebar
         connected={connected}
+        brokerConnected={brokerConnected}
+        deviceOnline={deviceOnline}
         lastUpdated={lastUpdated}
         onReconnect={reconnect}
       />
 
       <section className="content">
-        <Topbar syncing={syncing} onSync={handleSyncLiveData} />
+        <Topbar connected={connected} lastUpdated={lastUpdated} />
 
         {!connected && (
           <div className="offline-banner">
@@ -117,18 +148,19 @@ export default function App() {
                 Hãy chắc chắn Backend đang chạy và kết nối được Mosquitto.
               </small>
             </div>
-            <button onClick={reconnect}>Reconnect</button>
+            <button onClick={reconnect}>Kết nối lại</button>
           </div>
         )}
 
         <GardenOverview
           zones={zones}
           activeZone={activeZone}
-          view={view}
+          soil={soil}
           connected={connected}
+          deviceId={deviceId}
           onSelectZone={setActiveZone}
-          onChangeView={setView}
           onToggleIrrigation={handleToggleIrrigation}
+          onApplyAdvice={(input) => saveZoneConfig(selectedZone.id, input)}
         />
 
         <ControlPanel
@@ -144,6 +176,7 @@ export default function App() {
           onTogglePump={handleTogglePump}
           onChangeThreshold={(val) => setZoneThreshold(activeZone, val)}
           onToggleWeatherGate={toggleWeatherGate}
+          onSaveZoneConfig={(input) => saveZoneConfig(selectedZone.id, input)}
         />
 
         <HistoryChart
@@ -153,22 +186,23 @@ export default function App() {
           activeZone={activeZone}
           onSelectZone={setActiveZone}
           connected={connected}
+          liveSample={liveSample}
         />
 
         <MetricsOverview
           temperature={temperature}
           humidity={humidity}
           pumpOn={pumpOn}
+          servoAngle={servoAngle}
           mode={mode}
           selectedZone={selectedZone}
         />
 
         <ActivityAndZones
-          logs={logs}
-          visibleZones={zones}
-          activeZone={activeZone}
-          onClearLogs={() => setLogs([])}
-          onSelectZone={setActiveZone}
+          events={events}
+          eventsLoading={eventsLoading}
+          eventsError={eventsError}
+          onRefreshEvents={refreshEvents}
         />
       </section>
     </main>

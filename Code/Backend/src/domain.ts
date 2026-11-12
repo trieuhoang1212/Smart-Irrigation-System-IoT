@@ -4,6 +4,13 @@ export type ZoneId = (typeof ZONE_IDS)[number];
 export const MIN_THRESHOLD = 10;
 export const MAX_THRESHOLD = 90;
 
+export const ZONE_PROFILE_LIMITS = {
+  duration: { min: 1, max: 60 },
+  pumpSeconds: { min: 10, max: 600 },
+  flowLitersPerHour: { min: 1, max: 200 },
+  targetLiters: { min: 0.1, max: 20 },
+} as const;
+
 export type ZoneState = {
   id: ZoneId;
   moisture: number;
@@ -21,6 +28,7 @@ export type Telemetry = {
   raining: boolean;
   weatherGate: boolean;
   pump: boolean;
+  servoAngle: number;
   zones: ZoneState[];
   receivedAt: string;
 };
@@ -77,6 +85,8 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
   if (raw.deviceId !== expectedDeviceId) throw new Error("Invalid device id");
   if (raw.mode !== "auto" && raw.mode !== "manual") throw new Error("Invalid mode");
 
+  const pump = booleanValue(raw.pump, "pump");
+
   return {
     deviceId: expectedDeviceId,
     mode: raw.mode,
@@ -85,7 +95,11 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
     rain: numberInRange(raw.rain, "rain", 0, 100),
     raining: booleanValue(raw.raining, "raining"),
     weatherGate: booleanValue(raw.weatherGate, "weatherGate"),
-    pump: booleanValue(raw.pump, "pump"),
+    pump,
+    // Firmware cũ không gửi góc servo: suy ra từ trạng thái bơm.
+    servoAngle: raw.servoAngle === undefined
+      ? (pump ? 90 : 0)
+      : numberInRange(raw.servoAngle, "servoAngle", 0, 180),
     zones,
     receivedAt: new Date().toISOString(),
   };

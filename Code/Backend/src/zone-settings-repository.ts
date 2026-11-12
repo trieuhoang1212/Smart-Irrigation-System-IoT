@@ -5,24 +5,47 @@ export type ZoneSetting = {
   zoneId: ZoneId;
   threshold: number;
   stopThreshold: number;
+  duration: number | null;
+  pumpSeconds: number | null;
+  flowLitersPerHour: number | null;
+  targetLiters: number | null;
   updatedAt: number;
 };
 
-export type ZoneSettingChange = ZoneSetting & {
+export type ZoneSettingChange = {
+  zoneId: ZoneId;
+  threshold: number;
+  stopThreshold: number;
   oldThreshold: number | null;
   oldStopThreshold: number | null;
+  updatedAt: number;
+};
+
+export type ZoneProfilePatch = {
+  duration?: number;
+  pumpSeconds?: number;
+  flowLitersPerHour?: number;
+  targetLiters?: number;
 };
 
 type ZoneSettingRow = {
   zone_id: string;
   threshold: number;
   stop_threshold: number;
+  duration: number | null;
+  pump_seconds: number | null;
+  flow_lph: number | null;
+  target_liters: number | null;
   updated_at: number;
 };
 
-type ZoneSettingChangeRow = ZoneSettingRow & {
+type ZoneSettingChangeRow = {
+  zone_id: string;
+  threshold: number;
+  stop_threshold: number;
   old_threshold: number | null;
   old_stop_threshold: number | null;
+  updated_at: number;
 };
 
 const STOP_OFFSET = 20;
@@ -45,25 +68,51 @@ function toZoneSetting(row: ZoneSettingRow): ZoneSetting {
     zoneId: row.zone_id as ZoneId,
     threshold: row.threshold,
     stopThreshold: row.stop_threshold,
+    duration: row.duration,
+    pumpSeconds: row.pump_seconds,
+    flowLitersPerHour: row.flow_lph,
+    targetLiters: row.target_liters,
     updatedAt: row.updated_at,
   };
 }
 
 const insertDefault = db.prepare(`
-  INSERT INTO zone_settings (device_id, zone_id, threshold, stop_threshold, updated_at)
-  VALUES (?, ?, ?, ?, ?)
-  ON CONFLICT(device_id, zone_id) DO NOTHING
+  INSERT INTO zone_settings
+    (device_id, zone_id, threshold, stop_threshold, duration, pump_seconds, flow_lph, target_liters, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(device_id, zone_id) DO UPDATE SET
+    duration = COALESCE(zone_settings.duration, excluded.duration),
+    pump_seconds = COALESCE(zone_settings.pump_seconds, excluded.pump_seconds),
+    flow_lph = COALESCE(zone_settings.flow_lph, excluded.flow_lph),
+    target_liters = COALESCE(zone_settings.target_liters, excluded.target_liters)
 `);
 
+type ZoneSeed = {
+  id: string;
+  threshold: number;
+  stopThreshold: number;
+  duration: number;
+  pumpSeconds: number;
+  flowLitersPerHour: number;
+  targetLiters: number;
+};
+
 /** Tạo giá trị mặc định cho zone chưa có trong DB (không ghi đè giá trị đã lưu). */
-export function seedZoneSettings(
-  deviceId: string,
-  zones: Array<{ id: string; threshold: number; stopThreshold: number }>,
-): void {
+export function seedZoneSettings(deviceId: string, zones: ZoneSeed[]): void {
   const seed = db.transaction(() => {
     const now = Date.now();
     for (const zone of zones) {
-      insertDefault.run(deviceId, zone.id, zone.threshold, zone.stopThreshold, now);
+      insertDefault.run(
+        deviceId,
+        zone.id,
+        zone.threshold,
+        zone.stopThreshold,
+        zone.duration,
+        zone.pumpSeconds,
+        zone.flowLitersPerHour,
+        zone.targetLiters,
+        now,
+      );
     }
   });
   seed();
@@ -72,7 +121,7 @@ export function seedZoneSettings(
 export function getZoneSettings(deviceId: string): ZoneSetting[] {
   const rows = db
     .prepare(`
-      SELECT zone_id, threshold, stop_threshold, updated_at
+      SELECT zone_id, threshold, stop_threshold, duration, pump_seconds, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ?
       ORDER BY zone_id
@@ -84,7 +133,7 @@ export function getZoneSettings(deviceId: string): ZoneSetting[] {
 export function getZoneSetting(deviceId: string, zoneId: string): ZoneSetting | null {
   const row = db
     .prepare(`
-      SELECT zone_id, threshold, stop_threshold, updated_at
+      SELECT zone_id, threshold, stop_threshold, duration, pump_seconds, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ? AND zone_id = ?
     `)
@@ -92,7 +141,7 @@ export function getZoneSetting(deviceId: string, zoneId: string): ZoneSetting | 
   return row ? toZoneSetting(row) : null;
 }
 
-const upsertSetting = db.prepare(`
+const upsertThreshold = db.prepare(`
   INSERT INTO zone_settings (device_id, zone_id, threshold, stop_threshold, updated_at)
   VALUES (?, ?, ?, ?, ?)
   ON CONFLICT(device_id, zone_id) DO UPDATE SET
@@ -101,13 +150,19 @@ const upsertSetting = db.prepare(`
     updated_at = excluded.updated_at
 `);
 
+const updateProfile = db.prepare(`
+  UPDATE zone_settings
+  SET duration = ?, pump_seconds = ?, flow_lph = ?, target_liters = ?, updated_at = ?
+  WHERE device_id = ? AND zone_id = ?
+`);
+
 const insertChange = db.prepare(`
   INSERT INTO zone_setting_changes
     (device_id, zone_id, old_threshold, new_threshold, old_stop_threshold, new_stop_threshold, changed_at)
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
-const persistSetting = db.transaction(
+const persistThreshold = db.transaction(
   (deviceId: string, zoneId: string, threshold: number, stopThreshold: number) => {
     const previous = getZoneSetting(deviceId, zoneId);
     const now = Date.now();
@@ -116,7 +171,7 @@ const persistSetting = db.transaction(
       return previous;
     }
 
-    upsertSetting.run(deviceId, zoneId, threshold, stopThreshold, now);
+    upsertThreshold.run(deviceId, zoneId, threshold, stopThreshold, now);
     insertChange.run(
       deviceId,
       zoneId,
@@ -127,7 +182,7 @@ const persistSetting = db.transaction(
       now,
     );
 
-    return { zoneId: zoneId as ZoneId, threshold, stopThreshold, updatedAt: now };
+    return getZoneSetting(deviceId, zoneId)!;
   },
 );
 
@@ -137,7 +192,29 @@ export function saveZoneSetting(
   threshold: number,
   stopThreshold: number,
 ): ZoneSetting {
-  return persistSetting(deviceId, zoneId, threshold, stopThreshold);
+  return persistThreshold(deviceId, zoneId, threshold, stopThreshold);
+}
+
+/** Cập nhật thông số tưới (không ảnh hưởng ngưỡng đang áp xuống thiết bị). */
+export function updateZoneProfile(
+  deviceId: string,
+  zoneId: ZoneId,
+  patch: ZoneProfilePatch,
+): ZoneSetting | null {
+  const current = getZoneSetting(deviceId, zoneId);
+  if (!current) return null;
+
+  updateProfile.run(
+    patch.duration ?? current.duration,
+    patch.pumpSeconds ?? current.pumpSeconds,
+    patch.flowLitersPerHour ?? current.flowLitersPerHour,
+    patch.targetLiters ?? current.targetLiters,
+    Date.now(),
+    deviceId,
+    zoneId,
+  );
+
+  return getZoneSetting(deviceId, zoneId);
 }
 
 export function listZoneSettingChanges(deviceId: string, limit = 50): ZoneSettingChange[] {
@@ -157,8 +234,11 @@ export function listZoneSettingChanges(deviceId: string, limit = 50): ZoneSettin
     .all(deviceId, safeLimit) as ZoneSettingChangeRow[];
 
   return rows.map((row) => ({
-    ...toZoneSetting(row),
+    zoneId: row.zone_id as ZoneId,
+    threshold: row.threshold,
+    stopThreshold: row.stop_threshold,
     oldThreshold: row.old_threshold,
     oldStopThreshold: row.old_stop_threshold,
+    updatedAt: row.updated_at,
   }));
 }

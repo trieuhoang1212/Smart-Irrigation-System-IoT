@@ -20,6 +20,13 @@
       "attrs": { "value": "220" }
     },
     {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": -151.2,
+      "left": 691.2,
+      "attrs": { "value": "10k" }
+    },
+    {
       "type": "wokwi-lcd1602",
       "id": "lcd1",
       "top": -156.8,
@@ -87,10 +94,10 @@
     {
       "type": "wokwi-hc-sr04",
       "id": "ultrasonic1",
-      "top": 317.3,
-      "left": -69.9,
+      "top": 470.9,
+      "left": -185.1,
       "rotate": 180,
-      "attrs": {}
+      "attrs": { "distance": "40" }
     },
     {
       "type": "chip-rain-sensor",
@@ -105,6 +112,48 @@
       "top": 150,
       "left": -293.8,
       "attrs": { "color": "blue" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": -89.8,
+      "left": 739.2,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text1",
+      "top": -115.2,
+      "left": 633.6,
+      "attrs": { "text": "Nút giả lập mất mạng (ESP32 vẫn tự tưới)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 486.2,
+      "left": 288,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text2",
+      "top": 537.6,
+      "left": 67.2,
+      "attrs": { "text": "Nút vật lý: bật/tắt bơm khi không có điện thoại" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text3",
+      "top": 576,
+      "left": -153.6,
+      "attrs": { "text": "Mực nước bồn" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -132,
+      "left": -199.8,
+      "attrs": { "volume": "0.5" }
     }
   ],
   "connections": [
@@ -200,10 +249,18 @@
     [ "chip1:GND", "bb1:tn.12", "black", [ "v-28.8", "h180.8" ] ],
     [ "led2:A", "bb1:tn.10", "green", [ "h152" ] ],
     [ "chip1:AO", "esp:33", "blue", [ "v28.8", "h470.4", "v-67.2" ] ],
-    [ "chip1:DO", "esp:32", "purple", [ "v0", "h470.4", "v-48" ] ],
+    [ "chip1:DO", "esp:36", "purple", [] ],
+    [ "esp:GND.2", "btn1:1.l", "black", [ "v-153.6", "h326.4" ] ],
+    [ "btn2:1.r", "esp:GND.2", "black", [ "v0" ] ],
+    [ "btn2:2.r", "esp:32", "green", [ "v-47.8", "h-134.2", "v-278.4" ] ],
+    [ "btn1:2.l", "esp:35", "green", [] ],
+    [ "r2:1", "esp:3V3", "red", [] ],
+    [ "r2:2", "esp:35", "green", [ "v-36.85", "h-510", "v364.8" ] ],
     [ "relay2:IN", "bb1:tp.9", "", [ "$bb" ] ],
     [ "relay2:NO", "bb1:tp.19", "", [ "$bb" ] ],
-    [ "relay3:NO", "bb1:23t.e", "", [ "$bb" ] ]
+    [ "relay3:NO", "bb1:23t.e", "", [ "$bb" ] ],
+    [ "bz1:2", "esp:0", "green", [] ],
+    [ "bz1:1", "bb1:tn.7", "black", [] ]
   ],
   "dependencies": {}
 }

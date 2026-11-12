@@ -1,69 +1,77 @@
 "use client";
 
-import React from "react";
+import Link from "next/link";
+import { ChartIcon, ClockIcon, EditIcon, GridIcon, LeafIcon, RefreshIcon } from "./icons";
 
 interface SidebarProps {
   connected: boolean;
+  brokerConnected: boolean | null;
+  deviceOnline: boolean;
   lastUpdated: string;
   onReconnect: () => void;
 }
 
-export function Sidebar({ connected, lastUpdated, onReconnect }: SidebarProps) {
+export function Sidebar({
+  connected,
+  brokerConnected,
+  deviceOnline,
+  lastUpdated,
+  onReconnect,
+}: SidebarProps) {
+  const brokerOnline = brokerConnected === true;
+  const deviceLabel = !connected
+    ? "chưa rõ"
+    : deviceOnline
+      ? "Online"
+      : "Offline";
+
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <span className="brand-mark">✦</span>
+      <a className="brand" href="#top">
+        <span className="brand-mark">
+          <LeafIcon size={16} />
+        </span>
         <span>
           Green<span>flow</span>
         </span>
-      </div>
+      </a>
+
       <nav>
-        <p className="nav-label">WORKSPACE</p>
-        <button className="nav-item active">
-          <span className="icon" aria-hidden="true">⌂</span>
-          Overview
-        </button>
-        <button className="nav-item">
-          <span className="icon" aria-hidden="true">▦</span>
-          Garden layout
-        </button>
-        <button className="nav-item">
-          <span className="icon" aria-hidden="true">⌁</span>
-          Live sensors
-        </button>
-        <button className="nav-item">
-          <span className="icon" aria-hidden="true">◴</span>
-          Automation
-        </button>
-        <p className="nav-label second">SYSTEM</p>
-        <button className="nav-item" onClick={onReconnect}>
-          <span className="icon" aria-hidden="true">◉</span>
-          Mosquitto MQTT{" "}
-          <span className={`nav-status ${connected ? "" : "offline"}`} />
-        </button>
-        <button className="nav-item">
-          <span className="icon" aria-hidden="true">⚙</span>
-          Settings
-        </button>
+        <p className="nav-label">Bảng điều khiển</p>
+        <a className="nav-item active" href="#top">
+          <GridIcon size={17} />
+          Tổng quan
+        </a>
+        <a className="nav-item" href="#history">
+          <ChartIcon size={17} />
+          Lịch sử cảm biến
+        </a>
+        <a className="nav-item" href="#activity">
+          <ClockIcon size={17} />
+          Nhật ký hoạt động
+        </a>
+        <Link className="nav-item" href="/garden">
+          <EditIcon size={17} />
+          Quản lý khu vườn
+        </Link>
       </nav>
+
       <div className="sidebar-bottom">
         <div className="connection-card">
           <div className="connection-title">
-            <span className={`pulse ${connected ? "" : "off"}`} />{" "}
-            {connected ? "Mosquitto Connected" : "Mosquitto Offline"}
+            <span className={`pulse ${brokerOnline ? "" : "off"}`} />
+            {brokerConnected === null
+              ? "Đang kiểm tra MQTT"
+              : brokerOnline
+                ? "MQTT Broker online"
+                : "MQTT Broker offline"}
           </div>
-          <small>ESP32 · Cập nhật: {lastUpdated}</small>
-          <button onClick={onReconnect}>
-            {connected ? "Connected" : "Reconnect"}
+          <p>ESP32: {deviceLabel}</p>
+          <p>Cập nhật: {lastUpdated}</p>
+          <button type="button" onClick={onReconnect}>
+            <RefreshIcon size={14} />
+            Kết nối lại
           </button>
-        </div>
-        <div className="profile">
-          <div className="avatar">AT</div>
-          <div>
-            <strong>Anna Tran</strong>
-            <small>Garden owner</small>
-          </div>
-          <span>•••</span>
         </div>
       </div>
     </aside>

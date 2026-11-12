@@ -1,237 +1,347 @@
 .control-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
-  gap: 13px;
-  margin-top: 13px;
+  grid-template-columns: 1.3fr 1fr 1.15fr;
+  gap: 12px;
+  margin-top: 12px;
 }
+
 .control-card,
 .weather-card,
-.profile-card,
-.activity-card,
-.zone-summary {
-  padding: 20px;
+.zone-config-card {
+  padding: 18px;
 }
+
 .live-badge {
-  color: #27865b;
-  background: #e9f7eb;
-  border-radius: 20px;
-  padding: 6px 9px;
-  font-size: 9px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 99px;
+  background: #f1f4ef;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
   white-space: nowrap;
 }
+
 .live-badge i {
-  display: inline-block;
   width: 6px;
   height: 6px;
-  background: #23ad6c;
   border-radius: 50%;
-  margin-right: 4px;
+  background: #a9b5ab;
 }
+
 .live-badge.active {
-  color: #bb663b;
-  background: #fff0e8;
+  background: var(--green-soft);
+  color: var(--green-strong);
 }
+
 .live-badge.active i {
-  background: #e7774d;
+  background: #3f8f63;
 }
+
 .mode-row,
 .control-row,
 .threshold-control {
-  border-top: 1px solid #edf1ed;
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line-soft);
 }
+
 .mode-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #6f7e75;
-  font-size: 10px;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
 }
+
 .mode-switch {
-  background: #f0f5ef;
-  border-radius: 7px;
-  padding: 3px;
   display: flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: #f1f4ef;
 }
+
 .mode-switch button {
   border: 0;
-  background: none;
-  color: #99a59d;
   border-radius: 5px;
-  padding: 6px 9px;
-  font-size: 9px;
+  padding: 5px 10px;
+  background: none;
+  color: var(--muted);
+  font-size: 11.5px;
 }
+
 .mode-switch button.selected {
   background: #fff;
-  color: #178354;
-  font-weight: 700;
-  box-shadow: 0 2px 6px #dae6da;
+  color: var(--green-strong);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(23, 54, 42, 0.08);
 }
+
 .control-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 14px;
 }
+
 .control-row strong {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 600;
 }
+
 .control-row small {
   display: block;
-  color: #9da9a1;
-  font-size: 9px;
-  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+  margin-top: 3px;
 }
+
 .big-toggle {
-  width: 38px;
-  height: 22px;
-  background: #cad3cd;
+  flex: none;
+  width: 40px;
+  height: 23px;
+  padding: 2px;
   border: 0;
-  border-radius: 20px;
-  padding: 3px;
+  border-radius: 99px;
+  background: #d5dcd5;
+  transition: background 0.2s;
 }
+
 .big-toggle i {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   background: #fff;
   transition: transform 0.2s;
 }
+
 .big-toggle.on {
-  background: #25a66a;
+  background: #3f8f63;
 }
+
 .big-toggle.on i {
-  transform: translateX(16px);
+  transform: translateX(17px);
 }
+
 .threshold-control label {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  color: #75837a;
-  font-size: 10px;
-}
-.threshold-control label strong {
-  color: #208958;
+  color: var(--muted);
   font-size: 12px;
 }
+
+.threshold-control label strong {
+  color: var(--green-strong);
+  font-size: 13px;
+}
+
 .threshold-control input {
   width: 100%;
-  accent-color: #20a26a;
-  margin: 12px 0 0;
+  margin: 10px 0 2px;
+  accent-color: #3f8f63;
 }
+
 .threshold-control > div {
   display: flex;
   justify-content: space-between;
-  color: #a0aba4;
-  font-size: 8px;
+  color: var(--faint);
+  font-size: 10.5px;
 }
-.weather-icon {
-  width: 31px;
-  height: 31px;
+
+.card-icon {
   display: grid;
   place-items: center;
-  border-radius: 9px;
-  color: #319aac;
-  background: #e3f5f5;
-  font-size: 18px;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #f2f5f0;
+  color: var(--green-strong);
 }
+
 .weather-main {
-  margin: 18px 0 14px;
+  margin: 16px 0 10px;
 }
+
 .weather-main strong {
-  color: #25362e;
-  font-size: 29px;
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 600;
 }
+
 .weather-main span {
-  color: #8d9b92;
-  font-size: 10px;
-  margin-left: 7px;
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-left: 6px;
 }
+
 .weather-details {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #edf1ed;
-  padding: 10px 0;
-  color: #77857c;
-  font-size: 10px;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 12px;
 }
-.weather-details b {
-  color: #57aeb9;
-  margin-right: 7px;
+
+.weather-details span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
+
 .weather-details strong {
-  color: #dc9950;
-  font-size: 10px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
 }
+
 .check-row {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: #65756b;
-  font-size: 10px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
 }
+
 .check-row input {
-  accent-color: #1da76a;
+  width: 15px;
+  height: 15px;
+  accent-color: #3f8f63;
 }
+
 .weather-alert {
-  color: #238358;
-  background: #eff9ed;
+  margin-top: 10px;
+  padding: 8px 10px;
   border-radius: 7px;
-  padding: 8px;
-  margin-top: 12px;
-  font-size: 9px;
+  background: var(--green-soft);
+  color: var(--green-strong);
+  font-size: 11.5px;
 }
-.plant-name {
+
+.weather-alert.off {
+  background: #f3f4f2;
+  color: var(--muted);
+}
+
+.zone-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.config-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.config-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.config-fields label em {
+  color: var(--faint);
+  font-style: normal;
+}
+
+.config-fields input {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: #fbfcfa;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.config-fields input:focus {
+  border-color: #9dbc9f;
+  outline: 2px solid #cfe0d2;
+}
+
+.config-hint {
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.config-error {
+  color: var(--red);
+  font-size: 11.5px;
+}
+
+.config-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--green);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.config-save:hover:not(:disabled) {
+  background: var(--green-strong);
+}
+
+.water-estimate {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.water-estimate > div:first-child {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-top: 1px solid #edf1ed;
-  margin-top: 16px;
-  padding-top: 14px;
-}
-.plant-emoji {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  background: #e8f4e3;
-  border-radius: 9px;
-  font-size: 17px;
-}
-.plant-name strong {
-  display: block;
-  font-size: 12px;
-}
-.plant-name small {
-  color: #98a69d;
-  font-size: 9px;
-  display: block;
-  margin-top: 3px;
-}
-.profile-line {
-  display: flex;
   justify-content: space-between;
-  color: #86948a;
-  font-size: 9px;
-  border-top: 1px solid #edf1ed;
-  margin-top: 12px;
-  padding-top: 10px;
+  gap: 8px;
 }
-.profile-line strong {
-  color: #3e5147;
+
+.water-estimate strong {
+  color: var(--green-strong);
+  font-size: 12.5px;
   font-weight: 600;
 }
-.recommendation {
-  display: flex;
-  gap: 7px;
-  color: #a87826;
-  background: #fff8e9;
-  border-radius: 8px;
-  padding: 9px;
-  margin-top: 13px;
-  font-size: 9px;
-  line-height: 1.4;
+
+.water-estimate .progress {
+  width: 100%;
+  height: 5px;
+  margin: 8px 0;
+  background: #edf1ea;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.water-estimate .progress i {
+  display: block;
+  height: 100%;
+  background: #4f8a63;
+}
+
+.water-estimate small {
+  display: block;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.5;
 }

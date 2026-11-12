@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { type GardenConfigResponse, type Zone, zonesFromConfig } from "../garden-data";
+import { type GardenConfigResponse, type SoilType, type Zone, zonesFromConfig } from "../garden-data";
+import type { ToastTone } from "../notifications";
 
 type BackendTelemetry = {
   deviceId?: string;
@@ -12,6 +13,7 @@ type BackendTelemetry = {
   raining?: boolean;
   weatherGate?: boolean;
   pump?: boolean;
+  servoAngle?: number;
   zones?: Array<{
     id?: string;
     moisture?: number;
@@ -21,16 +23,28 @@ type BackendTelemetry = {
   }>;
 };
 
+export type ZoneConfigInput = {
+  threshold?: number;
+  duration: number;
+  pumpSeconds: number;
+  flowLitersPerHour: number;
+  targetLiters: number;
+};
+
 export interface UseMqttOptions {
   backendUrl: string;
   onLog?: (msg: string) => void;
+  onNotify?: (message: string, tone: ToastTone) => void;
 }
 
 const MAX_RECONNECT_DELAY = 15000;
 const OPTIMISTIC_WINDOW_MS = 3000;
+const THRESHOLD_PENDING_MS = 5000;
+const THRESHOLD_DEBOUNCE_MS = 400;
 
-export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
+export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const [zones, setZones] = useState<Zone[]>([]);
+  const [soil, setSoil] = useState<SoilType>("Đất phù sa");
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -42,15 +56,56 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
   const [rainPercent, setRainPercent] = useState<number | null>(null);
   const [raining, setRaining] = useState(false);
   const [rainBlock, setRainBlock] = useState(true);
+  const [deviceOnline, setDeviceOnline] = useState(false);
+  const [servoAngle, setServoAngle] = useState<number | null>(null);
+  const [brokerConnected, setBrokerConnected] = useState<boolean | null>(null);
+  const [commandVersion, setCommandVersion] = useState(0);
   const [lastUpdated, setLastUpdated] = useState("Chưa kết nối");
+  const [lastTelemetryAt, setLastTelemetryAt] = useState<number | null>(null);
   const [reconnectToken, setReconnectToken] = useState(0);
   const [configRetryToken, setConfigRetryToken] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
   const pumpByZoneRef = useRef<Record<string, boolean>>({});
   const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
   const pendingThresholdRef = useRef<Record<string, number>>({});
+  const thresholdTimerRef = useRef<Record<string, number>>({});
+  const hadDisconnectRef = useRef(false);
+  const notifyRef = useRef(onNotify);
 
-  const log = useCallback((message: string) => onLog?.(message), [onLog]);
+  useEffect(() => {
+    notifyRef.current = onNotify;
+  }, [onNotify]);
+
+  const log = useCallback((message: string) => {
+    if (onLog) onLog(message);
+    else console.info(`[Greenflow] ${message}`);
+  }, [onLog]);
+
+  const notify = useCallback((message: string, tone: ToastTone) => {
+    notifyRef.current?.(message, tone);
+  }, []);
+
+  // WS chỉ là kênh Web–Backend; trạng thái MQTT thật lấy từ /api/health.
+  useEffect(() => {
+    let disposed = false;
+    const base = backendUrl.replace(/\/+$/, "");
+    const check = () => {
+      fetch(`${base}/api/health`)
+        .then((response) => response.json())
+        .then((health: { mqtt?: boolean }) => {
+          if (!disposed) setBrokerConnected(Boolean(health.mqtt));
+        })
+        .catch(() => {
+          if (!disposed) setBrokerConnected(false);
+        });
+    };
+    check();
+    const timer = window.setInterval(check, 10000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [backendUrl, reconnectToken]);
 
   useEffect(() => {
     let disposed = false;
@@ -65,6 +120,7 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
           return;
         }
         setDeviceId(config.deviceId);
+        setSoil(config.soil ?? "Đất phù sa");
         setZones(zonesFromConfig(config));
       })
       .catch(() => {
@@ -81,6 +137,9 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
   const applyTelemetry = useCallback((data: BackendTelemetry, isOnline: boolean) => {
     const hasZoneList = Array.isArray(data.zones);
     const now = Date.now();
+    const round1 = (value: number) => Math.round(value * 10) / 10;
+
+    setDeviceOnline(isOnline);
 
     setZones((current) =>
       current.map((zone) => {
@@ -94,7 +153,7 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
         return {
           ...zone,
           moisture: typeof live.moisture === "number" && Number.isFinite(live.moisture)
-            ? Math.max(0, Math.min(100, live.moisture))
+            ? round1(Math.max(0, Math.min(100, live.moisture)))
             : zone.moisture,
           pump: isOnline ? Boolean(live.pump) : false,
           threshold: isThresholdPending
@@ -118,18 +177,37 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
       }
     });
 
-    if (typeof data.temperature === "number" && Number.isFinite(data.temperature)) setTemperature(data.temperature);
-    if (typeof data.humidity === "number" && Number.isFinite(data.humidity)) setHumidity(Math.max(0, Math.min(100, data.humidity)));
-    if (typeof data.rain === "number" && Number.isFinite(data.rain)) setRainPercent(Math.max(0, Math.min(100, data.rain)));
+    // DHT22 đọc lỗi sẽ gửi null: xoá giá trị cũ thay vì hiển thị số liệu sai.
+    setTemperature(typeof data.temperature === "number" && Number.isFinite(data.temperature)
+      ? round1(data.temperature)
+      : null);
+    setHumidity(typeof data.humidity === "number" && Number.isFinite(data.humidity)
+      ? round1(Math.max(0, Math.min(100, data.humidity)))
+      : null);
+    setRainPercent(typeof data.rain === "number" && Number.isFinite(data.rain)
+      ? round1(Math.max(0, Math.min(100, data.rain)))
+      : null);
     if (data.raining !== undefined) setRaining(data.raining);
     if (data.pump !== undefined) setPumpOn(isOnline ? Boolean(data.pump) : false);
+
+    // Payload cũ chưa có servoAngle: suy ra từ trạng thái bơm tổng.
+    if (isOnline) {
+      setServoAngle(typeof data.servoAngle === "number" && Number.isFinite(data.servoAngle)
+        ? Math.max(0, Math.min(180, Math.round(data.servoAngle)))
+        : data.pump !== undefined
+          ? (data.pump ? 90 : 0)
+          : null);
+    } else {
+      setServoAngle(null);
+    }
 
     if (data.mode && now > (pendingRef.current.mode ?? 0)) setMode(data.mode);
     if (data.weatherGate !== undefined && now > (pendingRef.current.weatherGate ?? 0)) {
       setRainBlock(data.weatherGate);
     }
 
-    setLastUpdated(new Date().toLocaleTimeString());
+    setLastUpdated(new Date().toLocaleTimeString("vi-VN", { hour12: false }));
+    if (isOnline) setLastTelemetryAt(Date.now());
   }, []);
 
   useEffect(() => {
@@ -151,6 +229,10 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
         attempt = 0;
         setConnected(true);
         log("Web đã kết nối Backend realtime.");
+        if (hadDisconnectRef.current) {
+          hadDisconnectRef.current = false;
+          notify("Đã kết nối lại Backend realtime.", "success");
+        }
       };
 
       socket.onmessage = (event) => {
@@ -163,17 +245,22 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
           };
           if (message.type === "telemetry" && message.data) {
             applyTelemetry(message.data, message.online !== false);
-          } else if (message.type === "device-status" && message.online === false) {
-            setZones((current) =>
-              current.map((zone) => ({ ...zone, online: false, pump: false })),
-            );
-            setPumpOn(false);
+          } else if (message.type === "device-status" && message.online !== undefined) {
+            setDeviceOnline(message.online);
+            if (!message.online) {
+              setZones((current) =>
+                current.map((zone) => ({ ...zone, online: false, pump: false })),
+              );
+              setPumpOn(false);
+            }
           } else if (message.type === "command-result") {
-            log(
-              message.status === "confirmed"
-                ? "Thiết bị đã xác nhận lệnh."
-                : "Thiết bị chưa xác nhận lệnh trước thời hạn.",
-            );
+            setCommandVersion((current) => current + 1);
+            if (message.status === "confirmed") {
+              log("Thiết bị đã xác nhận lệnh.");
+            } else {
+              log("Thiết bị chưa xác nhận lệnh trước thời hạn.");
+              notify("Thiết bị không phản hồi lệnh. Kiểm tra ESP32 và kết nối MQTT.", "error");
+            }
           }
         } catch {
           log("Backend gửi dữ liệu realtime không hợp lệ.");
@@ -188,11 +275,17 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
       socket.onclose = () => {
         if (disposed) return;
         setConnected(false);
+        setDeviceOnline(false);
+        setServoAngle(null);
         setZones((current) => current.map((zone) => ({ ...zone, online: false })));
 
         attempt += 1;
         const delay = Math.min(1000 * 2 ** (attempt - 1), MAX_RECONNECT_DELAY);
         log(`Mất kết nối Backend, thử lại sau ${Math.round(delay / 1000)}s...`);
+        if (!hadDisconnectRef.current) {
+          hadDisconnectRef.current = true;
+          notify("Mất kết nối Backend realtime. Đang thử lại...", "error");
+        }
         retryTimer = window.setTimeout(connect, delay);
       };
     };
@@ -205,7 +298,7 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
       socketRef.current?.close();
       socketRef.current = null;
     };
-  }, [backendUrl, applyTelemetry, deviceId, log, reconnectToken]);
+  }, [backendUrl, applyTelemetry, deviceId, log, notify, reconnectToken]);
 
   const sendCommand = useCallback(
     (cmd: string) => {
@@ -219,6 +312,7 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
 
       if (!deviceId) {
         log(`Chưa thể gửi lệnh ${cmd} khi chưa tải cấu hình.`);
+        notify("Chưa tải được cấu hình thiết bị, chưa gửi được lệnh.", "error");
         return Promise.resolve(false);
       }
       return fetch(`${backendUrl.replace(/\/+$/, "")}/api/devices/${encodeURIComponent(deviceId)}/commands`, {
@@ -227,8 +321,10 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
         body: JSON.stringify(body),
       })
         .then(async (response) => {
+          setCommandVersion((current) => current + 1);
           if (!response.ok) {
             log(`Backend từ chối lệnh ${cmd}.`);
+            notify(`Backend từ chối lệnh ${cmd}.`, "error");
             return false;
           }
           const result = (await response.json()) as { commandId?: string };
@@ -236,11 +332,13 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
           return true;
         })
         .catch(() => {
+          setCommandVersion((current) => current + 1);
           log(`Không gửi được lệnh ${cmd} tới Backend.`);
+          notify("Không gửi được lệnh tới Backend. Kiểm tra kết nối mạng.", "error");
           return false;
         });
     },
-    [backendUrl, deviceId, log],
+    [backendUrl, deviceId, log, notify],
   );
 
   const togglePump = useCallback(
@@ -290,27 +388,105 @@ export function useMqtt({ backendUrl, onLog }: UseMqttOptions) {
   const setZoneThreshold = useCallback(
     (zoneId: string, value: number) => {
       const clamped = Math.max(10, Math.min(90, Math.round(value)));
-      pendingThresholdRef.current[zoneId] = Date.now() + OPTIMISTIC_WINDOW_MS;
+      pendingThresholdRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
       setZones((current) =>
         current.map((zone) =>
           zone.id === zoneId
             ? {
                 ...zone,
                 threshold: clamped,
-                stopThreshold: Math.max(zone.stopThreshold, Math.min(100, clamped + 20)),
+                stopThreshold: Math.min(100, clamped + 20),
               }
             : zone,
         ),
       );
-      void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
+
+      // Kéo slider sinh rất nhiều lệnh: chỉ gửi giá trị cuối sau khi ngừng kéo.
+      window.clearTimeout(thresholdTimerRef.current[zoneId]);
+      thresholdTimerRef.current[zoneId] = window.setTimeout(() => {
+        delete thresholdTimerRef.current[zoneId];
+        void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
+      }, THRESHOLD_DEBOUNCE_MS);
     },
     [sendCommand],
   );
 
+  const saveZoneConfig = useCallback(
+    async (zoneId: string, input: ZoneConfigInput) => {
+      if (!deviceId) {
+        notify("Chưa tải được cấu hình thiết bị, chưa lưu được.", "error");
+        return false;
+      }
+
+      const threshold = input.threshold === undefined
+        ? undefined
+        : Math.max(10, Math.min(90, Math.round(input.threshold)));
+      if (threshold !== undefined) {
+        pendingThresholdRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
+      }
+      setZones((current) =>
+        current.map((zone) =>
+          zone.id === zoneId
+            ? {
+                ...zone,
+                threshold: threshold ?? zone.threshold,
+                stopThreshold:
+                  threshold === undefined
+                    ? zone.stopThreshold
+                    : Math.min(100, threshold + 20),
+                duration: input.duration,
+                pumpSeconds: input.pumpSeconds,
+                flowLitersPerHour: input.flowLitersPerHour,
+                targetLiters: input.targetLiters,
+              }
+            : zone,
+        ),
+      );
+
+      try {
+        const response = await fetch(
+          `${backendUrl.replace(/\/+$/, "")}/api/devices/${encodeURIComponent(deviceId)}/config/zones/${zoneId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+          },
+        );
+        setCommandVersion((current) => current + 1);
+        if (!response.ok) {
+          notify(`Backend từ chối cấu hình vùng ${zoneId}.`, "error");
+          return false;
+        }
+        const saved = (await response.json()) as { appliedRemotely?: boolean };
+        notify(
+          saved.appliedRemotely
+            ? `Đã lưu cấu hình ${zoneId} và gửi ngưỡng mới tới thiết bị.`
+            : `Đã lưu cấu hình ${zoneId}.`,
+          "success",
+        );
+        log(`Đã lưu cấu hình vùng ${zoneId}.`);
+        return true;
+      } catch {
+        setCommandVersion((current) => current + 1);
+        notify("Không gửi được cấu hình vùng tới Backend.", "error");
+        return false;
+      }
+    },
+    [backendUrl, deviceId, log, notify],
+  );
+
+  useEffect(() => {
+    const timers = thresholdTimerRef.current;
+    return () => {
+      Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+    };
+  }, []);
+
   return {
-    zones, setZones, connected, mode, pumpOn, setPumpOn, temperature, humidity,
+    zones, setZones, soil, connected, mode, pumpOn, setPumpOn, temperature, humidity,
     rainPercent, raining, rainBlock, lastUpdated, sendCommand, togglePump,
-    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, configLoading,
-    configError, deviceId,
+    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, saveZoneConfig,
+    configLoading, configError, deviceId, deviceOnline, brokerConnected,
+    commandVersion, servoAngle, lastTelemetryAt,
   };
 }

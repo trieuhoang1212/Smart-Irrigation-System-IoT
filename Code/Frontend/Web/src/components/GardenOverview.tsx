@@ -1,103 +1,74 @@
 "use client";
 
-import React from "react";
-import { GardenMap } from "./GardenMap";
-import { type Zone } from "../garden-data";
+import Link from "next/link";
+import type { SoilType, Zone } from "../garden-data";
+import type { ZoneConfigInput } from "../hooks/useMqtt";
+import { EditIcon } from "./icons";
+import { GardenBoard } from "./GardenBoard";
+import { GardenDetailPanel } from "./GardenDetailPanel";
+import { ZoneAdvicePanel } from "./ZoneAdvicePanel";
 
 export function GardenOverview({
   zones,
   activeZone,
-  view,
+  soil,
   connected,
+  deviceId,
   onSelectZone,
-  onChangeView,
   onToggleIrrigation,
+  onApplyAdvice,
 }: {
   zones: Zone[];
   activeZone: string;
-  view: "2d" | "map";
+  soil: SoilType;
   connected: boolean;
+  deviceId: string;
   onSelectZone: (zoneId: string) => void;
-  onChangeView: (view: "2d" | "map") => void;
   onToggleIrrigation: () => void;
+  onApplyAdvice: (input: ZoneConfigInput) => Promise<boolean>;
 }) {
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
+  if (!selectedZone) return null;
+
+  const applyAdvice = (value: { threshold: number; duration: number }) =>
+    onApplyAdvice({
+      threshold: value.threshold,
+      duration: value.duration,
+      pumpSeconds: selectedZone.pumpSeconds,
+      flowLitersPerHour: selectedZone.flowLitersPerHour,
+      targetLiters: selectedZone.targetLiters,
+    });
 
   return (
     <section className="garden-panel panel">
       <div className="panel-heading">
         <div>
-          <h2>Garden overview</h2>
-          <p>
-            Vùng <strong>{selectedZone.id} ({selectedZone.name})</strong> đang được
-            chọn · dữ liệu realtime từ ESP32
-          </p>
+          <h2>Khu vườn</h2>
+          <p>6 ô trồng · dữ liệu realtime từ ESP32</p>
         </div>
-        <div className="view-switch">
-          <button
-            className={view === "2d" ? "selected" : ""}
-            onClick={() => onChangeView("2d")}
-          >
-            2D view
-          </button>
-          <button
-            className={view === "map" ? "selected" : ""}
-            onClick={() => onChangeView("map")}
-          >
-            Map
-          </button>
-        </div>
+        <Link className="link-button" href="/garden">
+          <EditIcon size={14} />
+          Quản lý khu vườn
+        </Link>
       </div>
 
-      <div className="group-caption" style={{ marginTop: "12px" }}>
-        <strong>Khu vườn thông minh Greenflow</strong>
-        <span>
-          6 luống cây trồng chuyên biệt (T001 - T006) · Điều khiển tưới tự động & van độc lập
-        </span>
+      <div className="garden-workspace">
+        <GardenBoard zones={zones} activeZone={selectedZone.id} onSelect={onSelectZone} />
+        <GardenDetailPanel
+          zone={selectedZone}
+          soil={soil}
+          connected={connected}
+          onToggleIrrigation={onToggleIrrigation}
+        />
       </div>
 
-      <GardenMap
-        zones={zones}
-        activeZone={activeZone}
-        onSelect={onSelectZone}
-        view={view}
+      <ZoneAdvicePanel
+        key={selectedZone.id}
+        deviceId={deviceId}
+        zone={selectedZone}
+        soil={soil}
+        onApply={applyAdvice}
       />
-
-      <div className="selected-zone">
-        <div className="zone-title">
-          <span className="status-dot" /> <strong>{selectedZone.id}</strong> ·{" "}
-          {selectedZone.name}
-          <small>{selectedZone.crop}</small>
-        </div>
-        <div className="zone-stat">
-          <span>Độ ẩm đất</span>
-          <strong>{selectedZone.moisture === null ? "--" : `${selectedZone.moisture}%`}</strong>
-          <div className="progress">
-            <i style={{ width: `${selectedZone.moisture ?? 0}%` }} />
-          </div>
-        </div>
-        <div className="zone-stat">
-          <span>Ngưỡng kích hoạt</span>
-          <strong>
-            {selectedZone.threshold}%{" "}
-            <em>
-              {selectedZone.moisture !== null && selectedZone.moisture < selectedZone.threshold
-                ? "Cần tưới nước"
-                : "Độ ẩm tốt"}
-            </em>
-          </strong>
-        </div>
-        <button
-          className={`water-button ${selectedZone.pump ? "watering" : ""}`}
-          onClick={onToggleIrrigation}
-          disabled={!connected}
-          title={connected ? "Tưới khu vực đang chọn" : "Cần kết nối MQTT"}
-        >
-          {selectedZone.pump
-            ? `◌ ${selectedZone.name} đang tưới...`
-            : "♧ Tưới khu vực này"}
-        </button>
-      </div>
     </section>
   );
 }

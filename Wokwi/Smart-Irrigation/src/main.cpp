@@ -23,9 +23,13 @@
 #define MASTER_VALVE_CLOSED 0
 #define MASTER_VALVE_OPEN 90
 #define RAIN_SENSOR_PIN 33
-#define RAIN_DIGITAL_PIN 32
+#define RAIN_DIGITAL_PIN 36
+#define TANK_TRIG_PIN 27  // HC-SR04 đo mực nước bồn
+#define TANK_ECHO_PIN 26
+#define WIFI_BUTTON_PIN 35  // nút mô phỏng mất WiFi, active LOW, có trở kéo 10k ngoài
+#define MANUAL_BUTTON_PIN 32  // nút bật/tắt bơm thủ công, active LOW, pull-up nội bộ
 
-// 6 Rơ-le điều khiển van từng luống. GPIO35 chỉ là chân input nên không dùng cho relay.
+// 6 Rơ-le điều khiển van từng luống. GPIO35 input-only nên chỉ dùng cho nút nhấn.
 const int relayPins[ZONE_COUNT] = {16, 17, 18, 23, 15, 19};
 
 // Ngưỡng tưới tương ứng (T001: Rau muống, T002: Cà chua, T003: Cà rốt, T004: Khoai lang, T005: Dưa leo, T006: Xà lách)
@@ -46,6 +50,8 @@ Preferences prefs;  // Lưu ngưỡng vào NVS để không mất khi reboot
 
 
 bool isAutoMode = true;
+bool manualOverride = false;
+bool simulateOffline = false;
 bool pumpRunning[ZONE_COUNT] = {false, false, false, false, false, false};
 bool weatherGateEnabled = true;
 int moisturePercent[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
@@ -57,6 +63,33 @@ float humidity = 0.0;
 
 unsigned long previousMillis = 0;
 const long interval = 2000;
+
+// Bảo vệ khi đi vắng: giới hạn thời gian tưới và thời gian giữ chế độ MANUAL.
+// Giảm xuống 1-2 phút nếu cần demo nhanh.
+const unsigned long MAX_ZONE_RUNTIME_MS = 10UL * 60UL * 1000UL;
+const unsigned long MAX_MANUAL_MS = 15UL * 60UL * 1000UL;
+// HC-SR04 gắn trên miệng bồn, đo khoảng cách tới mặt nước: xa quá nghĩa là bồn cạn.
+const float TANK_EMPTY_CM = 80.0;
+const float TANK_REFILL_CM = 60.0;
+unsigned long zoneStartedAt[ZONE_COUNT] = {0};
+bool zoneLocked[ZONE_COUNT] = {false};
+unsigned long manualStartedAt = 0;
+bool tankEmpty = false;
+float tankDistanceCm = 0.0;
+
+bool netWasOnline = false;
+unsigned long lastWifiAttempt = 0;
+unsigned long lastMqttAttempt = 0;
+unsigned long beepUntil = 0;
+int buzzerTone = -1;
+
+struct ButtonState {
+  bool raw = false;
+  bool stable = false;
+  unsigned long changedAt = 0;
+};
+ButtonState wifiButton;
+ButtonState manualButton;
 
 DHT dht(DHTPIN, DHTTYPE);
 LiquidCrystal_I2C lcds[ZONE_COUNT] = {
@@ -70,10 +103,20 @@ LiquidCrystal_I2C lcds[ZONE_COUNT] = {
 bool lcdReady = false;
 Servo masterValve;
 
+bool isNetOnline() {
+  return WiFi.status() == WL_CONNECTED && client.connected();
+}
+
 void updateLcds() {
   if (!lcdReady) return;
 
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    String status = String("PUMP ") + (pumpRunning[zone] ? "ON " : "OFF ");
+    if (tankEmpty) status = "TANK EMPTY";
+    else if (!isNetOnline()) status += "OFFLINE";
+    else if (isRaining) status += "RAIN";
+    else status += isAutoMode ? "AUTO" : "MAN";
+
     lcds[zone].clear();
     lcds[zone].setCursor(0, 0);
     lcds[zone].print(zoneNames[zone]);
@@ -81,18 +124,31 @@ void updateLcds() {
     lcds[zone].print(moisturePercent[zone]);
     lcds[zone].print("%");
     lcds[zone].setCursor(0, 1);
-    lcds[zone].print(isRaining ? "RAIN " : (pumpRunning[zone] ? "PUMP ON " : "PUMP OFF"));
-    lcds[zone].print(isAutoMode ? " AUTO" : " MAN");
+    lcds[zone].print(status);
   }
 }
 
-void updateRainAlarm() {
+void beepOnce(unsigned long durationMs) {
+  beepUntil = millis() + durationMs;
+}
+
+void updateBuzzer() {
+  int target = 0;
   if (isRaining) {
-    tone(BUZZER_PIN, 1800);
+    target = 1800;
+  } else if (beepUntil != 0 && millis() < beepUntil) {
+    target = 1200;
   } else {
-    noTone(BUZZER_PIN);
+    beepUntil = 0;
   }
 
+  if (target == buzzerTone) return;
+  if (target == 0) noTone(BUZZER_PIN);
+  else tone(BUZZER_PIN, target);
+  buzzerTone = target;
+}
+
+void updateRainAlarm() {
   if (isRaining != previousRaining) {
     Serial.println(isRaining ? "RAIN ALERT: Dang mua" : "RAIN ALERT: Het mua");
     previousRaining = isRaining;
@@ -101,7 +157,14 @@ void updateRainAlarm() {
 
 void startPump(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
+  if (tankEmpty || zoneLocked[zone]) {
+    Serial.print("BLOCK ");
+    Serial.print(zoneNames[zone]);
+    Serial.println(tankEmpty ? " tank empty" : " runtime lock");
+    return;
+  }
   pumpRunning[zone] = true;
+  zoneStartedAt[zone] = millis();
   digitalWrite(relayPins[zone], LOW); // Active LOW
   digitalWrite(LED_PIN, HIGH);
   masterValve.write(MASTER_VALVE_OPEN);
@@ -112,6 +175,7 @@ void startPump(int zone) {
 void stopPump(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
   pumpRunning[zone] = false;
+  zoneStartedAt[zone] = 0;
   digitalWrite(relayPins[zone], HIGH);
   
   bool anyRunning = false;
@@ -134,6 +198,170 @@ bool anyPumpRunning() {
     if (pumpRunning[zone]) return true;
   }
   return false;
+}
+
+void startAllZones() {
+  for (int zone = 0; zone < ZONE_COUNT; zone++) startPump(zone);
+}
+
+void stopAllZones() {
+  for (int zone = 0; zone < ZONE_COUNT; zone++) stopPump(zone);
+}
+
+float readTankDistanceCm() {
+  digitalWrite(TANK_TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TANK_TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TANK_TRIG_PIN, LOW);
+
+  const unsigned long duration = pulseIn(TANK_ECHO_PIN, HIGH, 30000UL);
+  if (duration == 0) return -1;  // cảm biến không trả về xung
+  return duration / 58.0;
+}
+
+void updateTank() {
+  const float distance = readTankDistanceCm();
+  if (distance < 0 || distance > 400) return;  // bỏ qua lần đọc lỗi, giữ trạng thái cũ
+
+  tankDistanceCm = distance;
+  if (!tankEmpty && distance >= TANK_EMPTY_CM) {
+    tankEmpty = true;
+    Serial.println("TANK: EMPTY - stop all pumps");
+    stopAllZones();
+    beepOnce(400);
+    updateLcds();
+  } else if (tankEmpty && distance <= TANK_REFILL_CM) {
+    tankEmpty = false;
+    Serial.println("TANK: water back");
+    beepOnce(150);
+    updateLcds();
+  }
+}
+
+void enforceRuntimeLimits() {
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    if (pumpRunning[zone] &&
+        millis() - zoneStartedAt[zone] >= MAX_ZONE_RUNTIME_MS) {
+      Serial.print("SAFETY: ");
+      Serial.print(zoneNames[zone]);
+      Serial.println(" max runtime -> stop & lock");
+      stopPump(zone);
+      zoneLocked[zone] = true;
+    }
+    // Mở khóa khi đất đã đủ ẩm; cảm biến kẹt khô thì vẫn khóa để bơm không chạy mãi.
+    if (zoneLocked[zone] && moisturePercent[zone] >= moistureOff[zone]) {
+      zoneLocked[zone] = false;
+    }
+  }
+
+  if (!isAutoMode && manualStartedAt != 0 &&
+      millis() - manualStartedAt >= MAX_MANUAL_MS) {
+    isAutoMode = true;
+    manualOverride = false;
+    manualStartedAt = 0;
+    Serial.println("SAFETY: manual timeout -> AUTO");
+    updateLcds();
+  }
+}
+
+bool buttonPressed(int pin, ButtonState &state) {
+  const bool raw = digitalRead(pin) == LOW;
+  const unsigned long now = millis();
+  if (raw != state.raw) {
+    state.raw = raw;
+    state.changedAt = now;
+  } else if (raw != state.stable && now - state.changedAt >= 50) {
+    state.stable = raw;
+    return raw;
+  }
+  return false;
+}
+
+void handleButtons() {
+  // Nút mô phỏng mất WiFi: nhấn lần 1 ngắt, nhấn lần 2 nối lại.
+  if (buttonPressed(WIFI_BUTTON_PIN, wifiButton)) {
+    if (simulateOffline) {
+      simulateOffline = false;
+      lastWifiAttempt = millis();
+      lastMqttAttempt = 0;
+      WiFi.begin("Wokwi-GUEST", "", 6);
+      Serial.println("BTN: WiFi -> reconnect");
+    } else {
+      simulateOffline = true;
+      client.disconnect();
+      WiFi.disconnect(true);
+      Serial.println("BTN: WiFi -> simulated offline");
+    }
+    beepOnce(150);
+    updateLcds();
+  }
+
+  // Nút vật lý: bật/tắt cả 6 vùng ở chế độ thủ công, không cần Web/WiFi.
+  // Khi tắt vẫn giữ MANUAL; sau MAX_MANUAL_MS tự về AUTO để không tưới mãi khi đi vắng.
+  if (buttonPressed(MANUAL_BUTTON_PIN, manualButton)) {
+    if (!manualOverride) {
+      manualOverride = true;
+      isAutoMode = false;
+      manualStartedAt = millis();
+      startAllZones();
+      Serial.println(tankEmpty ? "BTN: manual ON (tank empty, pump blocked)"
+                               : "BTN: manual ON (T001-T006)");
+      beepOnce(tankEmpty ? 400 : 150);
+    } else if (anyPumpRunning()) {
+      stopAllZones();
+      Serial.println("BTN: manual OFF (giu MANUAL)");
+      beepOnce(150);
+    } else {
+      manualStartedAt = millis();
+      startAllZones();
+      Serial.println(tankEmpty ? "BTN: manual ON (tank empty, pump blocked)"
+                               : "BTN: manual ON (T001-T006)");
+      beepOnce(tankEmpty ? 400 : 150);
+    }
+    updateLcds();
+  }
+}
+
+void ensureNetwork() {
+  if (simulateOffline) {
+    if (netWasOnline) {
+      netWasOnline = false;
+      Serial.println("NET: OFFLINE (simulated)");
+      updateLcds();
+    }
+    return;
+  }
+
+  const unsigned long now = millis();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    if (now - lastWifiAttempt >= 10000) {
+      lastWifiAttempt = now;
+      Serial.println("NET: WiFi reconnecting...");
+      WiFi.reconnect();
+    }
+  } else if (!client.connected()) {
+    if (now - lastMqttAttempt >= 5000) {
+      lastMqttAttempt = now;
+      Serial.print("NET: MQTT connecting...");
+      String clientId = "ESP32-SmartIrrigation-" + String(random(0xffff), HEX);
+      if (client.connect(clientId.c_str())) {
+        Serial.println(" connected");
+        client.subscribe(topic_cmd);
+      } else {
+        Serial.print(" failed, rc=");
+        Serial.println(client.state());
+      }
+    }
+  }
+
+  const bool online = isNetOnline();
+  if (online != netWasOnline) {
+    netWasOnline = online;
+    Serial.println(online ? "NET: ONLINE" : "NET: OFFLINE");
+    updateLcds();
+  }
 }
 
 void selectMuxChannel(int channel) {
@@ -172,18 +400,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (String(topic) == topic_cmd) {
     if (message == "MODE_AUTO") {
       isAutoMode = true;
+      manualOverride = false;
+      manualStartedAt = 0;
       Serial.println("Mode: AUTO");
     } else if (message == "MODE_MANUAL") {
       isAutoMode = false;
+      manualOverride = false;
+      manualStartedAt = millis();
       Serial.println("Mode: MANUAL");
     } else if (message == "PUMP_ON") {
-      if (!isAutoMode) {
-        for (int zone = 0; zone < ZONE_COUNT; zone++) startPump(zone);
-      }
+      if (!isAutoMode) startAllZones();
     } else if (message == "PUMP_OFF") {
-      if (!isAutoMode) {
-        for (int zone = 0; zone < ZONE_COUNT; zone++) stopPump(zone);
-      }
+      if (!isAutoMode) stopAllZones();
     } else if (message.startsWith("SET_THRESHOLD_")) {
       char zoneId[5] = {0};
       int value = 0;
@@ -221,22 +449,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-void reconnectMQTT() {
-  while (!client.connected()) {
-    Serial.print("Connecting to Mosquitto MQTT...");
-    String clientId = "ESP32-SmartIrrigation-" + String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str())) {
-      Serial.println(" Connected!");
-      client.subscribe(topic_cmd);
-    } else {
-      Serial.print(" Failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" Retrying in 2 seconds...");
-      delay(2000);
-    }
-  }
-}
-
 void setup() {
   Serial.begin(115200);
 
@@ -257,7 +469,11 @@ void setup() {
   pinMode(MUX_S1_PIN, OUTPUT);
   pinMode(MUX_S2_PIN, OUTPUT);
   pinMode(MUX_S3_PIN, OUTPUT);
-  pinMode(RAIN_DIGITAL_PIN, INPUT_PULLUP);
+  pinMode(RAIN_DIGITAL_PIN, INPUT);
+  pinMode(TANK_TRIG_PIN, OUTPUT);
+  pinMode(TANK_ECHO_PIN, INPUT);
+  pinMode(WIFI_BUTTON_PIN, INPUT);  // GPIO35 input-only, dùng trở kéo 10k ngoài
+  pinMode(MANUAL_BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   noTone(BUZZER_PIN);
   analogSetPinAttenuation(MUX_SIG_PIN, ADC_11db);
@@ -280,37 +496,30 @@ void setup() {
     lcds[zone].print("Connecting WiFi");
   }
 
-  WiFi.begin("Wokwi-GUEST", "", 6);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWiFi Connected!");
-
-  for (int zone = 0; zone < ZONE_COUNT; zone++) {
-    lcds[zone].clear();
-    lcds[zone].setCursor(0, 0);
-    lcds[zone].print(zoneNames[zone]);
-    lcds[zone].setCursor(0, 1);
-    lcds[zone].print("WiFi Connected");
-  }
-  delay(1000);
-  lcdReady = true;
-  updateLcds();
-
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
   // JSON telemetry (~700 bytes) vượt xa buffer mặc định 256 byte của PubSubClient.
   // Nếu không tăng buffer, publish sẽ thất bại âm thầm và Backend không nhận được gì.
   client.setBufferSize(1024);
   client.setKeepAlive(30);
+  // Giới hạn thời gian chờ TCP để connect() không treo vòng điều khiển khi broker lỗi.
+  client.setSocketTimeout(3);
+
+  // Không chặn ở setup: WiFi/MQTT nối nền, hệ thống tưới cục bộ chạy ngay.
+  WiFi.setAutoReconnect(true);
+  WiFi.begin("Wokwi-GUEST", "", 6);
+  Serial.println("WiFi connecting...");
+
+  lcdReady = true;
+  updateLcds();
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnectMQTT();
-  }
+  // WiFi/MQTT chỉ là kênh giám sát; mất mạng thì vẫn đọc cảm biến và tưới cục bộ.
+  ensureNetwork();
   client.loop();
+  updateBuzzer();
+  handleButtons();
 
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
@@ -329,6 +538,9 @@ void loop() {
     temperature = dht.readTemperature();
     humidity = dht.readHumidity();
 
+    updateTank();
+    enforceRuntimeLimits();
+
     // Logic Hysteresis Auto Mode cho từng luống
     if (isAutoMode) {
       for (int zone = 0; zone < ZONE_COUNT; zone++) {
@@ -337,7 +549,7 @@ void loop() {
         } else if (pumpRunning[zone] &&
                    moisturePercent[zone] >= moistureOff[zone]) {
           stopPump(zone);
-        } else if (!pumpRunning[zone] &&
+        } else if (!pumpRunning[zone] && !tankEmpty && !zoneLocked[zone] &&
                    (!weatherGateEnabled || !isRaining) &&
                    moisturePercent[zone] <= moistureOn[zone]) {
           startPump(zone);
@@ -347,10 +559,17 @@ void loop() {
 
     updateLcds();
 
-    Serial.print("Auto=");
+    Serial.print("Net=");
+    Serial.print(isNetOnline() ? "ON" : "OFF");
+    Serial.print(" Auto=");
     Serial.print(isAutoMode ? "ON" : "OFF");
+    Serial.print(" Manual=");
+    Serial.print(manualOverride ? "ON" : "OFF");
     Serial.print(" Rain=");
     Serial.print(isRaining ? "YES" : "NO");
+    Serial.print(" Tank=");
+    Serial.print(tankDistanceCm, 0);
+    Serial.print(tankEmpty ? "cm/EMPTY" : "cm/OK");
     Serial.print(" Moisture: ");
     for (int zone = 0; zone < ZONE_COUNT; zone++) {
       Serial.print(zoneNames[zone]);
@@ -386,18 +605,22 @@ void loop() {
       json += "\"pump\":" + String(pumpRunning[zone] ? "true" : "false") + "}";
     }
     json += "],";
+    json += "\"servoAngle\":" + String(anyPumpRunning() ? MASTER_VALVE_OPEN : MASTER_VALVE_CLOSED) + ",";
     json += "\"mode\":\"" + String(isAutoMode ? "auto" : "manual") + "\"";
     json += "}";
 
-    // Retained: backend/web nhận ngay trạng thái mới nhất dù kết nối sau ESP32 
-    bool published = client.publish(topic_status, json.c_str(), true);
-    if (published) {
-      Serial.print("Published to MQTT: ");
-      Serial.println(json);
-    } else {
-      Serial.print("MQTT publish FAILED (");
-      Serial.print(json.length());
-      Serial.println(" bytes). Kiểm tra setBufferSize/độ dài payload.");
+    // Retained: backend/web nhận ngay trạng thái mới nhất dù kết nối sau ESP32.
+    // Khi offline thì bỏ qua publish, tránh log lỗi mỗi 2 giây.
+    if (client.connected()) {
+      bool published = client.publish(topic_status, json.c_str(), true);
+      if (published) {
+        Serial.print("Published to MQTT: ");
+        Serial.println(json);
+      } else {
+        Serial.print("MQTT publish FAILED (");
+        Serial.print(json.length());
+        Serial.println(" bytes). Kiểm tra setBufferSize/độ dài payload.");
+      }
     }
   }
 }
