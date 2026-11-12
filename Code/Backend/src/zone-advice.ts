@@ -1,9 +1,6 @@
 import type { Telemetry } from "./domain.js";
-import {
-  type CropGroup,
-  type SoilType,
-  isCropGroup,
-} from "./zone-profile-repository.js";
+import { type CropGroup, isCropGroup } from "./zone-profile-repository.js";
+import type { SoilType } from "./garden-settings-repository.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -186,23 +183,18 @@ export function buildZoneAdvice(
   }
 
   switch (zone.soil) {
-    case "Đất cát pha":
+    case "Đất cát":
       thresholdShift += 8;
       durationShift += 2;
-      reasons.push("Đất cát pha thoát nước nhanh nên tưới sớm và lâu hơn");
+      reasons.push("Đất cát thoát nước nhanh nên tưới sớm và lâu hơn");
       break;
-    case "Đất sét":
-      thresholdShift -= 6;
-      durationShift -= 2;
-      reasons.push("Đất sét giữ ẩm lâu nên giảm ngưỡng và thời lượng");
-      break;
-    case "Giá thể":
-      thresholdShift += 6;
+    case "Đất đỏ bazan":
+      thresholdShift += 4;
       durationShift += 1;
-      reasons.push("Giá thể nhẹ, thoát nước nhanh nên tăng ngưỡng");
+      reasons.push("Đất đỏ bazan thoát nước khá nên tăng nhẹ ngưỡng và thời lượng");
       break;
     default:
-      reasons.push("Đất thịt giữ ẩm trung bình (mặc định)");
+      reasons.push("Đất phù sa giàu mùn, giữ ẩm tốt (mặc định)");
       break;
   }
 

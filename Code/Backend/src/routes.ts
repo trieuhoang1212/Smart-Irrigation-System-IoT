@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router, raw } from "express";
 import {
   type CommandRequest,
+  type Telemetry,
   ZONE_PROFILE_LIMITS,
   toMqttCommand,
 } from "./domain.js";
@@ -25,15 +26,19 @@ import {
   updateZoneProfile,
 } from "./zone-settings-repository.js";
 import {
-  DEFAULT_SOIL,
   type ZoneProfilePatch,
   getZoneProfile,
   getZoneProfiles,
   isCropGroup,
-  isSoilType,
   saveZoneProfile,
   setZonePhoto,
 } from "./zone-profile-repository.js";
+import {
+  type SoilType,
+  getGardenSoil,
+  isSoilType,
+  saveGardenSoil,
+} from "./garden-settings-repository.js";
 import { buildZoneAdvice, growthFor } from "./zone-advice.js";
 import { imageExtension, removeUploadFile, saveZonePhotoFile } from "./uploads.js";
 
@@ -48,6 +53,7 @@ function buildDeviceConfig(deviceId: string) {
 
   return {
     ...gardenConfig,
+    soil: getGardenSoil(deviceId),
     zones: gardenConfig.zones.map((zone) => {
       const setting = settings.get(zone.id);
       const profile = profiles.get(zone.id);
@@ -69,7 +75,6 @@ function buildDeviceConfig(deviceId: string) {
             }
           : {}),
         photoUrl: profile?.photoFile ? `/uploads/${profile.photoFile}` : null,
-        soil: profile?.soil ?? DEFAULT_SOIL,
         growth,
         ...(setting
           ? {
@@ -92,6 +97,36 @@ function queryNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+type DeviceZone = ReturnType<typeof buildDeviceConfig>["zones"][number];
+
+function adviceForZone(
+  zone: DeviceZone,
+  soil: SoilType,
+  telemetry: Telemetry | null,
+) {
+  const baseZone = gardenConfig.zones.find((item) => item.id === zone.id);
+  if (!baseZone) return null;
+
+  const growth = growthFor(zone.group, zone.plantedAt ?? null, zone.harvestDays ?? null);
+  return {
+    zoneId: zone.id,
+    name: zone.name,
+    growth,
+    advice: buildZoneAdvice(
+      {
+        group: zone.group,
+        soil,
+        threshold: zone.threshold,
+        duration: zone.duration,
+        baseThreshold: baseZone.threshold,
+        baseDuration: baseZone.duration,
+      },
+      growth,
+      telemetry,
+    ),
+  };
+}
+
 export function createApiRouter(gateway: MqttGateway) {
   const router = Router();
 
@@ -112,6 +147,67 @@ export function createApiRouter(gateway: MqttGateway) {
     response.json(buildDeviceConfig(request.params.deviceId));
   });
 
+  router.get("/api/devices/:deviceId/config/advice", (request, response) => {
+    const { deviceId } = request.params;
+    const config = buildDeviceConfig(deviceId);
+    const telemetry = loadLatestTelemetry(deviceId);
+
+    response.json({
+      deviceId,
+      soil: config.soil,
+      zones: config.zones
+        .map((zone) => adviceForZone(zone, config.soil, telemetry))
+        .filter((item) => item !== null),
+    });
+  });
+
+  router.post("/api/devices/:deviceId/config/advice/apply", async (request, response) => {
+    const { deviceId } = request.params;
+    const config = buildDeviceConfig(deviceId);
+    const telemetry = loadLatestTelemetry(deviceId);
+    const applied: Array<{
+      zoneId: string;
+      threshold: number;
+      duration: number;
+      appliedRemotely: boolean;
+    }> = [];
+
+    for (const zone of config.zones) {
+      if (!isZoneId(zone.id)) continue;
+      const item = adviceForZone(zone, config.soil, telemetry);
+      if (!item) continue;
+
+      const { advice } = item;
+      saveZoneSetting(
+        deviceId,
+        zone.id,
+        advice.suggestedThreshold,
+        deriveStopThreshold(advice.suggestedThreshold),
+      );
+      updateZoneProfile(deviceId, zone.id, { duration: advice.suggestedDuration });
+
+      let appliedRemotely = false;
+      try {
+        await gateway.publish(`SET_THRESHOLD_${zone.id}_${advice.suggestedThreshold}`);
+        appliedRemotely = true;
+      } catch (error) {
+        console.error(
+          "Threshold saved but MQTT publish failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+
+      applied.push({
+        zoneId: zone.id,
+        threshold: advice.suggestedThreshold,
+        duration: advice.suggestedDuration,
+        appliedRemotely,
+      });
+    }
+
+    response.json({ applied });
+  });
+
   router.get("/api/devices/:deviceId/config/zones/:zoneId/advice", (request, response) => {
     const { deviceId, zoneId } = request.params;
     if (!isZoneId(zoneId)) {
@@ -119,30 +215,26 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
 
-    const zone = buildDeviceConfig(deviceId).zones.find((item) => item.id === zoneId);
-    const baseZone = gardenConfig.zones.find((item) => item.id === zoneId);
-    if (!zone || !baseZone) {
+    const config = buildDeviceConfig(deviceId);
+    const zone = config.zones.find((item) => item.id === zoneId);
+    const payload = zone
+      ? adviceForZone(zone, config.soil, loadLatestTelemetry(deviceId))
+      : null;
+    if (!payload) {
       response.status(404).json({ error: "Zone not found" });
       return;
     }
 
-    const growth = growthFor(zone.group, zone.plantedAt ?? null, zone.harvestDays ?? null);
-    response.json({
-      zoneId,
-      growth,
-      advice: buildZoneAdvice(
-        {
-          group: zone.group,
-          soil: zone.soil,
-          threshold: zone.threshold,
-          duration: zone.duration,
-          baseThreshold: baseZone.threshold,
-          baseDuration: baseZone.duration,
-        },
-        growth,
-        loadLatestTelemetry(deviceId),
-      ),
-    });
+    response.json(payload);
+  });
+
+  router.put("/api/devices/:deviceId/config/soil", (request, response) => {
+    const soil = (request.body as { soil?: unknown } | undefined)?.soil;
+    if (typeof soil !== "string" || !isSoilType(soil)) {
+      response.status(400).json({ error: "soil is not supported" });
+      return;
+    }
+    response.json({ deviceId: request.params.deviceId, ...saveGardenSoil(request.params.deviceId, soil) });
   });
 
   router.get("/api/devices/:deviceId/config/changes", (request, response) => {
@@ -215,14 +307,6 @@ export function createApiRouter(gateway: MqttGateway) {
         return;
       }
       profilePatch.group = body.group;
-    }
-
-    if (body.soil !== undefined) {
-      if (typeof body.soil !== "string" || !isSoilType(body.soil)) {
-        response.status(400).json({ error: "soil is not supported" });
-        return;
-      }
-      profilePatch.soil = body.soil;
     }
 
     if (body.plantedAt !== undefined) {

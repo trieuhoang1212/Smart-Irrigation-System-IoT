@@ -101,13 +101,18 @@ db.exec(`
     name          TEXT NOT NULL,
     description   TEXT NOT NULL,
     crop_group    TEXT NOT NULL,
-    soil          TEXT NOT NULL DEFAULT 'Đất thịt',
     planted_at    INTEGER,
     harvest_days  INTEGER,
     notes         TEXT NOT NULL DEFAULT '',
     photo_file    TEXT,
     updated_at    INTEGER NOT NULL,
     PRIMARY KEY (device_id, zone_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS garden_settings (
+    device_id   TEXT PRIMARY KEY,
+    soil        TEXT NOT NULL DEFAULT 'Đất phù sa',
+    updated_at  INTEGER NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS zone_setting_changes (
@@ -188,16 +193,17 @@ function migrateZoneProfiles() {
 
 migrateZoneProfiles();
 
-// DB cũ chưa có loại đất trong hồ sơ cây; mặc định đất thịt.
-function migrateZoneProfileSoil() {
+// Loại đất chuyển từ hồ sơ từng ô sang cấu hình chung của khu vườn.
+function migrateGardenSoil() {
   const columns = db.prepare("PRAGMA table_info(zone_profiles)").all() as Array<{
     name: string;
   }>;
-  if (columns.some((column) => column.name === "soil")) return;
-  db.exec("ALTER TABLE zone_profiles ADD COLUMN soil TEXT NOT NULL DEFAULT 'Đất thịt'");
+  if (columns.some((column) => column.name === "soil")) {
+    db.exec("ALTER TABLE zone_profiles DROP COLUMN soil");
+  }
 }
 
-migrateZoneProfileSoil();
+migrateGardenSoil();
 
 export function closeDatabase() {
   if (db.open) db.close();
