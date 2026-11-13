@@ -4,6 +4,7 @@ import {
   type CommandRequest,
   type Telemetry,
   ZONE_PROFILE_LIMITS,
+  targetSecondsFor,
   toMqttCommand,
 } from "./domain.js";
 import { gardenConfig } from "./garden-config.js";
@@ -370,7 +371,22 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    response.json({ ...setting, profile, appliedRemotely });
+    // Mục tiêu nước chỉ có ý nghĩa khi firmware biết thời gian chạy tương ứng.
+    let targetSynced = false;
+    if (Object.keys(irrigation).length > 0) {
+      const targetSeconds = targetSecondsFor(setting.flowLitersPerHour, setting.targetLiters);
+      try {
+        await gateway.publish(`SET_TARGET_${zoneId}_${targetSeconds}`);
+        targetSynced = true;
+      } catch (error) {
+        console.error(
+          "Target saved but MQTT publish failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    response.json({ ...setting, profile, appliedRemotely, targetSynced });
   });
 
   const photoParser = raw({

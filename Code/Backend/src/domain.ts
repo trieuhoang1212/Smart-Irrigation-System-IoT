@@ -10,12 +10,25 @@ export const ZONE_PROFILE_LIMITS = {
   targetLiters: { min: 0.1, max: 20 },
 } as const;
 
+// Firmware dừng bơm thủ công tối đa 10 phút/lần, nên mục tiêu dài hơn sẽ không có cảnh báo.
+export function targetSecondsFor(
+  flowLitersPerHour: number | null | undefined,
+  targetLiters: number | null | undefined,
+): number {
+  if (!flowLitersPerHour || !targetLiters) return 0;
+  const seconds = Math.round((targetLiters / flowLitersPerHour) * 3600);
+  return seconds >= 10 && seconds <= 600 ? seconds : 0;
+}
+
 export type ZoneState = {
   id: ZoneId;
   moisture: number;
   threshold: number;
   stopThreshold: number;
   pump: boolean;
+  // Firmware mới gửi thêm mục tiêu thời gian chạy và cờ vượt mục tiêu thủ công.
+  targetSeconds?: number;
+  over?: boolean;
 };
 
 export type TankState = {
@@ -82,6 +95,11 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
       threshold: numberInRange(zone.threshold, `${id}.threshold`, 0, 100),
       stopThreshold: numberInRange(zone.stopThreshold, `${id}.stopThreshold`, 0, 100),
       pump: booleanValue(zone.pump, `${id}.pump`),
+      // Payload firmware cũ không có các trường này.
+      targetSeconds: zone.targetSeconds === undefined
+        ? undefined
+        : numberInRange(zone.targetSeconds, `${id}.targetSeconds`, 0, 3600),
+      over: zone.over === undefined ? undefined : booleanValue(zone.over, `${id}.over`),
     });
   });
 
