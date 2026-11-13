@@ -1,133 +1,3 @@
-.manager-shell {
-  min-height: 100vh;
-  background: var(--canvas);
-  color: var(--ink);
-}
-
-.manager-topbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: min(1220px, 100%);
-  height: 64px;
-  margin: 0 auto;
-  padding: 0 40px;
-  border-bottom: 1px solid var(--line);
-}
-
-.manager-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--deep);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.4px;
-  text-decoration: none;
-}
-
-.manager-brand span span {
-  color: var(--green);
-}
-
-.manager-topbar .ghost-button {
-  margin-left: auto;
-}
-
-.manager-status {
-  display: grid;
-  min-height: calc(100vh - 64px);
-  padding: 24px;
-  place-items: center;
-}
-
-.manager-layout {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-  gap: 24px;
-  width: min(1220px, 100%);
-  margin: 0 auto;
-  padding: 26px 40px 48px;
-  align-items: start;
-}
-
-.manager-rail {
-  position: sticky;
-  top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.manager-rail .nav-label {
-  margin: 0 6px 8px;
-}
-
-.manager-rail-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: none;
-  color: inherit;
-  text-align: left;
-}
-
-.manager-rail-item:hover {
-  background: #eef2ec;
-}
-
-.manager-rail-item.active {
-  border-color: var(--line);
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(23, 54, 42, 0.04);
-}
-
-.manager-rail-thumb {
-  flex: none;
-  width: 46px;
-  height: 46px;
-  border-radius: 7px;
-}
-
-.manager-rail-thumb .zone-photo-fallback {
-  font-size: 16px;
-}
-
-.manager-rail-item > span {
-  min-width: 0;
-}
-
-.manager-rail-item strong {
-  display: block;
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.manager-rail-item small {
-  display: block;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 10.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.manager-main {
-  min-width: 0;
-}
-
-.manager-heading {
-  padding-top: 8px;
-}
-
 .manager-card {
   padding: 20px;
 }
@@ -355,50 +225,7 @@
   border-top: 1px solid var(--line-soft);
 }
 
-@media (max-width: 980px) {
-  .manager-topbar {
-    padding: 0 24px;
-  }
-
-  .manager-layout {
-    grid-template-columns: 1fr;
-    padding: 20px 24px 40px;
-  }
-
-  .manager-rail {
-    position: static;
-    flex-direction: row;
-    padding-bottom: 6px;
-    overflow-x: auto;
-  }
-
-  .manager-rail .nav-label {
-    display: none;
-  }
-
-  .manager-rail-item {
-    flex: 0 0 180px;
-  }
-}
-
 @media (max-width: 680px) {
-  .manager-topbar {
-    height: 56px;
-    padding: 0 14px;
-  }
-
-  .manager-status {
-    min-height: calc(100vh - 56px);
-  }
-
-  .manager-layout {
-    padding: 16px 14px 28px;
-  }
-
-  .manager-rail-item {
-    flex-basis: 156px;
-  }
-
   .manager-card {
     padding: 15px;
   }
@@ -437,6 +264,10 @@
 
   .soil-plan-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .soil-plan-table {
+    min-width: 480px;
   }
 
   .soil-plan-footer {

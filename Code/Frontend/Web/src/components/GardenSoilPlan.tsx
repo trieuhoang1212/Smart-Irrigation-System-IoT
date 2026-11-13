@@ -86,7 +86,7 @@ export function GardenSoilPlan({
   const soilReason = sample?.reasons.find((reason) => reason.startsWith("Đất "));
 
   return (
-    <section className="manager-card soil-plan">
+    <section className="panel manager-card soil-plan">
       <div className="manager-card-head">
         <div>
           <p className="eyebrow">Điều kiện tưới</p>
