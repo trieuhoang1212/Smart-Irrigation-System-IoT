@@ -19,6 +19,11 @@ export type ZoneState = {
   pump: boolean;
 };
 
+export type TankState = {
+  distanceCm: number | null;
+  empty: boolean;
+};
+
 export type Telemetry = {
   deviceId: string;
   mode: "auto" | "manual";
@@ -29,6 +34,7 @@ export type Telemetry = {
   weatherGate: boolean;
   pump: boolean;
   servoAngle: number;
+  tank: TankState;
   zones: ZoneState[];
   receivedAt: string;
 };
@@ -87,6 +93,17 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
 
   const pump = booleanValue(raw.pump, "pump");
 
+  // Firmware cũ không gửi tank: coi như chưa có số đo.
+  let tank: TankState = { distanceCm: null, empty: false };
+  if (raw.tank !== undefined) {
+    if (!raw.tank || typeof raw.tank !== "object") throw new Error("Invalid tank telemetry");
+    const rawTank = raw.tank as Record<string, unknown>;
+    tank = {
+      distanceCm: nullableNumberInRange(rawTank.distanceCm, "tank.distanceCm", 0, 400),
+      empty: booleanValue(rawTank.empty, "tank.empty"),
+    };
+  }
+
   return {
     deviceId: expectedDeviceId,
     mode: raw.mode,
@@ -100,6 +117,7 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
     servoAngle: raw.servoAngle === undefined
       ? (pump ? 90 : 0)
       : numberInRange(raw.servoAngle, "servoAngle", 0, 180),
+    tank,
     zones,
     receivedAt: new Date().toISOString(),
   };
