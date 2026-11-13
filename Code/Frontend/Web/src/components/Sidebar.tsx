@@ -1,7 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ChartIcon, ClockIcon, EditIcon, GridIcon, LeafIcon, RefreshIcon } from "./icons";
+import type { MouseEvent } from "react";
+import {
+  ChartIcon,
+  ClockIcon,
+  EditIcon,
+  GaugeIcon,
+  GridIcon,
+  LeafIcon,
+  RefreshIcon,
+} from "./icons";
+
+type NavKey = "overview" | "analysis" | "history" | "activity" | "garden";
 
 interface SidebarProps {
   connected: boolean;
@@ -9,6 +20,8 @@ interface SidebarProps {
   deviceOnline: boolean;
   lastUpdated: string;
   onReconnect: () => void;
+  active?: NavKey;
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }
 
 export function Sidebar({
@@ -17,6 +30,8 @@ export function Sidebar({
   deviceOnline,
   lastUpdated,
   onReconnect,
+  active = "overview",
+  onNavigate,
 }: SidebarProps) {
   const brokerOnline = brokerConnected === true;
   const deviceLabel = !connected
@@ -24,10 +39,11 @@ export function Sidebar({
     : deviceOnline
       ? "Online"
       : "Offline";
+  const onDashboard = active === "overview";
 
   return (
     <aside className="sidebar">
-      <a className="brand" href="#top">
+      <a className="brand" href={onDashboard ? "#top" : "/"} onClick={onNavigate}>
         <span className="brand-mark">
           <LeafIcon size={16} />
         </span>
@@ -38,19 +54,43 @@ export function Sidebar({
 
       <nav>
         <p className="nav-label">Bảng điều khiển</p>
-        <a className="nav-item active" href="#top">
+        <a
+          className={`nav-item ${onDashboard ? "active" : ""}`}
+          href={onDashboard ? "#top" : "/"}
+          onClick={onNavigate}
+        >
           <GridIcon size={17} />
           Tổng quan
         </a>
-        <a className="nav-item" href="#history">
+        <Link
+          className={`nav-item ${active === "analysis" ? "active" : ""}`}
+          href="/analysis"
+          onClick={onNavigate}
+        >
+          <GaugeIcon size={17} />
+          Phân tích cây trồng
+        </Link>
+        <Link
+          className={`nav-item ${active === "history" ? "active" : ""}`}
+          href="/history"
+          onClick={onNavigate}
+        >
           <ChartIcon size={17} />
           Lịch sử cảm biến
-        </a>
-        <a className="nav-item" href="#activity">
+        </Link>
+        <Link
+          className={`nav-item ${active === "activity" ? "active" : ""}`}
+          href="/activity"
+          onClick={onNavigate}
+        >
           <ClockIcon size={17} />
           Nhật ký hoạt động
-        </a>
-        <Link className="nav-item" href="/garden">
+        </Link>
+        <Link
+          className={`nav-item ${active === "garden" ? "active" : ""}`}
+          href="/garden"
+          onClick={onNavigate}
+        >
           <EditIcon size={17} />
           Quản lý khu vườn
         </Link>
