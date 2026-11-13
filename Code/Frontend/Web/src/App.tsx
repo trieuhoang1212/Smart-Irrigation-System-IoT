@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { useMqtt } from "./hooks/useMqtt";
 import { useActivity } from "./hooks/useActivity";
@@ -10,7 +11,8 @@ import { GardenOverview } from "./components/GardenOverview";
 import { ControlPanel } from "./components/ControlPanel";
 import { HistoryChart } from "./components/HistoryChart";
 import { MetricsOverview } from "./components/MetricsOverview";
-import { ActivityAndZones } from "./components/ActivityAndZones";
+import { ActivityFeed } from "./components/ActivityFeed";
+import { BackToTop } from "./components/BackToTop";
 import { ToastStack } from "./components/ToastStack";
 import { BACKEND_URL } from "./lib/backend";
 import { type ToastMessage, type ToastTone } from "./notifications";
@@ -53,6 +55,8 @@ export default function App() {
     brokerConnected,
     commandVersion,
     servoAngle,
+    tankDistanceCm,
+    tankEmpty,
     lastTelemetryAt,
     saveZoneConfig,
   } = useMqtt({
@@ -64,7 +68,6 @@ export default function App() {
     events,
     loading: eventsLoading,
     error: eventsError,
-    refresh: refreshEvents,
   } = useActivity({
     backendUrl: BACKEND_URL,
     deviceId,
@@ -172,6 +175,8 @@ export default function App() {
           rainPercent={rainPercent}
           rainBlock={rainBlock}
           wateredLiters={wateredLitersByZone[activeZone] ?? 0}
+          tankDistanceCm={tankDistanceCm}
+          tankEmpty={tankEmpty}
           onChangeMode={changeMode}
           onTogglePump={handleTogglePump}
           onChangeThreshold={(val) => setZoneThreshold(activeZone, val)}
@@ -179,15 +184,29 @@ export default function App() {
           onSaveZoneConfig={(input) => saveZoneConfig(selectedZone.id, input)}
         />
 
-        <HistoryChart
-          backendUrl={BACKEND_URL}
-          deviceId={deviceId}
-          zones={zones}
-          activeZone={activeZone}
-          onSelectZone={setActiveZone}
-          connected={connected}
-          liveSample={liveSample}
-        />
+        <section className="panel overview-panel">
+          <div className="panel-heading overview-panel-head">
+            <div>
+              <h2>Diễn biến 6 giờ</h2>
+              <p>
+                {selectedZone.id} · {selectedZone.name} · độ ẩm đất
+              </p>
+            </div>
+            <Link className="link-button" href={`/history?zone=${activeZone}`}>
+              Xem lịch sử
+            </Link>
+          </div>
+          <HistoryChart
+            compact
+            backendUrl={BACKEND_URL}
+            deviceId={deviceId}
+            zones={zones}
+            activeZone={activeZone}
+            connected={connected}
+            onSelectZone={setActiveZone}
+            liveSample={liveSample}
+          />
+        </section>
 
         <MetricsOverview
           temperature={temperature}
@@ -198,13 +217,26 @@ export default function App() {
           selectedZone={selectedZone}
         />
 
-        <ActivityAndZones
-          events={events}
-          eventsLoading={eventsLoading}
-          eventsError={eventsError}
-          onRefreshEvents={refreshEvents}
-        />
+        <section className="panel overview-panel">
+          <div className="panel-heading overview-panel-head">
+            <div>
+              <h2>Hoạt động gần đây</h2>
+              <p>3 lệnh hoặc thay đổi ngưỡng mới nhất</p>
+            </div>
+            <Link className="link-button" href="/activity">
+              Xem tất cả
+            </Link>
+          </div>
+          <ActivityFeed
+            events={events.slice(0, 3)}
+            loading={eventsLoading}
+            error={eventsError}
+            scroll={false}
+          />
+        </section>
       </section>
+
+      <BackToTop />
     </main>
   );
 }
