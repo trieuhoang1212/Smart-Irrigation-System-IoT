@@ -27,11 +27,8 @@ export type ZoneAdvice = {
   growth: GrowthInfo | null;
   advice: {
     currentThreshold: number;
-    currentDuration: number;
     suggestedThreshold: number;
-    suggestedDuration: number;
     thresholdDelta: number;
-    durationDelta: number;
     window: { start: string; end: string } | null;
     windowNote: string;
     summary: string;
@@ -65,7 +62,6 @@ export type Zone = {
   threshold: number;
   stopThreshold: number;
   method: string;
-  duration: number;
   pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;

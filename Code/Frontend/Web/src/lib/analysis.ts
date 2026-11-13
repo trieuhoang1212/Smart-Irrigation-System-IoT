@@ -17,7 +17,7 @@ export type AnalysisStatus = "good" | "watch" | "risk" | "unknown";
 export type ScoreComponent = {
   key: "moisture" | "climate" | "water";
   label: string;
-  score: number;
+  score: number | null;
   max: number;
   note: string;
 };
@@ -191,23 +191,37 @@ export function analyzeZone({
   }
 
   const moistureScore = Math.round(60 * (inSafeCount / clean.length));
-  const climateScore = comfortRatio === null ? 15 : Math.round(25 * comfortRatio);
+  const climateScore = comfortRatio === null ? null : Math.round(25 * comfortRatio);
 
-  let waterScore = 8;
-  let waterNote = "Chưa có dữ liệu mực nước bồn";
+  let waterScore: number | null;
+  let waterNote: string;
   if (tankEmpty) {
     waterScore = 0;
     waterNote = "Bồn đã cạn, bơm đang bị chặn";
   } else if (tankDistanceCm !== null) {
     waterScore = 15;
     waterNote = `Cách miệng bồn ${Math.round(tankDistanceCm)} cm`;
+  } else {
+    waterScore = null;
+    waterNote = "Thiếu dữ liệu mực nước bồn — không chấm";
   }
 
-  const score = moistureScore + climateScore + waterScore;
+  // Chỉ chấm trên nguồn có dữ liệu thật; thiếu cảm biến thì quy đổi về thang 100.
+  const scored = [
+    { score: moistureScore, max: 60 },
+    { score: climateScore, max: 25 },
+    { score: waterScore, max: 15 },
+  ].filter((item): item is { score: number; max: number } => item.score !== null);
+  const knownMax = scored.reduce((total, item) => total + item.max, 0);
+  const score = Math.round(
+    (scored.reduce((total, item) => total + item.score, 0) / knownMax) * 100,
+  );
+  const missingSources = 3 - scored.length;
 
   let status: AnalysisStatus = score >= 80 ? "good" : score >= 55 ? "watch" : "risk";
   if (isDry && status === "good") status = "watch";
   if (isWet && status === "good") status = "watch";
+  if (status === "good" && missingSources > 0) status = "watch";
   if (isDry && !latest.pump && currentDryMs >= 30 * 60 * 1000) status = "risk";
   if (tankEmpty && isDry) status = "risk";
 
@@ -240,6 +254,16 @@ export function analyzeZone({
   }
   if (status === "good") {
     summaryParts.push("Thời tiết và nguồn nước không có bất thường.");
+  } else if (missingSources > 0) {
+    const missing = [
+      climateScore === null ? "DHT22" : null,
+      waterScore === null ? "mực nước bồn" : null,
+    ]
+      .filter(Boolean)
+      .join(" và ");
+    summaryParts.push(
+      `Chưa có dữ liệu ${missing} nên điểm chỉ mang tính tham khảo.`,
+    );
   }
 
   const advice: string[] = [];
@@ -247,7 +271,7 @@ export function analyzeZone({
     advice.push(
       latest.pump
         ? `Đất đang khô ${formatDuration(currentDryMs)} và bơm đã chạy — theo dõi độ ẩm có tăng lại không.`
-        : `Đất khô liên tục ${formatDuration(currentDryMs)}, dưới ngưỡng ${Math.round(safeLow)}% — kiểm tra bơm/vòi hoặc tăng thời lượng tưới.`,
+        : `Đất khô liên tục ${formatDuration(currentDryMs)}, dưới ngưỡng ${Math.round(safeLow)}% — kiểm tra bơm/vòi hoặc tăng lượng nước mỗi lần.`,
     );
   }
   if (isWet) {
@@ -257,7 +281,7 @@ export function analyzeZone({
   }
   if (inSafePct < 60 && !isDry && !isWet) {
     advice.push(
-      `Chỉ ${Math.round(inSafePct)}% thời gian đất nằm trong vùng an toàn ${Math.round(safeLow)}–${Math.round(safeHigh)}% — nên xem lại ngưỡng tưới và thời lượng.`,
+      `Chỉ ${Math.round(inSafePct)}% thời gian đất nằm trong vùng an toàn ${Math.round(safeLow)}–${Math.round(safeHigh)}% — nên xem lại ngưỡng tưới và lượng nước mỗi lần.`,
     );
   }
   if (longestDryMs >= 60 * 60 * 1000 && !isDry) {
@@ -306,7 +330,7 @@ export function analyzeZone({
         max: 25,
         note:
           comfortRatio === null
-            ? "Thiếu dữ liệu DHT22"
+            ? "Thiếu dữ liệu DHT22 — không chấm"
             : `${Math.round(comfortRatio * 100)}% mẫu trong khoảng 18–33°C`,
       },
       {

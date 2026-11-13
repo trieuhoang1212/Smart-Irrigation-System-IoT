@@ -12,8 +12,9 @@ export function GardenOverview({
   zones,
   activeZone,
   soil,
-  connected,
+  controlsEnabled,
   deviceId,
+  tankEmpty,
   onSelectZone,
   onToggleIrrigation,
   onApplyAdvice,
@@ -21,8 +22,9 @@ export function GardenOverview({
   zones: Zone[];
   activeZone: string;
   soil: SoilType;
-  connected: boolean;
+  controlsEnabled: boolean;
   deviceId: string;
+  tankEmpty: boolean;
   onSelectZone: (zoneId: string) => void;
   onToggleIrrigation: () => void;
   onApplyAdvice: (input: ZoneConfigInput) => Promise<boolean>;
@@ -30,10 +32,9 @@ export function GardenOverview({
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
   if (!selectedZone) return null;
 
-  const applyAdvice = (value: { threshold: number; duration: number }) =>
+  const applyAdvice = (value: { threshold: number }) =>
     onApplyAdvice({
       threshold: value.threshold,
-      duration: value.duration,
       pumpSeconds: selectedZone.pumpSeconds,
       flowLitersPerHour: selectedZone.flowLitersPerHour,
       targetLiters: selectedZone.targetLiters,
@@ -57,7 +58,8 @@ export function GardenOverview({
         <GardenDetailPanel
           zone={selectedZone}
           soil={soil}
-          connected={connected}
+          controlsEnabled={controlsEnabled}
+          tankEmpty={tankEmpty}
           onToggleIrrigation={onToggleIrrigation}
         />
       </div>

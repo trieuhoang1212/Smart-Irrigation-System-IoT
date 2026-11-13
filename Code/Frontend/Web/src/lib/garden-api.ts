@@ -17,6 +17,27 @@ export type ZoneProfileInput = {
   notes: string;
 };
 
+export type WateringRunSummary = {
+  startedAt: number;
+  endedAt: number;
+  seconds: number;
+  liters: number;
+};
+
+export type ZoneWateringSummary = {
+  zoneId: string;
+  lastRun: WateringRunSummary | null;
+  todayLiters: number;
+  todayRuns: number;
+};
+
+type WateringResponse = {
+  deviceId: string;
+  from: number;
+  to: number;
+  zones: ZoneWateringSummary[];
+};
+
 function configUrl(deviceId: string): string {
   return backendUrl(`/api/devices/${encodeURIComponent(deviceId)}/config`);
 }
@@ -25,6 +46,17 @@ export async function fetchGardenConfig(): Promise<GardenConfigResponse> {
   const response = await fetch(backendUrl("/api/config"));
   if (!response.ok) throw new Error(`Không tải được cấu hình (${response.status})`);
   return (await response.json()) as GardenConfigResponse;
+}
+
+export async function fetchWatering(
+  deviceId: string,
+): Promise<Record<string, ZoneWateringSummary>> {
+  const response = await fetch(
+    backendUrl(`/api/devices/${encodeURIComponent(deviceId)}/watering`),
+  );
+  if (!response.ok) throw new Error(`Không tải được nhật ký tưới (${response.status})`);
+  const body = (await response.json()) as WateringResponse;
+  return Object.fromEntries(body.zones.map((zone) => [zone.zoneId, zone]));
 }
 
 export async function saveZoneProfile(

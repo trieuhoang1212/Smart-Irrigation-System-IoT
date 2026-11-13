@@ -67,7 +67,7 @@ export function GardenSoilPlan({
     setNotice(null);
     applyGardenAdvice(deviceId)
       .then(() => {
-        setNotice("Đã áp dụng ngưỡng và thời lượng cho cả vườn.");
+        setNotice("Đã áp dụng ngưỡng tưới cho cả vườn.");
         setLoading(true);
         setReloadKey((current) => current + 1);
       })
@@ -80,9 +80,7 @@ export function GardenSoilPlan({
   const zones = data?.zones ?? [];
   const sample = zones[0]?.advice;
   const raining = zones.some((item) => item.advice.weather.raining);
-  const hasChange = zones.some(
-    (item) => item.advice.thresholdDelta !== 0 || item.advice.durationDelta !== 0,
-  );
+  const hasChange = zones.some((item) => item.advice.thresholdDelta !== 0);
   const soilReason = sample?.reasons.find((reason) => reason.startsWith("Đất "));
 
   return (
@@ -93,7 +91,7 @@ export function GardenSoilPlan({
           <h2>Loại đất của khu vườn</h2>
         </div>
         <p className="manager-card-hint">
-          Đổi loại đất chỉ cập nhật gợi ý. Ngưỡng và thời lượng chỉ đổi khi bấm áp dụng.
+          Đổi loại đất chỉ cập nhật gợi ý. Ngưỡng tưới chỉ đổi khi bấm áp dụng.
         </p>
       </div>
 
@@ -132,14 +130,13 @@ export function GardenSoilPlan({
               <tr>
                 <th>Ô trồng</th>
                 <th>Ngưỡng tưới</th>
-                <th>Thời lượng</th>
                 <th>Khung giờ</th>
               </tr>
             </thead>
             <tbody>
               {zones.map((item) => {
                 const advice = item.advice;
-                const changed = advice.thresholdDelta !== 0 || advice.durationDelta !== 0;
+                const changed = advice.thresholdDelta !== 0;
                 return (
                   <tr key={item.zoneId} className={changed ? "changed" : ""}>
                     <td>
@@ -148,9 +145,6 @@ export function GardenSoilPlan({
                     </td>
                     <td>
                       {advice.currentThreshold}% <em>→</em> {advice.suggestedThreshold}%
-                    </td>
-                    <td>
-                      {advice.currentDuration} <em>→</em> {advice.suggestedDuration} phút
                     </td>
                     <td>
                       {advice.window ? `${advice.window.start}–${advice.window.end}` : "Tạm hoãn"}
@@ -171,7 +165,7 @@ export function GardenSoilPlan({
           {raining
             ? "Đang mưa: tạm hoãn áp dụng ngưỡng."
             : hasChange
-              ? "Áp dụng sẽ lưu ngưỡng và thời lượng cho cả 6 ô."
+              ? "Áp dụng sẽ lưu ngưỡng tưới cho cả 6 ô."
               : "Cả vườn đang dùng đúng gợi ý."}
         </span>
         <button

@@ -6,6 +6,7 @@ import type { ToastTone } from "../notifications";
 
 type BackendTelemetry = {
   deviceId?: string;
+  receivedAt?: string;
   mode?: "auto" | "manual";
   temperature?: number | null;
   humidity?: number | null;
@@ -29,7 +30,6 @@ type BackendTelemetry = {
 
 export type ZoneConfigInput = {
   threshold?: number;
-  duration: number;
   pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
@@ -66,7 +66,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const [tankEmpty, setTankEmpty] = useState(false);
   const [brokerConnected, setBrokerConnected] = useState<boolean | null>(null);
   const [commandVersion, setCommandVersion] = useState(0);
-  const [lastUpdated, setLastUpdated] = useState("Chưa kết nối");
+  const [lastUpdated, setLastUpdated] = useState("chưa có dữ liệu");
   const [lastTelemetryAt, setLastTelemetryAt] = useState<number | null>(null);
   const [reconnectToken, setReconnectToken] = useState(0);
   const [configRetryToken, setConfigRetryToken] = useState(0);
@@ -76,6 +76,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const pendingThresholdRef = useRef<Record<string, number>>({});
   const thresholdTimerRef = useRef<Record<string, number>>({});
   const hadDisconnectRef = useRef(false);
+  const tankEmptyRef = useRef<boolean | null>(null);
   const notifyRef = useRef(onNotify);
 
   useEffect(() => {
@@ -202,7 +203,18 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         ? round1(distance)
         : null,
     );
-    setTankEmpty(isOnline ? Boolean(data.tank?.empty) : false);
+    const empty = isOnline ? Boolean(data.tank?.empty) : false;
+    setTankEmpty(empty);
+
+    const previousEmpty = tankEmptyRef.current;
+    tankEmptyRef.current = isOnline ? empty : null;
+    if (isOnline && previousEmpty !== empty) {
+      if (empty) {
+        notify("Bồn nước đã cạn — bơm bị chặn để tránh chạy khô.", "error");
+      } else if (previousEmpty === true) {
+        notify("Bồn nước đã có lại, bơm có thể chạy.", "success");
+      }
+    }
 
     // Payload cũ chưa có servoAngle: suy ra từ trạng thái bơm tổng.
     if (isOnline) {
@@ -220,9 +232,14 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       setRainBlock(data.weatherGate);
     }
 
-    setLastUpdated(new Date().toLocaleTimeString("vi-VN", { hour12: false }));
-    if (isOnline) setLastTelemetryAt(Date.now());
-  }, []);
+    // Snapshot offline vẫn phải hiển thị đúng giờ đo cuối, không phải giờ mở Web.
+    const receivedAt = typeof data.receivedAt === "string" ? Date.parse(data.receivedAt) : Number.NaN;
+    const measuredAt = Number.isFinite(receivedAt) ? receivedAt : isOnline ? now : null;
+    if (measuredAt !== null) {
+      setLastTelemetryAt(measuredAt);
+      setLastUpdated(new Date(measuredAt).toLocaleTimeString("vi-VN", { hour12: false }));
+    }
+  }, [notify]);
 
   useEffect(() => {
     if (!deviceId) return;
@@ -268,6 +285,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
               setPumpOn(false);
               setTankDistanceCm(null);
               setTankEmpty(false);
+              tankEmptyRef.current = null;
             }
           } else if (message.type === "command-result") {
             setCommandVersion((current) => current + 1);
@@ -295,6 +313,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         setServoAngle(null);
         setTankDistanceCm(null);
         setTankEmpty(false);
+        tankEmptyRef.current = null;
         setZones((current) => current.map((zone) => ({ ...zone, online: false })));
 
         attempt += 1;
@@ -379,11 +398,18 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
 
   const changeMode = useCallback(
     (newMode: "auto" | "manual") => {
+      const previous = mode;
       setMode(newMode);
       pendingRef.current.mode = Date.now() + OPTIMISTIC_WINDOW_MS;
-      return sendCommand(newMode === "auto" ? "MODE_AUTO" : "MODE_MANUAL");
+      return sendCommand(newMode === "auto" ? "MODE_AUTO" : "MODE_MANUAL").then(
+        (accepted) => {
+          // Lệnh bị từ chối thì trả UI về đúng chế độ đang chạy trên thiết bị.
+          if (!accepted) setMode(previous);
+          return accepted;
+        },
+      );
     },
-    [sendCommand],
+    [mode, sendCommand],
   );
 
   const toggleWeatherGate = useCallback(
@@ -452,7 +478,6 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
                   threshold === undefined
                     ? zone.stopThreshold
                     : Math.min(100, threshold + 20),
-                duration: input.duration,
                 pumpSeconds: input.pumpSeconds,
                 flowLitersPerHour: input.flowLitersPerHour,
                 targetLiters: input.targetLiters,

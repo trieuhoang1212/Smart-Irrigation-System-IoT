@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { useMqtt } from "./hooks/useMqtt";
 import { useActivity } from "./hooks/useActivity";
 import { useWateredLiters } from "./hooks/useWateredLiters";
+import { useWatering } from "./hooks/useWatering";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { GardenOverview } from "./components/GardenOverview";
@@ -13,6 +14,7 @@ import { HistoryChart } from "./components/HistoryChart";
 import { MetricsOverview } from "./components/MetricsOverview";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { BackToTop } from "./components/BackToTop";
+import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { ToastStack } from "./components/ToastStack";
 import { BACKEND_URL } from "./lib/backend";
 import { type ToastMessage, type ToastTone } from "./notifications";
@@ -75,7 +77,9 @@ export default function App() {
   });
 
   const wateredLitersByZone = useWateredLiters(zones);
+  const wateringByZone = useWatering(deviceId, commandVersion);
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
+  const selectedWatering = selectedZone ? wateringByZone[selectedZone.id] : undefined;
 
   const liveSample =
     selectedZone &&
@@ -114,12 +118,25 @@ export default function App() {
     );
   }
 
+  const controlsEnabled = connected && deviceOnline;
+
   const handleTogglePump = async () => {
-    if (!connected) {
-      notify("Chưa kết nối Backend realtime, chưa gửi được lệnh.", "error");
+    if (!controlsEnabled) {
+      notify("ESP32 đang offline — chưa gửi được lệnh tưới.", "error");
       return;
     }
-    if (mode === "auto") await changeMode("manual");
+    if (tankEmpty) {
+      notify("Bồn nước đã cạn — châm thêm nước trước khi bật bơm.", "error");
+      return;
+    }
+    if (mode === "auto") {
+      const switched = await changeMode("manual");
+      if (!switched) {
+        notify("Không chuyển được sang Thủ công nên chưa gửi lệnh tưới.", "error");
+        return;
+      }
+      notify("Đã chuyển cả vườn sang Thủ công; tưới tự động tạm dừng.", "info");
+    }
     togglePump(selectedZone.id);
   };
 
@@ -142,25 +159,21 @@ export default function App() {
       <section className="content">
         <Topbar connected={connected} lastUpdated={lastUpdated} />
 
-        {!connected && (
-          <div className="offline-banner">
-            <span>!</span>
-            <div>
-              <strong>Backend chưa kết nối</strong>
-              <small>
-                Hãy chắc chắn Backend đang chạy và kết nối được Mosquitto.
-              </small>
-            </div>
-            <button onClick={reconnect}>Kết nối lại</button>
-          </div>
-        )}
+        <DeviceStatusBanner
+          connected={connected}
+          brokerConnected={brokerConnected}
+          deviceOnline={deviceOnline}
+          lastTelemetryAt={lastTelemetryAt}
+          onReconnect={reconnect}
+        />
 
         <GardenOverview
           zones={zones}
           activeZone={activeZone}
           soil={soil}
-          connected={connected}
+          controlsEnabled={controlsEnabled}
           deviceId={deviceId}
+          tankEmpty={tankEmpty}
           onSelectZone={setActiveZone}
           onToggleIrrigation={handleToggleIrrigation}
           onApplyAdvice={(input) => saveZoneConfig(selectedZone.id, input)}
@@ -175,8 +188,13 @@ export default function App() {
           rainPercent={rainPercent}
           rainBlock={rainBlock}
           wateredLiters={wateredLitersByZone[activeZone] ?? 0}
+          lastRun={selectedWatering?.lastRun ?? null}
+          todayLiters={selectedWatering?.todayLiters ?? 0}
+          todayRuns={selectedWatering?.todayRuns ?? 0}
+          wateringLoaded={selectedWatering !== undefined}
           tankDistanceCm={tankDistanceCm}
           tankEmpty={tankEmpty}
+          controlsEnabled={controlsEnabled}
           onChangeMode={changeMode}
           onTogglePump={handleTogglePump}
           onChangeThreshold={(val) => setZoneThreshold(activeZone, val)}

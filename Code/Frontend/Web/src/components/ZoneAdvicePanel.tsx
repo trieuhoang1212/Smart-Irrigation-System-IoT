@@ -13,7 +13,7 @@ export function ZoneAdvicePanel({
   deviceId: string;
   zone: Zone;
   soil: SoilType;
-  onApply: (input: { threshold: number; duration: number }) => Promise<boolean>;
+  onApply: (input: { threshold: number }) => Promise<boolean>;
 }) {
   const [data, setData] = useState<ZoneAdvice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,6 @@ export function ZoneAdvicePanel({
     setApplying(true);
     const applied = await onApply({
       threshold: data.advice.suggestedThreshold,
-      duration: data.advice.suggestedDuration,
     });
     setApplying(false);
     if (applied) setReloadKey((current) => current + 1);
@@ -96,9 +95,7 @@ export function ZoneAdvicePanel({
   if (!data) return null;
 
   const { advice, growth } = data;
-  const hasChange =
-    advice.suggestedThreshold !== advice.currentThreshold ||
-    advice.suggestedDuration !== advice.currentDuration;
+  const hasChange = advice.suggestedThreshold !== advice.currentThreshold;
   const raining = advice.weather.raining;
 
   return (
@@ -123,12 +120,6 @@ export function ZoneAdvicePanel({
           <span>Ngưỡng tưới</span>
           <strong>
             {advice.currentThreshold}% <em>→</em> {advice.suggestedThreshold}%
-          </strong>
-        </div>
-        <div>
-          <span>Thời lượng mỗi lần</span>
-          <strong>
-            {advice.currentDuration} <em>→</em> {advice.suggestedDuration} phút
           </strong>
         </div>
         <div>
@@ -166,7 +157,7 @@ export function ZoneAdvicePanel({
             : raining
               ? "Tạm hoãn khi còn mưa"
               : hasChange
-                ? "Áp dụng ngưỡng và thời lượng"
+                ? "Áp dụng ngưỡng tưới"
                 : "Đang dùng đúng gợi ý"}
         </button>
       </div>

@@ -10,16 +10,22 @@ import { ZonePhoto } from "./ZonePhoto";
 export function GardenDetailPanel({
   zone,
   soil,
-  connected,
+  controlsEnabled,
+  tankEmpty,
   onToggleIrrigation,
 }: {
   zone: Zone;
   soil: SoilType;
-  connected: boolean;
+  controlsEnabled: boolean;
+  tankEmpty: boolean;
   onToggleIrrigation: () => void;
 }) {
   const status = zoneStatus(zone);
   const expectedHarvest = harvestDate(zone.plantedAt, zone.harvestDays);
+  const blocked = !controlsEnabled || tankEmpty;
+  const blockedReason = tankEmpty
+    ? "Bồn nước đã cạn nên bơm bị chặn"
+    : "ESP32 đang offline nên chưa gửi được lệnh";
 
   return (
     <aside className="garden-detail" aria-live="polite">
@@ -75,12 +81,24 @@ export function GardenDetailPanel({
 
       {zone.notes && <p className="garden-detail-note">{zone.notes}</p>}
 
+      {tankEmpty && (
+        <p className="garden-detail-note">
+          Bồn nước đã cạn — châm thêm nước trước khi tưới.
+        </p>
+      )}
+
+      {!controlsEnabled && (
+        <p className="garden-detail-note">
+          ESP32 đang offline — nút tưới tạm khoá. Vẫn sửa được hồ sơ cây.
+        </p>
+      )}
+
       <div className="garden-detail-actions">
         <button
           className={`water-button ${zone.pump ? "watering" : ""}`}
           onClick={onToggleIrrigation}
-          disabled={!connected}
-          title={connected ? "Tưới khu vực đang chọn" : "Cần kết nối MQTT"}
+          disabled={blocked}
+          title={blocked ? blockedReason : "Tưới khu vực đang chọn"}
         >
           <DropletIcon size={15} />
           {zone.pump ? "Đang tưới..." : "Tưới khu vực này"}
