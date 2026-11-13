@@ -103,6 +103,7 @@ flowchart LR
 - Hồ sơ từng khu vực: tên cây, nhóm cây, ghi chú, ảnh.
 - Loại đất dùng chung cho cả vườn: phù sa, bazan, cát.
 - Gợi ý ngưỡng tưới dựa trên loại đất, nhóm cây, mưa và telemetry.
+- Khung giờ tưới chỉ là tham khảo theo nhóm cây; ESP32 chưa hẹn giờ, vẫn tưới theo độ ẩm.
 - Áp dụng gợi ý cho cả 6 vùng, idempotent (không đổi nếu đã đúng).
 - Gợi ý là **rule-based**, không phải AI và chưa kiểm chứng nông học.
 
