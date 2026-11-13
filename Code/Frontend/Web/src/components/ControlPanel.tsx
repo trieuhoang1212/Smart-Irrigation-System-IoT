@@ -137,7 +137,7 @@ export function ControlPanel({
                 : tankEmpty
                   ? "Bồn nước đã cạn — bơm bị chặn để tránh chạy khô"
                   : mode === "auto"
-                    ? `Bật khi độ ẩm < ${selectedZone.threshold}%, tắt khi > ${selectedZone.stopThreshold}%`
+                    ? `Bật khi độ ẩm < ${selectedZone.threshold}%, tắt khi > ${selectedZone.stopThreshold}% · chuyển Thủ công để bấm tay`
                     : "Công tắc gửi lệnh PUMP_ON/OFF tới khu vực đang chọn"}
             </small>
           </div>
@@ -148,13 +148,15 @@ export function ControlPanel({
             aria-label="Bật tắt bơm khu vực đang chọn"
             className={`big-toggle ${selectedZone.pump ? "on" : ""}`}
             onClick={onTogglePump}
-            disabled={tankEmpty || !controlsEnabled}
+            disabled={tankEmpty || !controlsEnabled || mode === "auto"}
             title={
               tankEmpty
                 ? "Bồn nước đã cạn nên bơm bị chặn"
-                : controlsEnabled
-                  ? undefined
-                  : offlineReason
+                : !controlsEnabled
+                  ? offlineReason
+                  : mode === "auto"
+                    ? "Chế độ Tự động do ESP32 quyết định — chuyển sang Thủ công để bật/tắt bơm"
+                    : undefined
             }
           >
             <i />
