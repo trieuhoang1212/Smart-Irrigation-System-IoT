@@ -75,6 +75,7 @@ unsigned long zoneStartedAt[ZONE_COUNT] = {0};
 bool zoneLocked[ZONE_COUNT] = {false};
 unsigned long manualStartedAt = 0;
 bool tankEmpty = false;
+bool tankValid = false;
 float tankDistanceCm = 0.0;
 
 bool netWasOnline = false;
@@ -225,6 +226,7 @@ void updateTank() {
   if (distance < 0 || distance > 400) return;  // bỏ qua lần đọc lỗi, giữ trạng thái cũ
 
   tankDistanceCm = distance;
+  tankValid = true;
   if (!tankEmpty && distance >= TANK_EMPTY_CM) {
     tankEmpty = true;
     Serial.println("TANK: EMPTY - stop all pumps");
@@ -606,6 +608,10 @@ void loop() {
     }
     json += "],";
     json += "\"servoAngle\":" + String(anyPumpRunning() ? MASTER_VALVE_OPEN : MASTER_VALVE_CLOSED) + ",";
+    json += "\"tank\":{";
+    if (tankValid) json += "\"distanceCm\":" + String(tankDistanceCm, 1);
+    else json += "\"distanceCm\":null";
+    json += ",\"empty\":" + String(tankEmpty ? "true" : "false") + "},";
     json += "\"mode\":\"" + String(isAutoMode ? "auto" : "manual") + "\"";
     json += "}";
 
