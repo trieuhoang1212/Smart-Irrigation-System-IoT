@@ -49,12 +49,106 @@ const STAGE_RULES: Record<CropGroup, StageRule[]> = {
     { until: 0.8, stage: "vegetative", label: "Sinh trưởng" },
     { until: 1, stage: "harvest", label: "Thu hoạch" },
   ],
+  "Cây hoa cảnh": [
+    { until: 0.25, stage: "seedling", label: "Cây con" },
+    { until: 0.6, stage: "vegetative", label: "Phát triển" },
+    { until: 0.9, stage: "flowering", label: "Ra hoa" },
+    { until: 1, stage: "mature", label: "Giữ hoa" },
+  ],
+  "Cây ăn quả / thân gỗ": [
+    { until: 0.2, stage: "seedling", label: "Cây con" },
+    { until: 0.55, stage: "vegetative", label: "Sinh trưởng" },
+    { until: 0.85, stage: "flowering", label: "Ra hoa - đậu quả" },
+    { until: 1, stage: "harvest", label: "Thu hoạch" },
+  ],
+  "Sen đá / Xương rồng": [
+    { until: 0.2, stage: "seedling", label: "Cây con" },
+    { until: 0.7, stage: "vegetative", label: "Phát triển" },
+    { until: 1, stage: "mature", label: "Trưởng thành" },
+  ],
+  "Cây trong nhà": [
+    { until: 0.25, stage: "seedling", label: "Cây con" },
+    { until: 0.7, stage: "vegetative", label: "Phát triển" },
+    { until: 1, stage: "mature", label: "Trưởng thành" },
+  ],
+  "Hoa lan": [
+    { until: 0.2, stage: "seedling", label: "Cây con" },
+    { until: 0.6, stage: "vegetative", label: "Phát triển" },
+    { until: 0.9, stage: "flowering", label: "Ra hoa" },
+    { until: 1, stage: "mature", label: "Giữ hoa" },
+  ],
   Khác: [
     { until: 0.25, stage: "seedling", label: "Cây con" },
     { until: 0.6, stage: "vegetative", label: "Sinh trưởng" },
     { until: 0.9, stage: "mature", label: "Trưởng thành" },
     { until: 1, stage: "harvest", label: "Thu hoạch" },
   ],
+};
+
+type WaterWindow = { label: string; start: string; end: string; note: string };
+
+// Giờ tưới tham khảo theo nhóm cây; không dùng để điều khiển bơm.
+const GROUP_WATER_WINDOWS: Record<CropGroup, WaterWindow> = {
+  "Rau ăn lá": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng để lá khô trước tối, tránh nấm và thối nhũn.",
+  },
+  "Rau ăn quả": {
+    label: "Sáng sớm hoặc chiều mát",
+    start: "05:30",
+    end: "07:30",
+    note: "Có thể tưới thêm 16:00–17:30 khi đất khô; tránh tưới tối.",
+  },
+  "Cây lấy củ": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:00",
+    note: "Tưới sáng giúp đất ẩm đều cả ngày.",
+  },
+  "Cây gia vị": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng để lá khô trước tối, tránh nấm và thối nhũn.",
+  },
+  "Cây hoa cảnh": {
+    label: "Sáng sớm",
+    start: "06:00",
+    end: "08:00",
+    note: "Chỉ tưới vào gốc, tránh làm ướt cánh hoa.",
+  },
+  "Cây ăn quả / thân gỗ": {
+    label: "Sáng sớm hoặc chiều mát",
+    start: "05:30",
+    end: "07:30",
+    note: "Có thể tưới 16:00–17:30 để đất giữ ẩm qua đêm.",
+  },
+  "Sen đá / Xương rồng": {
+    label: "Chiều mát",
+    start: "16:30",
+    end: "18:00",
+    note: "Tưới chiều mát để cây hấp thụ tốt, tránh luộc rễ.",
+  },
+  "Cây trong nhà": {
+    label: "Buổi sáng",
+    start: "08:00",
+    end: "10:00",
+    note: "Tưới sáng để nước kịp khô trước khi đóng cửa bật điều hòa.",
+  },
+  "Hoa lan": {
+    label: "Sáng sớm",
+    start: "06:00",
+    end: "08:00",
+    note: "Tưới sáng để lá khô nhanh, tránh thối ngọn.",
+  },
+  Khác: {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng là an toàn nhất cho phần lớn cây trồng.",
+  },
 };
 
 export function growthFor(
@@ -97,7 +191,7 @@ export type ZoneAdvice = {
   currentThreshold: number;
   suggestedThreshold: number;
   thresholdDelta: number;
-  window: { start: string; end: string } | null;
+  window: { label: string; start: string; end: string } | null;
   windowNote: string;
   summary: string;
   reasons: string[];
@@ -223,21 +317,22 @@ export function buildZoneAdvice(
     85,
   );
 
+  const recommended = GROUP_WATER_WINDOWS[isCropGroup(zone.group) ? zone.group : "Khác"];
   let window: ZoneAdvice["window"] = null;
-  let windowNote = "Khung giờ chỉ là gợi ý; ESP32 vẫn tưới theo ngưỡng đất.";
+  let windowNote = `Chỉ là gợi ý theo nhóm cây; ESP32 vẫn tưới theo độ ẩm đất. ${recommended.note}`;
   if (weather.raining) {
     windowNote = "Tạm hoãn tưới đến khi hết mưa.";
-  } else if (weather.temperature !== null && weather.temperature >= 35) {
-    window = { start: "05:00", end: "06:30" };
-  } else if (season === "Mùa khô") {
-    window = { start: "05:30", end: "07:00" };
   } else {
-    window = { start: "06:00", end: "07:30" };
+    window = {
+      label: recommended.label,
+      start: recommended.start,
+      end: recommended.end,
+    };
   }
 
   const summary = weather.raining
     ? "Đang mưa, chưa nên tưới. Kiểm tra lại khi tạm tắt mưa."
-    : `Gợi ý tưới ở ngưỡng ${suggestedThreshold}%, khung ${window?.start}–${window?.end}.`;
+    : `Gợi ý tưới ở ngưỡng ${suggestedThreshold}%, tham khảo khung ${window?.start}–${window?.end}.`;
 
   return {
     currentThreshold: zone.threshold,
