@@ -297,7 +297,9 @@ void enforceRuntimeLimits() {
     }
   }
 
-  if (!isAutoMode && manualStartedAt != 0 &&
+  // Chỉ đếm 10 phút khi bơm đang chạy thật: chuyển sang Thủ công rồi tắt bơm
+  // thì phải đứng yên chờ người dùng bấm, không tự về Tự động.
+  if (!isAutoMode && manualStartedAt != 0 && anyPumpRunning() &&
       millis() - manualStartedAt >= MAX_MANUAL_MS) {
     stopAllZones();
     isAutoMode = true;
@@ -466,8 +468,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else if (message == "MODE_MANUAL") {
       isAutoMode = false;
       manualOverride = false;
-      manualStartedAt = millis();
-      Serial.println("Mode: MANUAL");
+      // Vào Thủ công phải dừng hết bơm; chỉ chạy khi người dùng bấm.
+      stopAllZones();
+      manualStartedAt = 0;
+      for (int i = 0; i < ZONE_COUNT; i++) zoneOverTarget[i] = false;
+      Serial.println("Mode: MANUAL (pumps stopped)");
+      updateLcds();
     } else if (message == "PUMP_ON") {
       if (!isAutoMode) {
         manualStartedAt = millis();
@@ -512,15 +518,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
       }
     } else if (message.startsWith("PUMP_ON_")) {
       // Điều khiển từng zone cụ thể: PUMP_ON_T001, PUMP_ON_T002,...
-      if (!isAutoMode) manualStartedAt = millis();
-      String targetId = message.substring(8);
-      for (int i = 0; i < ZONE_COUNT; i++) {
-        if (String(zoneNames[i]) == targetId) startPump(i);
+      // Chỉ nhận khi đang Thủ công; ở Tự động firmware tự quyết định.
+      if (!isAutoMode) {
+        manualStartedAt = millis();
+        String targetId = message.substring(8);
+        for (int i = 0; i < ZONE_COUNT; i++) {
+          if (String(zoneNames[i]) == targetId) startPump(i);
+        }
       }
     } else if (message.startsWith("PUMP_OFF_")) {
-      String targetId = message.substring(9);
-      for (int i = 0; i < ZONE_COUNT; i++) {
-        if (String(zoneNames[i]) == targetId) stopPump(i);
+      if (!isAutoMode) {
+        String targetId = message.substring(9);
+        for (int i = 0; i < ZONE_COUNT; i++) {
+          if (String(zoneNames[i]) == targetId) stopPump(i);
+        }
       }
     } else if (message == "WEATHER_GATE_ON") {
       weatherGateEnabled = true;
