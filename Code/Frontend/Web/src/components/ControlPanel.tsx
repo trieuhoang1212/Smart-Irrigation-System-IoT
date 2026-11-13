@@ -113,6 +113,15 @@ export function ControlPanel({
           </div>
         )}
 
+        {mode === "manual" && selectedZone.overTarget && (
+          <div className="mode-warning overwater" role="status">
+            <span>
+              {selectedZone.id} đã vượt mục tiêu {selectedZone.targetLiters} L — tắt bơm
+              nếu đất đã đủ ẩm. Sau 10 phút hệ thống tự về Tự động.
+            </span>
+          </div>
+        )}
+
         <div className="control-row">
           <div>
             <strong>
@@ -203,9 +212,11 @@ export function ControlPanel({
           <strong>
             {raining
               ? `Đang mưa (${rainPercent === null ? "--" : `${rainPercent}%`})`
-              : temperature !== null && temperature > 32
-                ? "Nắng nóng"
-                : "Ổn định"}
+              : rainPercent !== null && rainPercent >= 80
+                ? `Có thể mưa (${rainPercent}%)`
+                : temperature !== null && temperature > 32
+                  ? "Nắng nóng"
+                  : "Ổn định"}
           </strong>
         </div>
         <div className="weather-details">
@@ -233,6 +244,12 @@ export function ControlPanel({
         <div className={`weather-alert ${rainBlock ? "" : "off"}`}>
           {rainBlock ? "Đang bật bảo vệ thời tiết" : "Weather gate đang tắt"}
         </div>
+        {!raining && rainPercent !== null && rainPercent >= 80 && (
+          <div className="weather-alert warn" role="status">
+            Có thể mưa ({rainPercent}%): còi đã báo, hệ thống vẫn tưới. Ở 100% bơm sẽ
+            dừng nếu đang bật hoãn mưa.
+          </div>
+        )}
       </article>
 
       <article className="panel tank-card">

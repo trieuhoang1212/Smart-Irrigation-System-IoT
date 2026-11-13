@@ -58,6 +58,7 @@ export function GardenOverview({
         <GardenDetailPanel
           zone={selectedZone}
           soil={soil}
+          deviceId={deviceId}
           controlsEnabled={controlsEnabled}
           tankEmpty={tankEmpty}
           onToggleIrrigation={onToggleIrrigation}

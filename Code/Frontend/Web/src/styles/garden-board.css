@@ -288,6 +288,18 @@
   font-weight: 600;
 }
 
+.garden-facts dd.forecast-value {
+  color: #41697f;
+  font-variant-numeric: tabular-nums;
+}
+
+.garden-facts-note {
+  margin: 6px 14px 0;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .garden-detail-note {
   max-height: 58px;
   margin: 10px 14px 0;

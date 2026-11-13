@@ -220,6 +220,12 @@
   font-weight: 600;
 }
 
+.mode-warning.overwater {
+  border-color: #e5c6bf;
+  background: #fdf3f1;
+  color: #8b3b2c;
+}
+
 .control-note {
   color: var(--muted);
   font-size: 11.5px;
@@ -389,6 +395,11 @@
 .weather-alert.off {
   background: #f3f4f2;
   color: var(--muted);
+}
+
+.weather-alert.warn {
+  background: #fbf3e4;
+  color: #7d5c24;
 }
 
 .zone-config-form {

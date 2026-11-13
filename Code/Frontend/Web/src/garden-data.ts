@@ -59,6 +59,7 @@ export type Zone = {
   growth: GrowthInfo | null;
   moisture: number | null;
   pump: boolean;
+  overTarget: boolean;
   threshold: number;
   stopThreshold: number;
   method: string;
@@ -84,6 +85,7 @@ export function zonesFromConfig(config: GardenConfigResponse): Zone[] {
     ...zone,
     moisture: null,
     pump: false,
+    overTarget: false,
     online: false,
     growth: zone.growth ?? null,
     photoUrl: zone.photoUrl ?? null,

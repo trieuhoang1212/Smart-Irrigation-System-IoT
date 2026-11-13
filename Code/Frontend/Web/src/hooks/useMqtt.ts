@@ -12,6 +12,7 @@ type BackendTelemetry = {
   humidity?: number | null;
   rain?: number | null;
   raining?: boolean;
+  rainWarning?: boolean;
   weatherGate?: boolean;
   pump?: boolean;
   servoAngle?: number;
@@ -25,6 +26,7 @@ type BackendTelemetry = {
     threshold?: number;
     stopThreshold?: number;
     pump?: boolean;
+    over?: boolean;
   }>;
 };
 
@@ -77,6 +79,9 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const thresholdTimerRef = useRef<Record<string, number>>({});
   const hadDisconnectRef = useRef(false);
   const tankEmptyRef = useRef<boolean | null>(null);
+  const overTargetRef = useRef<Record<string, boolean>>({});
+  const rainWarnRef = useRef(false);
+  const rainFullRef = useRef(false);
   const notifyRef = useRef(onNotify);
 
   useEffect(() => {
@@ -163,6 +168,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
             ? round1(Math.max(0, Math.min(100, live.moisture)))
             : zone.moisture,
           pump: isOnline ? Boolean(live.pump) : false,
+          overTarget: isOnline && Boolean(live.over),
           threshold: isThresholdPending
             ? zone.threshold
             : typeof live.threshold === "number" && Number.isFinite(live.threshold)
@@ -184,6 +190,20 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       }
     });
 
+    if (isOnline) {
+      data.zones?.forEach((item) => {
+        if (!item.id) return;
+        const overTarget = Boolean(item.over);
+        if (overTarget && !overTargetRef.current[item.id]) {
+          notify(
+            `${item.id} đã vượt mục tiêu nước — tắt bơm nếu đã đủ ẩm.`,
+            "error",
+          );
+        }
+        overTargetRef.current[item.id] = overTarget;
+      });
+    }
+
     // DHT22 đọc lỗi sẽ gửi null: xoá giá trị cũ thay vì hiển thị số liệu sai.
     setTemperature(typeof data.temperature === "number" && Number.isFinite(data.temperature)
       ? round1(data.temperature)
@@ -191,10 +211,30 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     setHumidity(typeof data.humidity === "number" && Number.isFinite(data.humidity)
       ? round1(Math.max(0, Math.min(100, data.humidity)))
       : null);
-    setRainPercent(typeof data.rain === "number" && Number.isFinite(data.rain)
+    const nextRain = typeof data.rain === "number" && Number.isFinite(data.rain)
       ? round1(Math.max(0, Math.min(100, data.rain)))
-      : null);
+      : null;
+    setRainPercent(nextRain);
     if (data.raining !== undefined) setRaining(data.raining);
+
+    // Cảnh báo mưa theo mốc 80% (có thể mưa) và 100% (đã mưa).
+    const rainingNow = Boolean(data.raining);
+    const rainWarnNow = !rainingNow && nextRain !== null && nextRain >= 80;
+    if (isOnline && rainingNow && !rainFullRef.current) {
+      notify(
+        data.weatherGate === false
+          ? "Cảm biến mưa 100% — đã mưa, nhưng chế độ hoãn mưa đang tắt."
+          : "Cảm biến mưa 100% — đã mưa, bơm tự động dừng vì đang bật hoãn mưa.",
+        "error",
+      );
+    } else if (isOnline && rainWarnNow && !rainWarnRef.current) {
+      notify(
+        `Cảm biến mưa ${nextRain}% — trời có thể mưa, theo dõi thêm.`,
+        "info",
+      );
+    }
+    rainWarnRef.current = rainWarnNow;
+    rainFullRef.current = rainingNow;
     if (data.pump !== undefined) setPumpOn(isOnline ? Boolean(data.pump) : false);
 
     const distance = data.tank?.distanceCm;
@@ -500,11 +540,18 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
           notify(`Backend từ chối cấu hình vùng ${zoneId}.`, "error");
           return false;
         }
-        const saved = (await response.json()) as { appliedRemotely?: boolean };
+        const saved = (await response.json()) as {
+          appliedRemotely?: boolean;
+          targetSynced?: boolean;
+        };
         notify(
-          saved.appliedRemotely
-            ? `Đã lưu cấu hình ${zoneId} và gửi ngưỡng mới tới thiết bị.`
-            : `Đã lưu cấu hình ${zoneId}.`,
+          saved.appliedRemotely && saved.targetSynced
+            ? `Đã lưu cấu hình ${zoneId} và gửi ngưỡng, mục tiêu nước tới thiết bị.`
+            : saved.appliedRemotely
+              ? `Đã lưu cấu hình ${zoneId} và gửi ngưỡng mới tới thiết bị.`
+              : saved.targetSynced
+                ? `Đã lưu cấu hình ${zoneId} và gửi mục tiêu nước tới thiết bị.`
+                : `Đã lưu cấu hình ${zoneId}.`,
           "success",
         );
         log(`Đã lưu cấu hình vùng ${zoneId}.`);

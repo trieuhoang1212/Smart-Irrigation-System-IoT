@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { SoilType, Zone } from "../garden-data";
+import { BACKEND_URL } from "../lib/backend";
+import { formatSpan } from "../lib/time";
+import { useMoistureForecast } from "../hooks/useMoistureForecast";
 import { zoneStatus } from "../lib/zone-status";
 import { formatDate, harvestDate } from "../lib/zone-date";
 import { DropletIcon, EditIcon } from "./icons";
@@ -10,12 +14,14 @@ import { ZonePhoto } from "./ZonePhoto";
 export function GardenDetailPanel({
   zone,
   soil,
+  deviceId,
   controlsEnabled,
   tankEmpty,
   onToggleIrrigation,
 }: {
   zone: Zone;
   soil: SoilType;
+  deviceId: string;
   controlsEnabled: boolean;
   tankEmpty: boolean;
   onToggleIrrigation: () => void;
@@ -26,6 +32,36 @@ export function GardenDetailPanel({
   const blockedReason = tankEmpty
     ? "Bồn nước đã cạn nên bơm bị chặn"
     : "ESP32 đang offline nên chưa gửi được lệnh";
+
+  const forecast = useMoistureForecast({ backendUrl: BACKEND_URL, deviceId, zone });
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const elapsed = Math.max(0, now - forecast.computedAt);
+  const dryRemaining =
+    forecast.dryingEtaMs === null
+      ? null
+      : Math.max(0, forecast.dryingEtaMs - elapsed);
+  const wetRemaining =
+    forecast.wateringMs === null
+      ? null
+      : Math.max(0, forecast.wateringMs - (zone.pump ? elapsed : 0));
+
+  let dryLabel = "--";
+  let wetLabel = "--";
+  if (zone.online && zone.moisture !== null) {
+    if (zone.moisture <= zone.threshold) dryLabel = "Đã tới ngưỡng";
+    else if (zone.pump) dryLabel = "Đang tưới";
+    else if (dryRemaining !== null) dryLabel = `~${formatSpan(dryRemaining)}`;
+    else dryLabel = forecast.loading ? "Đang tính..." : "Chưa đủ dữ liệu";
+
+    if (zone.moisture >= zone.stopThreshold) wetLabel = "Đã đủ ẩm";
+    else if (wetRemaining !== null) wetLabel = `~${formatSpan(wetRemaining)}`;
+    else wetLabel = forecast.loading ? "Đang tính..." : "Chưa đủ dữ liệu";
+  }
 
   return (
     <aside className="garden-detail" aria-live="polite">
@@ -66,6 +102,14 @@ export function GardenDetailPanel({
           <dd>{zone.threshold}%</dd>
         </div>
         <div>
+          <dt>Còn tới ngưỡng</dt>
+          <dd className="forecast-value">{dryLabel}</dd>
+        </div>
+        <div>
+          <dt>Tưới đủ ẩm</dt>
+          <dd className="forecast-value">{wetLabel}</dd>
+        </div>
+        <div>
           <dt>Loại đất</dt>
           <dd>{soil}</dd>
         </div>
@@ -78,6 +122,13 @@ export function GardenDetailPanel({
           <dd>{expectedHarvest ?? "Chưa đặt"}</dd>
         </div>
       </dl>
+
+      {zone.online && forecast.hasHistory && (
+        <p className="garden-facts-note">
+          Ước tính từ diễn biến 24 giờ · ngưỡng {zone.threshold}%, đủ ẩm{" "}
+          {zone.stopThreshold}%
+        </p>
+      )}
 
       {zone.notes && <p className="garden-detail-note">{zone.notes}</p>}
 
