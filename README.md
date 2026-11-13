@@ -100,7 +100,7 @@ flowchart LR
 - Tự dọn dữ liệu cũ theo retention (mặc định 30 ngày).
 - Hồ sơ từng khu vực: tên cây, nhóm cây, ghi chú, ảnh.
 - Loại đất dùng chung cho cả vườn: phù sa, bazan, cát.
-- Gợi ý ngưỡng/thời lượng dựa trên loại đất, nhóm cây, mưa và telemetry.
+- Gợi ý ngưỡng tưới dựa trên loại đất, nhóm cây, mưa và telemetry.
 - Áp dụng gợi ý cho cả 6 vùng, idempotent (không đổi nếu đã đúng).
 - Gợi ý là **rule-based**, không phải AI và chưa kiểm chứng nông học.
 
@@ -179,8 +179,6 @@ flowchart LR
 - `PUMP_ON_T001` … `PUMP_OFF_T006` (từng vùng)
 - `SET_THRESHOLD_T001_45` … (ngưỡng 10–90%)
 - `WEATHER_GATE_ON`, `WEATHER_GATE_OFF`
-
-> `SET_DURATION` chưa được firmware xử lý. Thời lượng tưới hiện chỉ dùng cho gợi ý và ước tính lượng nước, không điều khiển thời gian bơm thực tế.
 
 ## 🌐 REST API và Realtime
 
@@ -275,7 +273,6 @@ Kịch bản demo 15 phút từ Web → Wokwi → Mobile: [docs/KICH_BAN_DEMO_15
 - **Chẩn đoán:** chưa có cảm biến lưu lượng/áp suất để phát hiện vỡ ống hoặc bơm hỏng.
 - **Bồn nước:** chỉ hiển thị khoảng cách cm và trạng thái cạn; chưa quy đổi %/số lít.
 - **Đồng bộ trạng thái:** vùng bị khóa do quá thời gian chưa có trong telemetry nên Web/Mobile chưa hiển thị.
-- **Thời lượng tưới:** firmware chưa nhận `SET_DURATION`; chỉ dùng cho gợi ý/ước tính.
 - **Mobile:** chưa có push notification, chưa có hồ sơ cây; chưa phải bản phát hành.
 - **Mô phỏng:** phần cứng và cảm biến đang mô phỏng trên Wokwi, chưa kiểm chứng ngoài thực địa.
 
