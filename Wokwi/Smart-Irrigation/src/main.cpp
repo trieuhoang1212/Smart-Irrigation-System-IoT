@@ -71,12 +71,15 @@ const unsigned long MAX_MANUAL_MS = 15UL * 60UL * 1000UL;
 // HC-SR04 gắn trên miệng bồn, đo khoảng cách tới mặt nước: xa quá nghĩa là bồn cạn.
 const float TANK_EMPTY_CM = 80.0;
 const float TANK_REFILL_CM = 60.0;
+// Quá thời gian này không đọc được thì bỏ số đo cũ, tránh Web hiển thị mực nước đã lỗi thời.
+const unsigned long TANK_STALE_MS = 10000UL;
 unsigned long zoneStartedAt[ZONE_COUNT] = {0};
 bool zoneLocked[ZONE_COUNT] = {false};
 unsigned long manualStartedAt = 0;
 bool tankEmpty = false;
 bool tankValid = false;
 float tankDistanceCm = 0.0;
+unsigned long lastTankReadAt = 0;
 
 bool netWasOnline = false;
 unsigned long lastWifiAttempt = 0;
@@ -222,11 +225,20 @@ float readTankDistanceCm() {
 }
 
 void updateTank() {
+  const unsigned long now = millis();
   const float distance = readTankDistanceCm();
-  if (distance < 0 || distance > 400) return;  // bỏ qua lần đọc lỗi, giữ trạng thái cũ
+  if (distance < 0 || distance > 400) {
+    // Cảm biến lỗi kéo dài: báo distanceCm = null thay vì phát mãi số đo cũ.
+    if (tankValid && now - lastTankReadAt >= TANK_STALE_MS) {
+      tankValid = false;
+      Serial.println("TANK: sensor stale - distance unknown");
+    }
+    return;
+  }
 
   tankDistanceCm = distance;
   tankValid = true;
+  lastTankReadAt = now;
   if (!tankEmpty && distance >= TANK_EMPTY_CM) {
     tankEmpty = true;
     Serial.println("TANK: EMPTY - stop all pumps");
