@@ -29,7 +29,7 @@
 #define WIFI_BUTTON_PIN 35  // nút mô phỏng mất WiFi, active LOW, có trở kéo 10k ngoài
 #define MANUAL_BUTTON_PIN 32  // nút bật/tắt bơm thủ công, active LOW, pull-up nội bộ
 
-// 6 Rơ-le điều khiển van từng luống. GPIO35 input-only nên chỉ dùng cho nút nhấn.
+// Rơ-le điều khiển van từng luống. GPIO35 input-only nên chỉ dùng cho nút nhấn.
 const int relayPins[ZONE_COUNT] = {16, 17, 18, 23, 15, 19};
 
 // Ngưỡng tưới tương ứng (T001: Rau muống, T002: Cà chua, T003: Cà rốt, T004: Khoai lang, T005: Dưa leo, T006: Xà lách)
