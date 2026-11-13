@@ -14,6 +14,10 @@ type BackendTelemetry = {
   weatherGate?: boolean;
   pump?: boolean;
   servoAngle?: number;
+  tank?: {
+    distanceCm?: number | null;
+    empty?: boolean;
+  };
   zones?: Array<{
     id?: string;
     moisture?: number;
@@ -58,6 +62,8 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const [rainBlock, setRainBlock] = useState(true);
   const [deviceOnline, setDeviceOnline] = useState(false);
   const [servoAngle, setServoAngle] = useState<number | null>(null);
+  const [tankDistanceCm, setTankDistanceCm] = useState<number | null>(null);
+  const [tankEmpty, setTankEmpty] = useState(false);
   const [brokerConnected, setBrokerConnected] = useState<boolean | null>(null);
   const [commandVersion, setCommandVersion] = useState(0);
   const [lastUpdated, setLastUpdated] = useState("Chưa kết nối");
@@ -190,6 +196,14 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     if (data.raining !== undefined) setRaining(data.raining);
     if (data.pump !== undefined) setPumpOn(isOnline ? Boolean(data.pump) : false);
 
+    const distance = data.tank?.distanceCm;
+    setTankDistanceCm(
+      isOnline && typeof distance === "number" && Number.isFinite(distance)
+        ? round1(distance)
+        : null,
+    );
+    setTankEmpty(isOnline ? Boolean(data.tank?.empty) : false);
+
     // Payload cũ chưa có servoAngle: suy ra từ trạng thái bơm tổng.
     if (isOnline) {
       setServoAngle(typeof data.servoAngle === "number" && Number.isFinite(data.servoAngle)
@@ -252,6 +266,8 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
                 current.map((zone) => ({ ...zone, online: false, pump: false })),
               );
               setPumpOn(false);
+              setTankDistanceCm(null);
+              setTankEmpty(false);
             }
           } else if (message.type === "command-result") {
             setCommandVersion((current) => current + 1);
@@ -277,6 +293,8 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         setConnected(false);
         setDeviceOnline(false);
         setServoAngle(null);
+        setTankDistanceCm(null);
+        setTankEmpty(false);
         setZones((current) => current.map((zone) => ({ ...zone, online: false })));
 
         attempt += 1;
@@ -487,6 +505,6 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     rainPercent, raining, rainBlock, lastUpdated, sendCommand, togglePump,
     changeMode, toggleWeatherGate, reconnect, setZoneThreshold, saveZoneConfig,
     configLoading, configError, deviceId, deviceOnline, brokerConnected,
-    commandVersion, servoAngle, lastTelemetryAt,
+    commandVersion, servoAngle, tankDistanceCm, tankEmpty, lastTelemetryAt,
   };
 }

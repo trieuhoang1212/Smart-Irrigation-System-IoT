@@ -14,6 +14,8 @@ interface ControlPanelProps {
   rainPercent: number | null;
   rainBlock: boolean;
   wateredLiters: number;
+  tankDistanceCm: number | null;
+  tankEmpty: boolean;
   onChangeMode: (mode: "auto" | "manual") => void;
   onTogglePump: () => void;
   onChangeThreshold: (val: number) => void;
@@ -30,12 +32,17 @@ export function ControlPanel({
   rainPercent,
   rainBlock,
   wateredLiters,
+  tankDistanceCm,
+  tankEmpty,
   onChangeMode,
   onTogglePump,
   onChangeThreshold,
   onToggleWeatherGate,
   onSaveZoneConfig,
 }: ControlPanelProps) {
+  const tankLevel =
+    tankDistanceCm === null ? null : Math.min(Math.max(tankDistanceCm, 0), 100);
+
   return (
     <section className="control-grid">
       <article className="panel control-card">
@@ -165,6 +172,65 @@ export function ControlPanel({
         </label>
         <div className={`weather-alert ${rainBlock ? "" : "off"}`}>
           {rainBlock ? "Đang bật bảo vệ thời tiết" : "Weather gate đang tắt"}
+        </div>
+      </article>
+
+      <article className="panel tank-card">
+        <div className="panel-heading">
+          <div>
+            <h2>Bồn nước</h2>
+            <p>HC-SR04 đo khoảng cách tới mặt nước</p>
+          </div>
+          <span className="card-icon">
+            <DropletIcon size={18} />
+          </span>
+        </div>
+
+        <div className="tank-headline">
+          <div className="tank-reading">
+            <strong>{tankDistanceCm === null ? "--" : Math.round(tankDistanceCm)}</strong>
+            <small>cm</small>
+          </div>
+          <span
+            className={`live-badge ${
+              tankEmpty ? "danger" : tankDistanceCm === null ? "" : "active"
+            }`}
+          >
+            <i />
+            {tankDistanceCm === null ? "Chưa có dữ liệu" : tankEmpty ? "Bồn cạn" : "Còn nước"}
+          </span>
+        </div>
+
+        <div className="tank-gauge">
+          <div className="tank-track">
+            {tankLevel !== null && (
+              <span
+                className={`tank-marker ${tankEmpty ? "danger" : ""}`}
+                style={{ left: `${tankLevel}%` }}
+              />
+            )}
+          </div>
+          <div className="tank-scale">
+            <span>0 cm · đầy</span>
+            <span>100 cm · cạn</span>
+          </div>
+        </div>
+
+        <p className="tank-caption">
+          {tankDistanceCm === null
+            ? "Chưa nhận được số đo từ cảm biến."
+            : tankEmpty
+              ? "Bồn cạn: bơm đang bị chặn để tránh chạy khô."
+              : "Khoảng cách càng lớn, mực nước càng thấp."}
+        </p>
+
+        <div className="tank-limits">
+          <span>
+            <em>Báo cạn</em>≥ 80 cm
+          </span>
+          <span>
+            <em>Hồi nước</em>≤ 60 cm
+          </span>
         </div>
       </article>
 
