@@ -1,5 +1,6 @@
 import { db } from "./db.js";
 import type { Telemetry } from "./domain.js";
+import { getZoneSetting } from "./zone-settings-repository.js";
 
 export type CommandStatus = "pending" | "confirmed" | "timeout" | "failed";
 
@@ -91,6 +92,104 @@ const insertZoneSample = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
+// Telemetry thật 2–10 giây/lần; mất tín hiệu quá 60 giây coi như lần tưới đã kết thúc.
+const LIVE_GAP_MS = 60_000;
+// Dữ liệu demo ghi 5 phút/lần nên khi dựng lại lịch sử cần khoảng đệm lớn hơn.
+const BACKFILL_GAP_MS = 15 * 60_000;
+
+type OpenWateringRun = {
+  id: number;
+  started_at: number;
+  last_seen_at: number;
+};
+
+type WateringDbRow = {
+  zone_id: string;
+  started_at: number;
+  ended_at: number;
+  seconds: number;
+  liters: number;
+};
+
+export type WateringRun = {
+  startedAt: number;
+  endedAt: number;
+  seconds: number;
+  liters: number;
+};
+
+export type ZoneWateringOverview = {
+  zoneId: string;
+  lastRun: WateringRun | null;
+  todayLiters: number;
+  todayRuns: number;
+};
+
+const findOpenWateringRun = db.prepare(`
+  SELECT id, started_at, last_seen_at FROM watering_runs
+  WHERE device_id = ? AND zone_id = ? AND ended_at IS NULL
+  ORDER BY id DESC
+  LIMIT 1
+`);
+
+const insertWateringRun = db.prepare(`
+  INSERT INTO watering_runs (device_id, zone_id, started_at, last_seen_at)
+  VALUES (?, ?, ?, ?)
+`);
+
+const touchWateringRun = db.prepare(
+  "UPDATE watering_runs SET last_seen_at = ? WHERE id = ?",
+);
+
+const closeWateringRun = db.prepare(`
+  UPDATE watering_runs
+  SET ended_at = ?, last_seen_at = ?, seconds = ?, liters = ?
+  WHERE id = ?
+`);
+
+function roundLiters(liters: number): number {
+  return Math.round(liters * 100) / 100;
+}
+
+function finishWateringRun(
+  run: OpenWateringRun,
+  endedAt: number,
+  deviceId: string,
+  zoneId: string,
+): void {
+  const seconds = Math.max(0, (endedAt - run.started_at) / 1000);
+  const flow = getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
+  closeWateringRun.run(endedAt, endedAt, seconds, roundLiters((seconds / 3600) * flow), run.id);
+}
+
+function trackWateringSample(
+  deviceId: string,
+  zoneId: string,
+  pumpOn: boolean,
+  recordedAt: number,
+  gapMs: number,
+): void {
+  const open = findOpenWateringRun.get(deviceId, zoneId) as OpenWateringRun | undefined;
+
+  if (pumpOn) {
+    if (open && recordedAt - open.last_seen_at > gapMs) {
+      finishWateringRun(open, open.last_seen_at, deviceId, zoneId);
+      insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt);
+      return;
+    }
+    if (open) {
+      touchWateringRun.run(recordedAt, open.id);
+      return;
+    }
+    insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt);
+    return;
+  }
+
+  if (!open) return;
+  const endedAt = recordedAt - open.last_seen_at <= gapMs ? recordedAt : open.last_seen_at;
+  finishWateringRun(open, endedAt, deviceId, zoneId);
+}
+
 const persistTelemetry = db.transaction((telemetry: Telemetry) => {
   const recordedAt = recordedAtOf(telemetry);
   const payload = JSON.stringify(telemetry);
@@ -121,11 +220,112 @@ const persistTelemetry = db.transaction((telemetry: Telemetry) => {
       zone.pump ? 1 : 0,
       recordedAt,
     );
+    trackWateringSample(telemetry.deviceId, zone.id, zone.pump, recordedAt, LIVE_GAP_MS);
   }
 });
 
 export function saveTelemetry(telemetry: Telemetry): void {
   persistTelemetry(telemetry);
+}
+
+type PumpSampleRow = {
+  zone_id: string;
+  pump: number;
+  recorded_at: number;
+};
+
+type TodayWateringRow = {
+  zone_id: string;
+  runs: number;
+  liters: number;
+};
+
+const selectRecentPumpSamples = db.prepare(`
+  SELECT zone_id, pump, recorded_at
+  FROM telemetry_zone_samples
+  WHERE device_id = ? AND recorded_at >= ?
+  ORDER BY recorded_at ASC
+`);
+
+const countWateringRuns = db.prepare(
+  "SELECT COUNT(*) AS total FROM watering_runs WHERE device_id = ?",
+);
+
+const selectLastRuns = db.prepare(`
+  SELECT zone_id, started_at, ended_at, seconds, liters FROM (
+    SELECT
+      zone_id, started_at, ended_at, seconds, liters,
+      ROW_NUMBER() OVER (PARTITION BY zone_id ORDER BY ended_at DESC) AS position
+    FROM watering_runs
+    WHERE device_id = ? AND ended_at IS NOT NULL
+  )
+  WHERE position = 1
+`);
+
+const selectTodayRuns = db.prepare(`
+  SELECT zone_id, COUNT(*) AS runs, COALESCE(SUM(liters), 0) AS liters
+  FROM watering_runs
+  WHERE device_id = ? AND ended_at IS NOT NULL AND ended_at >= ?
+  GROUP BY zone_id
+`);
+
+const backfillWatering = db.transaction((deviceId: string, since: number) => {
+  const rows = selectRecentPumpSamples.all(deviceId, since) as PumpSampleRow[];
+  for (const row of rows) {
+    trackWateringSample(
+      deviceId,
+      row.zone_id,
+      Boolean(row.pump),
+      row.recorded_at,
+      BACKFILL_GAP_MS,
+    );
+  }
+  return rows.length;
+});
+
+/**
+ * Dựng lại lịch sử tưới từ telemetry đã lưu (chỉ chạy một lần cho mỗi thiết bị).
+ */
+export function backfillWateringRuns(deviceId: string, hours = 24): number {
+  const existing = countWateringRuns.get(deviceId) as { total: number };
+  if (existing.total > 0) return 0;
+  const since = Date.now() - Math.max(1, hours) * 60 * 60 * 1000;
+  return backfillWatering(deviceId, since);
+}
+
+export function getWateringOverview(
+  deviceId: string,
+  since: number,
+): ZoneWateringOverview[] {
+  const overview = new Map<string, ZoneWateringOverview>();
+
+  for (const row of selectLastRuns.all(deviceId) as WateringDbRow[]) {
+    overview.set(row.zone_id, {
+      zoneId: row.zone_id,
+      lastRun: {
+        startedAt: row.started_at,
+        endedAt: row.ended_at,
+        seconds: Math.round(row.seconds),
+        liters: roundLiters(row.liters),
+      },
+      todayLiters: 0,
+      todayRuns: 0,
+    });
+  }
+
+  for (const row of selectTodayRuns.all(deviceId, since) as TodayWateringRow[]) {
+    const current = overview.get(row.zone_id) ?? {
+      zoneId: row.zone_id,
+      lastRun: null,
+      todayLiters: 0,
+      todayRuns: 0,
+    };
+    current.todayLiters = roundLiters(row.liters);
+    current.todayRuns = row.runs;
+    overview.set(row.zone_id, current);
+  }
+
+  return [...overview.values()];
 }
 
 export function loadLatestTelemetry(deviceId: string): Telemetry | null {

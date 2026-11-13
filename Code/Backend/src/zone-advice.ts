@@ -87,21 +87,16 @@ export function growthFor(
 export type AdviceZone = {
   group: string;
   soil: SoilType;
-  /** Ngưỡng và thời lượng người dùng đang dùng, chỉ để so sánh. */
+  /** Ngưỡng người dùng đang dùng, chỉ để so sánh. */
   threshold: number;
-  duration: number;
-  /** Cấu hình gốc của vùng; khuyến nghị luôn tính từ đây nên áp dụng nhiều lần không bị cộng dồn. */
+  /** Ngưỡng gốc của vùng; khuyến nghị luôn tính từ đây nên áp dụng nhiều lần không bị cộng dồn. */
   baseThreshold: number;
-  baseDuration: number;
 };
 
 export type ZoneAdvice = {
   currentThreshold: number;
-  currentDuration: number;
   suggestedThreshold: number;
-  suggestedDuration: number;
   thresholdDelta: number;
-  durationDelta: number;
   window: { start: string; end: string } | null;
   windowNote: string;
   summary: string;
@@ -144,34 +139,28 @@ export function buildZoneAdvice(
   };
 
   let thresholdShift = 0;
-  let durationShift = 0;
   const reasons: string[] = [];
 
   if (growth) {
     switch (growth.stage) {
       case "seedling":
         thresholdShift += 5;
-        durationShift += 1;
-        reasons.push(`Cây con (ngày ${growth.day}/${growth.totalDays}) cần ẩm đều nên tăng nhẹ`);
+        reasons.push(`Cây con (ngày ${growth.day}/${growth.totalDays}) cần ẩm đều nên tăng nhẹ ngưỡng`);
         break;
       case "flowering":
         thresholdShift += 6;
-        durationShift += 2;
         reasons.push(`Ra hoa - đậu quả (ngày ${growth.day}/${growth.totalDays}) cần nhiều nước hơn`);
         break;
       case "bulking":
         thresholdShift += 5;
-        durationShift += 1;
         reasons.push(`Hình thành củ (ngày ${growth.day}/${growth.totalDays}) cần ẩm ổn định`);
         break;
       case "harvest":
         thresholdShift -= 5;
-        durationShift -= 1;
         reasons.push(`Đang thu hoạch (ngày ${growth.day}/${growth.totalDays}) nên giảm nước`);
         break;
       case "overdue":
         thresholdShift -= 5;
-        durationShift -= 1;
         reasons.push(`Đã quá ${growth.overdueDays} ngày so với dự kiến, kiểm tra lại lịch chăm sóc`);
         break;
       default:
@@ -185,13 +174,11 @@ export function buildZoneAdvice(
   switch (zone.soil) {
     case "Đất cát":
       thresholdShift += 8;
-      durationShift += 2;
-      reasons.push("Đất cát thoát nước nhanh nên tưới sớm và lâu hơn");
+      reasons.push("Đất cát thoát nước nhanh nên tưới sớm hơn");
       break;
     case "Đất đỏ bazan":
       thresholdShift += 4;
-      durationShift += 1;
-      reasons.push("Đất đỏ bazan thoát nước khá nên tăng nhẹ ngưỡng và thời lượng");
+      reasons.push("Đất đỏ bazan thoát nước khá nên tăng nhẹ ngưỡng");
       break;
     default:
       reasons.push("Đất phù sa giàu mùn, giữ ẩm tốt (mặc định)");
@@ -200,7 +187,6 @@ export function buildZoneAdvice(
 
   if (weather.raining || weather.rain >= 60) {
     thresholdShift -= 12;
-    durationShift -= 2;
     reasons.push(
       `Cảm biến mưa báo ${weather.raining ? "đang mưa" : "độ ẩm cao"} (${weather.rain}%) nên hoãn tưới`,
     );
@@ -216,7 +202,6 @@ export function buildZoneAdvice(
 
   if (weather.temperature !== null && weather.temperature >= 35) {
     thresholdShift += 5;
-    durationShift += 1;
     reasons.push(`Nắng nóng ${weather.temperature}°C nên cây mất nước nhanh`);
   }
 
@@ -237,7 +222,6 @@ export function buildZoneAdvice(
     15,
     85,
   );
-  const suggestedDuration = clamp(Math.round(zone.baseDuration + durationShift), 1, 60);
 
   let window: ZoneAdvice["window"] = null;
   let windowNote = "Khung giờ chỉ là gợi ý; ESP32 vẫn tưới theo ngưỡng đất.";
@@ -253,15 +237,12 @@ export function buildZoneAdvice(
 
   const summary = weather.raining
     ? "Đang mưa, chưa nên tưới. Kiểm tra lại khi tạm tắt mưa."
-    : `Gợi ý tưới ở ngưỡng ${suggestedThreshold}% trong ${suggestedDuration} phút, khung ${window?.start}–${window?.end}.`;
+    : `Gợi ý tưới ở ngưỡng ${suggestedThreshold}%, khung ${window?.start}–${window?.end}.`;
 
   return {
     currentThreshold: zone.threshold,
-    currentDuration: zone.duration,
     suggestedThreshold,
-    suggestedDuration,
     thresholdDelta: suggestedThreshold - zone.threshold,
-    durationDelta: suggestedDuration - zone.duration,
     window,
     windowNote,
     summary,

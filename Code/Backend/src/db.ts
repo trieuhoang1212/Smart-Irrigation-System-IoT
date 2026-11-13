@@ -128,6 +128,22 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_zone_setting_changes_device_time
     ON zone_setting_changes(device_id, changed_at);
+
+  CREATE TABLE IF NOT EXISTS watering_runs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id    TEXT NOT NULL,
+    zone_id      TEXT NOT NULL,
+    started_at   INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL,
+    ended_at     INTEGER,
+    seconds      REAL,
+    liters       REAL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_watering_runs_device_zone
+    ON watering_runs(device_id, zone_id, started_at);
+  CREATE INDEX IF NOT EXISTS idx_watering_runs_device_end
+    ON watering_runs(device_id, ended_at);
 `);
 
 // DB cũ tạo temperature/humidity NOT NULL, không lưu được lúc DHT22 lỗi.

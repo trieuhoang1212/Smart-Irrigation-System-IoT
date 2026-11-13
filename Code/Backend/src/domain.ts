@@ -5,7 +5,6 @@ export const MIN_THRESHOLD = 10;
 export const MAX_THRESHOLD = 90;
 
 export const ZONE_PROFILE_LIMITS = {
-  duration: { min: 1, max: 60 },
   pumpSeconds: { min: 10, max: 600 },
   flowLitersPerHour: { min: 1, max: 200 },
   targetLiters: { min: 0.1, max: 20 },
