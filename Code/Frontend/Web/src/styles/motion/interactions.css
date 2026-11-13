@@ -1,0 +1,200 @@
+/* Phản hồi chạm: nút, thẻ, ô trồng, công tắc và chip chọn. */
+.water-button,
+.primary-button,
+.ghost-button,
+.config-save,
+.status-card button,
+.connection-card button,
+.nav-dock-trigger {
+  transition:
+    transform 0.18s var(--ease-garden),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.22s ease;
+}
+
+.water-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.water-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.22) 48%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+}
+
+@media (hover: hover) {
+  .water-button:hover:not(:disabled)::after {
+    transform: translateX(130%);
+  }
+
+  .water-button:hover:not(:disabled),
+  .primary-button:hover:not(:disabled),
+  .config-save:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(35, 92, 64, 0.16);
+  }
+
+  .ghost-button:hover:not(:disabled),
+  .connection-card button:hover,
+  .status-card button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(23, 54, 42, 0.08);
+  }
+}
+
+.water-button:active:not(:disabled),
+.primary-button:active:not(:disabled),
+.ghost-button:active:not(:disabled),
+.config-save:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: none;
+}
+
+.water-button.watering svg {
+  animation: droplet-bob 1.4s ease-in-out infinite;
+}
+
+.link-button svg {
+  transition: transform 0.2s ease;
+}
+
+.link-button:hover svg {
+  transform: translateX(3px);
+}
+
+.metric-card,
+.history-metric,
+.zone-pill,
+.connection-card,
+.status-card {
+  transition:
+    transform 0.24s var(--ease-garden),
+    background-color 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+.metric-icon {
+  transition: transform 0.3s var(--ease-garden);
+}
+
+@media (hover: hover) {
+  .metric-card:hover {
+    transform: translateY(-3px);
+    border-color: #d5e2d5;
+    box-shadow: 0 12px 26px rgba(23, 54, 42, 0.07);
+  }
+
+  .metric-card:hover .metric-icon {
+    transform: translateY(-2px) rotate(-6deg) scale(1.06);
+  }
+
+  .history-metric:hover,
+  .zone-pill:hover {
+    transform: translateY(-1px);
+  }
+
+  .connection-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(23, 54, 42, 0.07);
+  }
+}
+
+.garden-cell {
+  transition:
+    transform 0.28s var(--ease-garden),
+    border-color 0.2s ease,
+    box-shadow 0.28s ease;
+}
+
+.zone-photo img {
+  transition: transform 0.7s var(--ease-garden);
+}
+
+@media (hover: hover) {
+  .garden-cell:hover {
+    transform: translateY(-2px);
+    border-color: #b9cdbd;
+    box-shadow: 0 10px 24px rgba(23, 54, 42, 0.1);
+  }
+
+  .garden-cell:hover .zone-photo img {
+    transform: scale(1.06);
+  }
+}
+
+.garden-cell:active {
+  transform: scale(0.992);
+}
+
+.garden-cell.active {
+  animation: active-ring 3.2s ease-in-out infinite;
+}
+
+.big-toggle {
+  transition:
+    background-color 0.24s ease,
+    transform 0.16s ease;
+}
+
+.big-toggle i {
+  transition:
+    transform 0.24s var(--ease-garden),
+    box-shadow 0.24s ease;
+}
+
+.big-toggle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.big-toggle.on i {
+  box-shadow: 0 1px 4px rgba(23, 54, 42, 0.25);
+}
+
+.mode-switch button,
+.view-switch button {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.mode-switch button.selected,
+.view-switch button.selected,
+.zone-pill.active,
+.history-metric.selected,
+.compact-nav a.active {
+  animation: chip-pop 0.28s var(--ease-spring);
+}
+
+.activity-list {
+  scrollbar-width: thin;
+  scrollbar-color: #d8e2d7 transparent;
+}
+
+.activity-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-list::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: #d8e2d7;
+}
+
+.activity-list::-webkit-scrollbar-thumb:hover {
+  background: #c3d2c2;
+}
+
+.back-to-top:hover svg {
+  animation: arrow-hop 0.6s var(--ease-garden);
+}

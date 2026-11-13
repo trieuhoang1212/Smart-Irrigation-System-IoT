@@ -189,7 +189,7 @@ export function ControlPanel({
         )}
       </article>
 
-      <article className="panel weather-card">
+      <article className={`panel weather-card ${raining ? "raining" : ""}`}>
         <div className="panel-heading">
           <div>
             <h2>Cảm biến DHT22</h2>

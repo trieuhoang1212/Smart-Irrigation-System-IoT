@@ -276,6 +276,10 @@
   background: var(--surface);
 }
 
+.garden-facts > div:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .garden-facts dt {
   color: var(--faint);
   font-size: 11px;

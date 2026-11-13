@@ -1,0 +1,5 @@
+/* Nhịp và đường cong dùng chung cho mọi hiệu ứng. */
+:root {
+  --ease-garden: cubic-bezier(0.22, 0.68, 0.24, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}

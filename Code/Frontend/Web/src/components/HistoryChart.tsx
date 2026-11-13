@@ -425,8 +425,16 @@ export function HistoryChart({
             </g>
           )}
 
-          <path d={chart.area} fill={`url(#history-fill-${metric})`} />
           <path
+            key={`area-${metric}-${range}`}
+            className="history-area"
+            d={chart.area}
+            fill={`url(#history-fill-${metric})`}
+          />
+          <path
+            key={`line-${metric}-${range}`}
+            className="history-line"
+            pathLength={1}
             d={chart.line}
             fill="none"
             stroke={chart.config.color}
@@ -449,6 +457,7 @@ export function HistoryChart({
           {livePoint && (
             <g className="history-live-point">
               <circle
+                className="history-live-halo"
                 cx={livePoint.x}
                 cy={livePoint.y}
                 r="7"

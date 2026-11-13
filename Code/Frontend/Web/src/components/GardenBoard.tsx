@@ -37,7 +37,7 @@ export function GardenBoard({
               </span>
               <small>{zone.group}</small>
               <span className="garden-cell-meter">
-                <span className="garden-meter">
+                <span className={`garden-meter ${zone.pump ? "pumping" : ""}`}>
                   <i style={{ width: `${moisture ?? 0}%` }} />
                 </span>
                 <b className={status.tone === "dry" ? "dry" : ""}>

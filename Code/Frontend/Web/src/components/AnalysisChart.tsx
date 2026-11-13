@@ -242,9 +242,19 @@ export function AnalysisChart({
             Dừng {Math.round(chart.safeHigh)}%
           </text>
 
-          {chart.area && <path d={chart.area} fill="url(#analysis-fill)" />}
+          {chart.area && (
+            <path
+              key={`area-${range}`}
+              className="analysis-area"
+              d={chart.area}
+              fill="url(#analysis-fill)"
+            />
+          )}
           {chart.points.length > 1 && (
             <path
+              key={`line-${range}`}
+              className="analysis-line"
+              pathLength={1}
               d={chart.line}
               fill="none"
               stroke={LINE_COLOR}

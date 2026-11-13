@@ -1,0 +1,113 @@
+/* Vỏ ứng dụng: ánh sáng nền, vân tiêu đề, topbar và sidebar. */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: -16%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 14% 6%, rgba(118, 166, 132, 0.16), transparent 68%),
+    radial-gradient(30% 36% at 88% 12%, rgba(197, 165, 96, 0.1), transparent 70%),
+    radial-gradient(46% 48% at 76% 98%, rgba(80, 132, 106, 0.09), transparent 72%);
+  animation: ambient-drift 44s ease-in-out infinite alternate;
+}
+
+.page-heading {
+  position: relative;
+}
+
+.page-heading > div {
+  position: relative;
+  z-index: 1;
+}
+
+.page-heading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 280px;
+  height: 190px;
+  translate: 0 -50%;
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side at 100% 50%, transparent 0 38%, rgba(47, 111, 78, 0.11) 39% 40%, transparent 41%),
+    radial-gradient(closest-side at 100% 50%, transparent 0 58%, rgba(47, 111, 78, 0.08) 59% 60%, transparent 61%),
+    radial-gradient(closest-side at 100% 50%, transparent 0 78%, rgba(165, 118, 44, 0.07) 79% 80%, transparent 81%);
+  opacity: 0.85;
+}
+
+@media (max-width: 900px) {
+  .page-heading::after {
+    display: none;
+  }
+}
+
+.topbar {
+  position: relative;
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(47, 111, 78, 0.35), rgba(165, 118, 44, 0.28), transparent);
+  background-size: 200% 100%;
+  opacity: 0.65;
+  animation: topbar-sheen 10s linear infinite;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #fafbf8 0%, #f5f8f2 100%);
+}
+
+.brand-mark {
+  transition: transform 0.35s var(--ease-garden);
+}
+
+.brand:hover .brand-mark {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+.nav-item {
+  position: relative;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.nav-item::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: 3px;
+  border-radius: 99px;
+  background: var(--green);
+  opacity: 0.85;
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 0.28s var(--ease-garden);
+}
+
+.nav-item.active::before {
+  transform: scaleY(1);
+  animation: nav-bar-in 0.4s var(--ease-garden) 0.5s both;
+}
+
+.nav-item svg {
+  transition: transform 0.2s ease;
+}
+
+.nav-item:hover svg {
+  transform: translateX(2px);
+}

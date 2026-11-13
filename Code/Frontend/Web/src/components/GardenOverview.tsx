@@ -56,6 +56,7 @@ export function GardenOverview({
       <div className="garden-workspace">
         <GardenBoard zones={zones} activeZone={selectedZone.id} onSelect={onSelectZone} />
         <GardenDetailPanel
+          key={selectedZone.id}
           zone={selectedZone}
           soil={soil}
           deviceId={deviceId}

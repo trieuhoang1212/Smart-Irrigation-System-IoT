@@ -1,0 +1,16 @@
+/*
+  Lớp chuyển động của Greenflow.
+  - Chạm: 140–280ms, chỉ đổi 1–3px hoặc scale nhẹ.
+  - Vào trang: 380–560ms, so le 30–50ms giữa các khối.
+  - Nền và trạng thái sống: biên độ nhỏ, lặp chậm (1.5–44s).
+  - Mọi thứ tắt theo prefers-reduced-motion ở tệp cuối.
+*/
+@import "./tokens.css";
+@import "./keyframes.css";
+@import "./shell.css";
+@import "./status.css";
+@import "./interactions.css";
+@import "./data.css";
+@import "./feedback.css";
+@import "./entrance.css";
+@import "./reduced-motion.css";

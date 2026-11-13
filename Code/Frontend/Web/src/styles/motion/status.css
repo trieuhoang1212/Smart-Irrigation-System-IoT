@@ -1,0 +1,71 @@
+/* Nhịp sống: kết nối, khu vườn, bồn nước, mưa và cảnh báo. */
+.connection-title .pulse:not(.off),
+.topbar-status:not(.off) i,
+.live-badge.active i,
+.live-pill i {
+  animation: dot-pulse 2.4s ease-out infinite;
+}
+
+.live-badge.danger i {
+  animation: dot-pulse-danger 1.6s ease-out infinite;
+}
+
+.zone-chip.watering::before {
+  animation: dot-pulse-blue 1.5s ease-out infinite;
+}
+
+.zone-chip.dry::before {
+  animation: dot-pulse-amber 2.4s ease-out infinite;
+}
+
+.activity-item.pending i,
+.activity-item.timeout i {
+  animation: dot-pulse-amber 1.8s ease-out infinite;
+}
+
+.live-pill i {
+  flex: none;
+}
+
+.tank-marker {
+  animation: marker-ping 2.8s ease-out infinite;
+}
+
+.tank-marker.danger {
+  animation-name: marker-ping-danger;
+}
+
+.weather-alert.warn,
+.mode-warning {
+  animation: warn-glow 3s ease-in-out infinite;
+}
+
+.mode-warning.overwater {
+  animation-name: overwater-glow;
+}
+
+.offline-banner > span {
+  animation: warn-pop 2.6s ease-in-out infinite;
+}
+
+.weather-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-card.raining::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(112deg, rgba(61, 111, 140, 0.18) 0 1px, transparent 1px 10px);
+  background-size: 100% 20px;
+  opacity: 0.4;
+  mask-image: linear-gradient(to bottom, transparent 12%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0.8));
+  -webkit-mask-image: linear-gradient(to bottom, transparent 12%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0.8));
+  animation: rain-sheet 1.1s linear infinite;
+}
+
+.weather-card.raining .card-icon {
+  animation: weather-bob 3s ease-in-out infinite;
+}

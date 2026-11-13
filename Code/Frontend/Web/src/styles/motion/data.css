@@ -1,0 +1,25 @@
+/* Thanh dữ liệu và biểu đồ. */
+.garden-meter i,
+.progress i,
+.water-estimate .progress i,
+.score-bar-track i {
+  transition: width 0.6s var(--ease-garden);
+}
+
+.garden-meter.pumping i,
+.water-estimate .progress i {
+  background-image: linear-gradient(90deg, #3f8f63, #7cb795, #3f8f63);
+  background-size: 200% 100%;
+  animation: water-flow 1.8s linear infinite;
+}
+
+.history-tooltip,
+.analysis-tooltip {
+  animation: tip-in 0.14s ease-out both;
+}
+
+.history-live-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: live-halo 2.6s ease-out infinite;
+}
