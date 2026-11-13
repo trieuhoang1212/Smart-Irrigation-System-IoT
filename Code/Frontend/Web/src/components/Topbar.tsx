@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { MouseEvent } from "react";
 import { ChartIcon, ClockIcon, EditIcon, GaugeIcon, GridIcon, LeafIcon } from "./icons";
+import { LiveClock } from "./LiveClock";
+import { MobileNavDock } from "./MobileNavDock";
 
 type NavKey = "overview" | "analysis" | "history" | "activity" | "garden";
 
@@ -39,8 +41,9 @@ export function Topbar({
         <span className="topbar-crumb">{crumb}</span>
         <span className={`topbar-status ${connected ? "" : "off"}`}>
           <i />
-          {connected ? `Cập nhật ${lastUpdated}` : "Mất kết nối backend"}
+          {connected ? `Telemetry cuối ${lastUpdated}` : "Mất kết nối backend"}
         </span>
+        <LiveClock />
       </header>
 
       <nav className="compact-nav" aria-label="Điều hướng nhanh">
@@ -85,6 +88,8 @@ export function Topbar({
           Quản lý khu vườn
         </Link>
       </nav>
+
+      <MobileNavDock active={active} onNavigate={onNavigate} />
 
       <div className="page-heading">
         <div>

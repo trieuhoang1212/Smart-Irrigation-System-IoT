@@ -6,6 +6,7 @@ import { BACKEND_URL } from "../lib/backend";
 import { fetchGardenConfig } from "../lib/garden-api";
 import { useMqtt } from "../hooks/useMqtt";
 import { BackToTop } from "./BackToTop";
+import { DeviceStatusBanner } from "./DeviceStatusBanner";
 import { GardenSoilPlan } from "./GardenSoilPlan";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -25,6 +26,7 @@ export function GardenManager() {
     deviceOnline,
     brokerConnected,
     lastUpdated,
+    lastTelemetryAt,
     reconnect,
   } = useMqtt({ backendUrl: BACKEND_URL });
 
@@ -156,16 +158,13 @@ export function GardenManager() {
           onNavigate={guardNavigation}
         />
 
-        {!connected && (
-          <div className="offline-banner">
-            <span>!</span>
-            <div>
-              <strong>Backend chưa kết nối</strong>
-              <small>Thay đổi chỉ lưu được sau khi kết nối lại.</small>
-            </div>
-            <button onClick={reconnect}>Kết nối lại</button>
-          </div>
-        )}
+        <DeviceStatusBanner
+          connected={connected}
+          brokerConnected={brokerConnected}
+          deviceOnline={deviceOnline}
+          lastTelemetryAt={lastTelemetryAt}
+          onReconnect={reconnect}
+        />
 
         <div className="analysis-zone-bar" role="tablist" aria-label="Chọn ô trồng">
           <span className="analysis-zone-label">Ô trồng</span>

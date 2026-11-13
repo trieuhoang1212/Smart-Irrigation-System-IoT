@@ -9,6 +9,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { BackToTop } from "./components/BackToTop";
+import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { CloseIcon } from "./components/icons";
 import { BACKEND_URL } from "./lib/backend";
 import {
@@ -30,6 +31,7 @@ export function ActivityApp() {
     configError,
     deviceId,
     lastUpdated,
+    lastTelemetryAt,
     deviceOnline,
     brokerConnected,
     reconnect,
@@ -96,16 +98,13 @@ export function ActivityApp() {
           lastUpdated={lastUpdated}
         />
 
-        {!connected && (
-          <div className="offline-banner">
-            <span>!</span>
-            <div>
-              <strong>Backend chưa kết nối</strong>
-              <small>Đang hiển thị nhật ký đã lưu, chưa có cập nhật trực tiếp.</small>
-            </div>
-            <button onClick={reconnect}>Kết nối lại</button>
-          </div>
-        )}
+        <DeviceStatusBanner
+          connected={connected}
+          brokerConnected={brokerConnected}
+          deviceOnline={deviceOnline}
+          lastTelemetryAt={lastTelemetryAt}
+          onReconnect={reconnect}
+        />
 
         {focusAt !== null && (
           <div className="sync-banner">

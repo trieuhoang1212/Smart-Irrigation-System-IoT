@@ -9,7 +9,7 @@
   }
 
   .config-fields {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .metrics-grid {
@@ -64,7 +64,7 @@
 
   .content {
     width: 100%;
-    padding: 0 24px 40px;
+    padding: 0 24px 78px;
   }
 
   .mobile-brand {
@@ -133,6 +133,99 @@
     color: var(--green);
   }
 
+  .nav-dock {
+    position: fixed;
+    right: 14px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: 14px;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(14px);
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
+  }
+
+  .nav-dock.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .nav-dock-menu {
+    display: grid;
+    gap: 2px;
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 18px 40px rgba(23, 54, 42, 0.16);
+  }
+
+  .nav-dock-menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    text-decoration: none;
+  }
+
+  .nav-dock-menu a:hover {
+    background: #eff2ec;
+  }
+
+  .nav-dock-menu a.active {
+    background: var(--green-soft);
+    color: var(--green-strong);
+    font-weight: 600;
+  }
+
+  .nav-dock-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 50px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--deep);
+    color: #f6f8f4;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 14px 30px rgba(23, 54, 42, 0.26);
+  }
+
+  .nav-dock-trigger span {
+    flex: 1;
+  }
+
+  .nav-dock-trigger svg:last-child {
+    transition: transform 180ms ease;
+  }
+
+  .nav-dock-trigger[aria-expanded="true"] svg:last-child {
+    transform: rotate(180deg);
+  }
+
+  .nav-dock-trigger:focus-visible {
+    outline: 2px solid #b9cbb8;
+    outline-offset: 2px;
+  }
+
+  .back-to-top {
+    right: 14px;
+    bottom: 78px;
+  }
+
   .page-heading {
     padding: 24px 0 22px;
   }
@@ -156,7 +249,7 @@
 
 @media (max-width: 680px) {
   .content {
-    padding: 0 14px 28px;
+    padding: 0 14px 78px;
   }
 
   .page-heading {
@@ -177,6 +270,14 @@
 
   .topbar-status {
     font-size: 11.5px;
+  }
+
+  .topbar-clock-date {
+    display: none;
+  }
+
+  .topbar-clock-short {
+    display: inline;
   }
 
   .compact-nav {
@@ -243,7 +344,7 @@
   }
 
   .config-fields {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .history-panel {

@@ -216,6 +216,10 @@
   color: var(--red);
 }
 
+.history-status.stale {
+  color: #8a6425;
+}
+
 .overview-panel {
   margin-top: 12px;
   padding: 18px 20px 16px;

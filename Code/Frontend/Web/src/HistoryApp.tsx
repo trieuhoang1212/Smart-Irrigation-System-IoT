@@ -8,6 +8,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { HistoryChart } from "./components/HistoryChart";
 import { BackToTop } from "./components/BackToTop";
+import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { CloseIcon } from "./components/icons";
 import { BACKEND_URL } from "./lib/backend";
 import {
@@ -112,16 +113,13 @@ export function HistoryApp() {
           lastUpdated={lastUpdated}
         />
 
-        {!connected && (
-          <div className="offline-banner">
-            <span>!</span>
-            <div>
-              <strong>Backend chưa kết nối</strong>
-              <small>Đang hiển thị dữ liệu lịch sử đã lưu, chưa có cập nhật trực tiếp.</small>
-            </div>
-            <button onClick={reconnect}>Kết nối lại</button>
-          </div>
-        )}
+        <DeviceStatusBanner
+          connected={connected}
+          brokerConnected={brokerConnected}
+          deviceOnline={deviceOnline}
+          lastTelemetryAt={lastTelemetryAt}
+          onReconnect={reconnect}
+        />
 
         {focusAt !== null && (
           <div className="sync-banner">

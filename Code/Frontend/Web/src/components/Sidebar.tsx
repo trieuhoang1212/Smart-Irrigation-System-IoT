@@ -107,7 +107,7 @@ export function Sidebar({
                 : "MQTT Broker offline"}
           </div>
           <p>ESP32: {deviceLabel}</p>
-          <p>Cập nhật: {lastUpdated}</p>
+          <p>Telemetry cuối: {lastUpdated}</p>
           <button type="button" onClick={onReconnect}>
             <RefreshIcon size={14} />
             Kết nối lại

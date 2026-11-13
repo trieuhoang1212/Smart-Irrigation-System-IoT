@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 import type { Zone } from "../garden-data";
+import { formatAge } from "../lib/time";
 
 export type HistorySample = {
   recordedAt: number;
@@ -86,8 +87,19 @@ export function HistoryChart({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [now, setNow] = useState<number | null>(null);
   const requestRef = useRef(0);
   const chartWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const kickoff = window.setTimeout(tick, 0);
+    const timer = window.setInterval(tick, 60_000);
+    return () => {
+      window.clearTimeout(kickoff);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const { durationMs, bucketMs } = compact ? COMPACT_RANGE : RANGES[range];
 
@@ -509,6 +521,10 @@ export function HistoryChart({
     </div>
   );
 
+  const lastSampleAt = series.length > 0 ? series[series.length - 1].recordedAt : null;
+  const isStale =
+    lastSampleAt !== null && now !== null && now - lastSampleAt > 5 * 60 * 1000;
+
   const statsBlock = (
     <div className={`history-stats ${compact ? "compact" : ""}`}>
       {stats && (
@@ -524,12 +540,18 @@ export function HistoryChart({
           </span>
         </>
       )}
-      <span className={`history-status ${error ? "error" : ""}`}>
+      <span
+        className={`history-status ${error ? "error" : ""} ${isStale ? "stale" : ""}`}
+      >
         {loading
           ? "Đang cập nhật..."
           : error
             ? "Mất kết nối dữ liệu"
-            : `Cập nhật ${new Date().toLocaleTimeString("vi-VN")}`}
+            : lastSampleAt === null
+              ? "Chưa có mẫu dữ liệu"
+              : `Mẫu cuối ${new Date(lastSampleAt).toLocaleTimeString("vi-VN")}${
+                  isStale && now !== null ? ` · đã cũ (${formatAge(lastSampleAt, now)})` : ""
+                }`}
       </span>
     </div>
   );
@@ -577,7 +599,9 @@ export function HistoryChart({
             {(Object.keys(RANGES) as RangeKey[]).map((key) => (
               <button
                 key={key}
+                type="button"
                 className={range === key ? "selected" : ""}
+                aria-pressed={range === key}
                 onClick={() => setRange(key)}
               >
                 {RANGES[key].label}
@@ -591,7 +615,9 @@ export function HistoryChart({
         {(Object.keys(METRICS) as MetricKey[]).map((key) => (
           <button
             key={key}
+            type="button"
             className={`history-metric ${metric === key ? "selected" : ""}`}
+            aria-pressed={metric === key}
             onClick={() => setMetric(key)}
           >
             <i style={{ background: METRICS[key].color }} />

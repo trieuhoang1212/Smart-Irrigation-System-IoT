@@ -13,10 +13,13 @@ import {
   formatClock,
   formatDuration,
   type AnalysisSample,
+  type AnalysisStatus,
 } from "./lib/analysis";
+import { formatAge } from "./lib/time";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { BackToTop } from "./components/BackToTop";
+import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { AnalysisChart } from "./components/AnalysisChart";
 import { AlertIcon, CheckIcon, InfoIcon } from "./components/icons";
 
@@ -116,10 +119,20 @@ export function AnalysisApp() {
     );
   }
 
+  const knownSources = analysis.components.filter(
+    (component) => component.score !== null,
+  ).length;
+  const lastSampleAt = analysis.stats.lastSampleAt;
+  // Offline thì mẫu "mới nhất" đã cũ: không được kết luận "Cây đang ổn".
+  const isStale = !deviceOnline && lastSampleAt !== null;
+  const verdictStatus: AnalysisStatus =
+    analysis.status === "good" && isStale ? "watch" : analysis.status;
+  const verdictHeadline = isStale ? "Dữ liệu đã cũ" : analysis.headline;
+
   const StatusIcon =
-    analysis.status === "good"
+    verdictStatus === "good"
       ? CheckIcon
-      : analysis.status === "risk"
+      : verdictStatus === "risk"
         ? AlertIcon
         : InfoIcon;
 
@@ -145,16 +158,13 @@ export function AnalysisApp() {
           lastUpdated={lastUpdated}
         />
 
-        {!connected && (
-          <div className="offline-banner">
-            <span>!</span>
-            <div>
-              <strong>Backend chưa kết nối</strong>
-              <small>Đang hiển thị dữ liệu lịch sử đã lưu, chưa có cập nhật trực tiếp.</small>
-            </div>
-            <button onClick={reconnect}>Kết nối lại</button>
-          </div>
-        )}
+        <DeviceStatusBanner
+          connected={connected}
+          brokerConnected={brokerConnected}
+          deviceOnline={deviceOnline}
+          lastTelemetryAt={lastTelemetryAt}
+          onReconnect={reconnect}
+        />
 
         <div className="analysis-zone-bar" role="tablist" aria-label="Chọn vùng trồng">
           <span className="analysis-zone-label">Vùng trồng</span>
@@ -174,14 +184,20 @@ export function AnalysisApp() {
           ))}
         </div>
 
-        <section className={`panel analysis-verdict ${analysis.status}`}>
+        <section className={`panel analysis-verdict ${verdictStatus}`}>
           <div className="verdict-main">
             <p className="verdict-kicker">
               <StatusIcon size={14} />
               Kết luận cho {selectedZone.id} · {selectedZone.name}
             </p>
-            <h2 className="verdict-title">{analysis.headline}</h2>
+            <h2 className="verdict-title">{verdictHeadline}</h2>
             <p className="verdict-summary">{analysis.summary}</p>
+            {isStale && lastSampleAt !== null && (
+              <p className="verdict-stale">
+                Dữ liệu cuối {formatClock(lastSampleAt)} · cách đây{" "}
+                {formatAge(lastSampleAt)} · ESP32 offline — kết luận có thể không còn đúng.
+              </p>
+            )}
             <div className="verdict-meta">
               <span>
                 Độ ẩm hiện tại <strong>{percent(analysis.stats.currentMoisture)}</strong>
@@ -204,25 +220,30 @@ export function AnalysisApp() {
           </div>
 
           <div className="verdict-score">
-            <div className={`score-ring-wrap ${analysis.status}`}>
-              <svg viewBox="0 0 120 120" aria-hidden="true">
-                <circle className="score-ring-track" cx="60" cy="60" r="52" />
-                {analysis.score !== null && (
-                  <circle
-                    className="score-ring-value"
-                    cx="60"
-                    cy="60"
-                    r="52"
-                    style={{
-                      strokeDasharray: `${(analysis.score / 100) * RING_LENGTH} ${RING_LENGTH}`,
-                    }}
-                  />
-                )}
-              </svg>
-              <div className="score-ring-label">
-                <strong>{analysis.score === null ? "--" : analysis.score}</strong>
-                <small>/100</small>
+            <div className="score-ring">
+              <div className={`score-ring-wrap ${verdictStatus}`}>
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle className="score-ring-track" cx="60" cy="60" r="52" />
+                  {analysis.score !== null && (
+                    <circle
+                      className="score-ring-value"
+                      cx="60"
+                      cy="60"
+                      r="52"
+                      style={{
+                        strokeDasharray: `${(analysis.score / 100) * RING_LENGTH} ${RING_LENGTH}`,
+                      }}
+                    />
+                  )}
+                </svg>
+                <div className="score-ring-label">
+                  <strong>{analysis.score === null ? "--" : analysis.score}</strong>
+                  <small>/100</small>
+                </div>
               </div>
+              <p className="score-scope">
+                Chấm trên {knownSources}/{analysis.components.length} nguồn dữ liệu
+              </p>
             </div>
 
             <div className="score-bars">
@@ -230,17 +251,25 @@ export function AnalysisApp() {
                 <p className="score-bars-empty">Chưa đủ dữ liệu để chấm điểm.</p>
               )}
               {analysis.components.map((component) => (
-                <div key={component.key} className="score-bar">
+                <div
+                  key={component.key}
+                  className={`score-bar ${component.score === null ? "missing" : ""}`}
+                >
                   <div className="score-bar-head">
                     <span>{component.label}</span>
                     <strong>
-                      {component.score}/{component.max}
+                      {component.score === null
+                        ? "—"
+                        : `${component.score}/${component.max}`}
                     </strong>
                   </div>
                   <div className="score-bar-track">
                     <i
                       style={{
-                        width: `${(component.score / component.max) * 100}%`,
+                        width:
+                          component.score === null
+                            ? "0%"
+                            : `${(component.score / component.max) * 100}%`,
                       }}
                     />
                   </div>
@@ -273,6 +302,7 @@ export function AnalysisApp() {
                     key={key}
                     type="button"
                     className={range === key ? "selected" : ""}
+                    aria-pressed={range === key}
                     onClick={() => setRange(key)}
                   >
                     {ANALYSIS_RANGES[key].label}
