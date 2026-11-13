@@ -36,6 +36,8 @@ const int relayPins[ZONE_COUNT] = {16, 17, 18, 23, 15, 19};
 // Có thể chỉnh từ Web thông qua lệnh SET_THRESHOLD_T00X_YY.
 int moistureOn[ZONE_COUNT]  = {60, 45, 35, 30, 45, 55};
 int moistureOff[ZONE_COUNT] = {80, 65, 55, 50, 65, 75};
+// Thời gian tưới thủ công để đạt mục tiêu nước (giây), Backend đẩy qua SET_TARGET_T00X_YY.
+int zoneTargetSeconds[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 const char* zoneNames[ZONE_COUNT] = {"T001", "T002", "T003", "T004", "T005", "T006"};
 
 const char* mqtt_server = "host.wokwi.internal";
@@ -57,6 +59,7 @@ bool weatherGateEnabled = true;
 int moisturePercent[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 int rainPercent = 0;
 bool isRaining = false;
+bool rainWarning = false;
 bool previousRaining = false;
 float temperature = 0.0;
 float humidity = 0.0;
@@ -67,7 +70,12 @@ const long interval = 2000;
 // Bảo vệ khi đi vắng: giới hạn thời gian tưới và thời gian giữ chế độ MANUAL.
 // Giảm xuống 1-2 phút nếu cần demo nhanh.
 const unsigned long MAX_ZONE_RUNTIME_MS = 10UL * 60UL * 1000UL;
-const unsigned long MAX_MANUAL_MS = 15UL * 60UL * 1000UL;
+const unsigned long MAX_MANUAL_MS = 10UL * 60UL * 1000UL;
+// Cảm biến mưa: 80% là cảnh báo có thể mưa, 100% mới dừng/chặn tưới.
+const int RAIN_WARN_PERCENT = 80;
+const int RAIN_FULL_PERCENT = 100;
+const unsigned long RAIN_WARN_INTERVAL_MS = 15000UL;
+const unsigned long OVERWATER_INTERVAL_MS = 10000UL;
 // HC-SR04 gắn trên miệng bồn, đo khoảng cách tới mặt nước: xa quá nghĩa là bồn cạn.
 const float TANK_EMPTY_CM = 80.0;
 const float TANK_REFILL_CM = 60.0;
@@ -75,6 +83,7 @@ const float TANK_REFILL_CM = 60.0;
 const unsigned long TANK_STALE_MS = 10000UL;
 unsigned long zoneStartedAt[ZONE_COUNT] = {0};
 bool zoneLocked[ZONE_COUNT] = {false};
+bool zoneOverTarget[ZONE_COUNT] = {false, false, false, false, false, false};
 unsigned long manualStartedAt = 0;
 bool tankEmpty = false;
 bool tankValid = false;
@@ -85,6 +94,8 @@ bool netWasOnline = false;
 unsigned long lastWifiAttempt = 0;
 unsigned long lastMqttAttempt = 0;
 unsigned long beepUntil = 0;
+unsigned long lastRainWarnBeepAt = 0;
+unsigned long lastOverwaterBeepAt = 0;
 int buzzerTone = -1;
 
 struct ButtonState {
@@ -119,6 +130,7 @@ void updateLcds() {
     if (tankEmpty) status = "TANK EMPTY";
     else if (!isNetOnline()) status += "OFFLINE";
     else if (isRaining) status += "RAIN";
+    else if (rainWarning) status += "RAIN?";
     else status += isAutoMode ? "AUTO" : "MAN";
 
     lcds[zone].clear();
@@ -136,14 +148,30 @@ void beepOnce(unsigned long durationMs) {
   beepUntil = millis() + durationMs;
 }
 
+bool anyZoneOverTarget() {
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    if (zoneOverTarget[zone]) return true;
+  }
+  return false;
+}
+
 void updateBuzzer() {
+  const unsigned long now = millis();
   int target = 0;
   if (isRaining) {
-    target = 1800;
-  } else if (beepUntil != 0 && millis() < beepUntil) {
-    target = 1200;
-  } else {
     beepUntil = 0;
+    target = 1800;
+  } else {
+    if (rainWarning && now - lastRainWarnBeepAt >= RAIN_WARN_INTERVAL_MS) {
+      lastRainWarnBeepAt = now;
+      beepOnce(500);
+    }
+    if (anyZoneOverTarget() && now - lastOverwaterBeepAt >= OVERWATER_INTERVAL_MS) {
+      lastOverwaterBeepAt = now;
+      beepOnce(900);
+    }
+    if (beepUntil != 0 && now < beepUntil) target = 1200;
+    else beepUntil = 0;
   }
 
   if (target == buzzerTone) return;
@@ -271,11 +299,29 @@ void enforceRuntimeLimits() {
 
   if (!isAutoMode && manualStartedAt != 0 &&
       millis() - manualStartedAt >= MAX_MANUAL_MS) {
+    stopAllZones();
     isAutoMode = true;
     manualOverride = false;
     manualStartedAt = 0;
-    Serial.println("SAFETY: manual timeout -> AUTO");
+    Serial.println("SAFETY: manual 10 min -> AUTO");
     updateLcds();
+  }
+}
+
+void updateOverTarget() {
+  const unsigned long now = millis();
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    const bool over = !isAutoMode && pumpRunning[zone] && zoneTargetSeconds[zone] > 0 &&
+                      now - zoneStartedAt[zone] >=
+                        static_cast<unsigned long>(zoneTargetSeconds[zone]) * 1000UL;
+    if (over && !zoneOverTarget[zone]) {
+      Serial.print("ALERT: ");
+      Serial.print(zoneNames[zone]);
+      Serial.println(" over water target");
+      // Kêu ngay lần đầu vượt mục tiêu, sau đó lặp theo OVERWATER_INTERVAL_MS.
+      lastOverwaterBeepAt = now - OVERWATER_INTERVAL_MS;
+    }
+    zoneOverTarget[zone] = over;
   }
 }
 
@@ -423,9 +469,29 @@ void callback(char* topic, byte* payload, unsigned int length) {
       manualStartedAt = millis();
       Serial.println("Mode: MANUAL");
     } else if (message == "PUMP_ON") {
-      if (!isAutoMode) startAllZones();
+      if (!isAutoMode) {
+        manualStartedAt = millis();
+        startAllZones();
+      }
     } else if (message == "PUMP_OFF") {
       if (!isAutoMode) stopAllZones();
+    } else if (message.startsWith("SET_TARGET_")) {
+      char zoneId[5] = {0};
+      int seconds = 0;
+      if (sscanf(message.c_str(), "SET_TARGET_%4[^_]_%d", zoneId, &seconds) == 2) {
+        seconds = constrain(seconds, 0, static_cast<int>(MAX_ZONE_RUNTIME_MS / 1000UL));
+        for (int i = 0; i < ZONE_COUNT; i++) {
+          if (String(zoneNames[i]) == zoneId) {
+            zoneTargetSeconds[i] = seconds;
+            prefs.putInt((String("tgt_") + zoneId).c_str(), zoneTargetSeconds[i]);
+            Serial.print("Set target ");
+            Serial.print(zoneId);
+            Serial.print(" -> ");
+            Serial.print(zoneTargetSeconds[i]);
+            Serial.println("s");
+          }
+        }
+      }
     } else if (message.startsWith("SET_THRESHOLD_")) {
       char zoneId[5] = {0};
       int value = 0;
@@ -446,6 +512,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       }
     } else if (message.startsWith("PUMP_ON_")) {
       // Điều khiển từng zone cụ thể: PUMP_ON_T001, PUMP_ON_T002,...
+      if (!isAutoMode) manualStartedAt = millis();
       String targetId = message.substring(8);
       for (int i = 0; i < ZONE_COUNT; i++) {
         if (String(zoneNames[i]) == targetId) startPump(i);
@@ -474,6 +541,10 @@ void setup() {
     moistureOn[i] = constrain(prefs.getInt(keyOn.c_str(), moistureOn[i]), 10, 90);
     moistureOff[i] = constrain(
       prefs.getInt(keyOff.c_str(), moistureOff[i]), moistureOn[i] + 5, 100);
+    String keyTarget = String("tgt_") + zoneNames[i];
+    zoneTargetSeconds[i] =
+      constrain(prefs.getInt(keyTarget.c_str(), 0), 0,
+                static_cast<int>(MAX_ZONE_RUNTIME_MS / 1000UL));
   }
 
   Wire.begin(21, 22);
@@ -514,7 +585,7 @@ void setup() {
   client.setCallback(callback);
   // JSON telemetry (~700 bytes) vượt xa buffer mặc định 256 byte của PubSubClient.
   // Nếu không tăng buffer, publish sẽ thất bại âm thầm và Backend không nhận được gì.
-  client.setBufferSize(1024);
+  client.setBufferSize(1536);
   client.setKeepAlive(30);
   // Giới hạn thời gian chờ TCP để connect() không treo vòng điều khiển khi broker lỗi.
   client.setSocketTimeout(3);
@@ -546,7 +617,13 @@ void loop() {
 
     int rainValue = analogRead(RAIN_SENSOR_PIN);
     rainPercent = constrain(map(rainValue, 0, 4095, 0, 100), 0, 100);
-    isRaining = digitalRead(RAIN_DIGITAL_PIN) == HIGH;
+    const bool wasWarning = rainWarning;
+    isRaining = rainPercent >= RAIN_FULL_PERCENT;
+    rainWarning = !isRaining && rainPercent >= RAIN_WARN_PERCENT;
+    if (rainWarning && !wasWarning) {
+      Serial.println("RAIN: co the mua - canh bao");
+      lastRainWarnBeepAt = millis() - RAIN_WARN_INTERVAL_MS;
+    }
     updateRainAlarm();
 
     temperature = dht.readTemperature();
@@ -554,6 +631,13 @@ void loop() {
 
     updateTank();
     enforceRuntimeLimits();
+    updateOverTarget();
+
+    // Mưa 100% + bật hoãn: dừng cả bơm tự động lẫn thủ công.
+    if (weatherGateEnabled && isRaining && anyPumpRunning()) {
+      Serial.println("SAFETY: rain 100% -> stop all pumps");
+      stopAllZones();
+    }
 
     // Logic Hysteresis Auto Mode cho từng luống
     if (isAutoMode) {
@@ -607,6 +691,7 @@ void loop() {
     else json += "\"humidity\":" + String(humidity, 1) + ",";
     json += "\"rain\":" + String(rainPercent) + ",";
     json += "\"raining\":" + String(isRaining ? "true" : "false") + ",";
+    json += "\"rainWarning\":" + String(rainWarning ? "true" : "false") + ",";
     json += "\"weatherGate\":" + String(weatherGateEnabled ? "true" : "false") + ",";
     json += "\"pump\":" + String(anyPumpRunning() ? "true" : "false") + ",";
     json += "\"zones\":[";
@@ -616,6 +701,8 @@ void loop() {
       json += "\"moisture\":" + String(moisturePercent[zone]) + ",";
       json += "\"threshold\":" + String(moistureOn[zone]) + ",";
       json += "\"stopThreshold\":" + String(moistureOff[zone]) + ",";
+      json += "\"targetSeconds\":" + String(zoneTargetSeconds[zone]) + ",";
+      json += "\"over\":" + String(zoneOverTarget[zone] ? "true" : "false") + ",";
       json += "\"pump\":" + String(pumpRunning[zone] ? "true" : "false") + "}";
     }
     json += "],";
