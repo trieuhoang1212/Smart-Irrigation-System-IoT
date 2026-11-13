@@ -75,13 +75,15 @@ flowchart LR
 - Trạng thái online/offline của thiết bị (watchdog 6 giây).
 - Biểu đồ lịch sử telemetry theo thời gian và khu vực.
 - Nhật ký hoạt động/lệnh và ước tính lượng nước đã tưới.
+- Ước tính còn bao lâu tới ngưỡng tưới và tưới bao lâu thì đủ ẩm, dựa trên 24 giờ gần nhất.
 
 ### Điều khiển
 
 - Tự động tưới theo ngưỡng riêng của từng khu vực.
 - Hysteresis hai ngưỡng, hạn chế bơm đóng cắt liên tục.
-- Weather Gate: tạm dừng tưới khi phát hiện mưa.
+- Weather Gate: khả năng mưa ≥ 80% thì còi + cảnh báo Web; mưa 100% thì dừng bơm cả AUTO lẫn MANUAL.
 - Chuyển AUTO/MANUAL, điều khiển bơm toàn hệ thống hoặc từng vùng.
+- MANUAL đặt mục tiêu nước (lít); vượt mục tiêu thì còi và báo Web để nông dân tắt bơm.
 - Chỉnh và lưu ngưỡng từ Web; backend đồng bộ lại khi thiết bị khởi động.
 - Nút vật lý bật/tắt bơm khi không có điện thoại hoặc mất mạng.
 
@@ -89,7 +91,7 @@ flowchart LR
 
 - **Mất Internet vẫn tưới:** vòng điều khiển cục bộ không phụ thuộc backend.
 - **Giới hạn thời gian:** tối đa 10 phút/vùng; quá hạn thì dừng và khóa vùng.
-- **Tự thoát MANUAL:** sau 15 phút tự về AUTO để tránh tưới mãi khi đi vắng.
+- **Tự thoát MANUAL:** sau 10 phút tự về AUTO để tránh tưới mãi khi đi vắng.
 - **Chống chạy khô:** HC-SR04 đo mực nước bồn; cạn thì dừng và chặn bơm.
 - Cảnh báo tại chỗ bằng LCD, còi và serial.
 - Ngưỡng lưu NVS, không mất khi khởi động lại.
@@ -178,6 +180,7 @@ flowchart LR
 - `PUMP_ON`, `PUMP_OFF` (toàn hệ thống)
 - `PUMP_ON_T001` … `PUMP_OFF_T006` (từng vùng)
 - `SET_THRESHOLD_T001_45` … (ngưỡng 10–90%)
+- `SET_TARGET_T001_120` … (mục tiêu thời gian chạy MANUAL, 0–600 giây)
 - `WEATHER_GATE_ON`, `WEATHER_GATE_OFF`
 
 ## 🌐 REST API và Realtime
@@ -273,6 +276,8 @@ Kịch bản demo 15 phút từ Web → Wokwi → Mobile: [docs/KICH_BAN_DEMO_15
 - **Chẩn đoán:** chưa có cảm biến lưu lượng/áp suất để phát hiện vỡ ống hoặc bơm hỏng.
 - **Bồn nước:** chỉ hiển thị khoảng cách cm và trạng thái cạn; chưa quy đổi %/số lít.
 - **Đồng bộ trạng thái:** vùng bị khóa do quá thời gian chưa có trong telemetry nên Web/Mobile chưa hiển thị.
+- **Mục tiêu MANUAL:** chỉ báo vượt khi mục tiêu quy đổi ra 10–600 giây (giới hạn 10 phút/vùng); mục tiêu lớn hơn không kích hoạt cảnh báo.
+- **Ước tính thời gian:** là suy đoán từ lịch sử, cần đủ mẫu khô/ướt mới hiển thị; độ ẩm đổi do mưa hoặc thay đất sẽ làm lệch.
 - **Mobile:** chưa có push notification, chưa có hồ sơ cây; chưa phải bản phát hành.
 - **Mô phỏng:** phần cứng và cảm biến đang mô phỏng trên Wokwi, chưa kiểm chứng ngoài thực địa.
 
