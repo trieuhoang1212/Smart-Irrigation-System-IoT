@@ -123,10 +123,10 @@ export function ZoneAdvicePanel({
           </strong>
         </div>
         <div>
-          <span>Khung giờ gợi ý</span>
+          <span>Khung tham khảo</span>
           <strong>
             {advice.window
-              ? `${advice.window.start}–${advice.window.end}`
+              ? `${advice.window.label} · ${advice.window.start}–${advice.window.end}`
               : "Tạm hoãn khi còn mưa"}
           </strong>
         </div>

@@ -3,10 +3,81 @@ export const CROP_GROUPS = [
   "Rau ăn quả",
   "Cây lấy củ",
   "Cây gia vị",
+  "Cây hoa cảnh",
+  "Cây ăn quả / thân gỗ",
+  "Sen đá / Xương rồng",
+  "Cây trong nhà",
+  "Hoa lan",
   "Khác",
 ] as const;
 
 export type CropGroup = (typeof CROP_GROUPS)[number];
+
+export type WaterWindowHint = { label: string; start: string; end: string; note: string };
+
+// Khung giờ tưới tham khảo theo nhóm cây; bơm vẫn chạy theo độ ẩm, chưa hẹn giờ.
+export const GROUP_WATER_HINTS: Record<CropGroup, WaterWindowHint> = {
+  "Rau ăn lá": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng để lá khô trước tối, tránh nấm và thối nhũn.",
+  },
+  "Rau ăn quả": {
+    label: "Sáng sớm hoặc chiều mát",
+    start: "05:30",
+    end: "07:30",
+    note: "Có thể tưới thêm 16:00–17:30 khi đất khô; tránh tưới tối.",
+  },
+  "Cây lấy củ": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:00",
+    note: "Tưới sáng giúp đất ẩm đều cả ngày.",
+  },
+  "Cây gia vị": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng để lá khô trước tối, tránh nấm và thối nhũn.",
+  },
+  "Cây hoa cảnh": {
+    label: "Sáng sớm",
+    start: "06:00",
+    end: "08:00",
+    note: "Chỉ tưới vào gốc, tránh làm ướt cánh hoa.",
+  },
+  "Cây ăn quả / thân gỗ": {
+    label: "Sáng sớm hoặc chiều mát",
+    start: "05:30",
+    end: "07:30",
+    note: "Có thể tưới 16:00–17:30 để đất giữ ẩm qua đêm.",
+  },
+  "Sen đá / Xương rồng": {
+    label: "Chiều mát",
+    start: "16:30",
+    end: "18:00",
+    note: "Tưới chiều mát để cây hấp thụ tốt, tránh luộc rễ.",
+  },
+  "Cây trong nhà": {
+    label: "Buổi sáng",
+    start: "08:00",
+    end: "10:00",
+    note: "Tưới sáng để nước kịp khô trước khi đóng cửa bật điều hòa.",
+  },
+  "Hoa lan": {
+    label: "Sáng sớm",
+    start: "06:00",
+    end: "08:00",
+    note: "Tưới sáng để lá khô nhanh, tránh thối ngọn.",
+  },
+  Khác: {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng là an toàn nhất cho phần lớn cây trồng.",
+  },
+};
 
 export const SOIL_TYPES = ["Đất phù sa", "Đất đỏ bazan", "Đất cát"] as const;
 
@@ -29,7 +100,7 @@ export type ZoneAdvice = {
     currentThreshold: number;
     suggestedThreshold: number;
     thresholdDelta: number;
-    window: { start: string; end: string } | null;
+    window: { label: string; start: string; end: string } | null;
     windowNote: string;
     summary: string;
     reasons: string[];

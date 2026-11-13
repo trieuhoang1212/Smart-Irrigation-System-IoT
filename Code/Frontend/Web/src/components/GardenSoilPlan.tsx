@@ -130,7 +130,7 @@ export function GardenSoilPlan({
               <tr>
                 <th>Ô trồng</th>
                 <th>Ngưỡng tưới</th>
-                <th>Khung giờ</th>
+                <th>Khung tham khảo</th>
               </tr>
             </thead>
             <tbody>
@@ -147,7 +147,16 @@ export function GardenSoilPlan({
                       {advice.currentThreshold}% <em>→</em> {advice.suggestedThreshold}%
                     </td>
                     <td>
-                      {advice.window ? `${advice.window.start}–${advice.window.end}` : "Tạm hoãn"}
+                      {advice.window ? (
+                        <span className="window-cell">
+                          <strong>{advice.window.label}</strong>
+                          <em>
+                            {advice.window.start}–{advice.window.end}
+                          </em>
+                        </span>
+                      ) : (
+                        "Tạm hoãn"
+                      )}
                     </td>
                   </tr>
                 );

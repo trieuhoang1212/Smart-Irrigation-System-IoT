@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { CROP_GROUPS, type CropGroup, type Zone } from "../garden-data";
+import { CROP_GROUPS, GROUP_WATER_HINTS, type CropGroup, type Zone } from "../garden-data";
 import { deleteZonePhoto, saveZoneProfile, uploadZonePhoto } from "../lib/garden-api";
 import { compressImage } from "../lib/image";
 import { fromDateInput, harvestDate, toDateInput } from "../lib/zone-date";
@@ -60,6 +60,7 @@ export function ZoneProfileEditor({
   }, [dirty, onDirtyChange]);
 
   const expectedHarvest = harvestDate(fromDateInput(plantedDate), Number(harvestDays) || null);
+  const groupWindow = GROUP_WATER_HINTS[group];
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -214,6 +215,14 @@ export function ZoneProfileEditor({
               ))}
             </select>
           </label>
+
+          <p className="group-water-hint field-wide">
+            <strong>
+              Giờ tưới tham khảo: {groupWindow.label} ({groupWindow.start}–
+              {groupWindow.end})
+            </strong>
+            <span>{groupWindow.note} Hệ thống vẫn tưới theo độ ẩm, chưa hẹn giờ.</span>
+          </p>
 
           <label className="field field-wide">
             <span>Đặc điểm / mô tả ngắn</span>
