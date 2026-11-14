@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
@@ -6,7 +7,22 @@ import { SectionHeader } from "../ui/SectionHeader";
 import { ZoneCard } from "./ZoneCard";
 
 export function ZoneList() {
-  const { zones, toggleZonePump, pending, loading, configError, reloadConfig } = useGarden();
+  const {
+    zones,
+    toggleZonePump,
+    pending,
+    loading,
+    configError,
+    reloadConfig,
+  } = useGarden();
+
+  const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
+
+  const handleExpand = (zoneId: string) => {
+    setExpandedZoneId((current) =>
+      current === zoneId ? null : zoneId
+    );
+  };
 
   return (
     <View>
@@ -15,7 +31,9 @@ export function ZoneList() {
       {loading && zones.length === 0 ? (
         <View style={styles.state}>
           <ActivityIndicator color={colors.green} />
-          <Text style={styles.stateText}>Đang tải cấu hình khu vườn...</Text>
+          <Text style={styles.stateText}>
+            Đang tải cấu hình khu vườn...
+          </Text>
         </View>
       ) : configError ? (
         <View style={styles.state}>
@@ -24,16 +42,37 @@ export function ZoneList() {
             Thử lại
           </Text>
         </View>
+      ) : zones.length === 0 ? (
+        <View style={styles.state}>
+          <Text style={styles.stateText}>
+            Chưa có khu vực vườn nào được cấu hình.
+          </Text>
+        </View>
       ) : (
-        <View style={styles.list}>
-          {zones.map((zone) => (
-            <ZoneCard
-              key={zone.id}
-              zone={zone}
-              disabled={Boolean(pending)}
-              onTogglePump={(zoneId) => void toggleZonePump(zoneId)}
-            />
-          ))}
+        <View style={styles.grid}>
+          {zones.map((zone) => {
+            const expanded = expandedZoneId === zone.id;
+
+            return (
+              <View
+                key={zone.id}
+                style={[
+                  styles.gridItem,
+                  expanded && styles.expandedItem,
+                ]}
+              >
+                <ZoneCard
+                  zone={zone}
+                  expanded={expanded}
+                  onExpand={() => handleExpand(zone.id)}
+                  disabled={Boolean(pending)}
+                  onTogglePump={(zoneId) =>
+                    void toggleZonePump(zoneId)
+                  }
+                />
+              </View>
+            );
+          })}
         </View>
       )}
     </View>
@@ -41,8 +80,18 @@ export function ZoneList() {
 }
 
 const styles = StyleSheet.create({
-  list: {
-    gap: spacing.sm,
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -spacing.xs,
+  },
+  gridItem: {
+    width: "50%",
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  expandedItem: {
+    width: "100%",
   },
   state: {
     alignItems: "center",
@@ -50,17 +99,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   stateText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.faint,
+    textAlign: "center",
   },
   errorText: {
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
     color: colors.red,
     textAlign: "center",
   },
   retry: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: "600",
     color: colors.green,
   },

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -15,6 +16,11 @@ type Draft = {
   pumpSeconds: string;
   flowLitersPerHour: string;
   targetLiters: string;
+};
+
+type Props = {
+  zone: LiveZone;
+  embedded?: boolean;
 };
 
 const THRESHOLD_MIN = 10;
@@ -35,19 +41,33 @@ function parseNumber(value: string): number {
   return Number(value.replace(",", "."));
 }
 
-function validate(draft: Draft): { input: ZoneConfigInput } | { error: string } {
+function validate(
+  draft: Draft
+): { input: ZoneConfigInput } | { error: string } {
   const pumpSeconds = parseNumber(draft.pumpSeconds);
   const flow = parseNumber(draft.flowLitersPerHour);
   const target = parseNumber(draft.targetLiters);
 
-  if (!Number.isInteger(pumpSeconds) || pumpSeconds < 10 || pumpSeconds > 600) {
-    return { error: "Thời gian bơm mỗi lần phải từ 10 đến 600 giây." };
+  if (
+    !Number.isInteger(pumpSeconds) ||
+    pumpSeconds < 10 ||
+    pumpSeconds > 600
+  ) {
+    return {
+      error: "Thời gian bơm mỗi lần phải từ 10 đến 600 giây.",
+    };
   }
+
   if (!Number.isFinite(flow) || flow < 1 || flow > 200) {
-    return { error: "Lưu lượng bơm phải từ 1 đến 200 L/giờ." };
+    return {
+      error: "Lưu lượng bơm phải từ 1 đến 200 L/giờ.",
+    };
   }
+
   if (!Number.isFinite(target) || target < 0.1 || target > 20) {
-    return { error: "Lượng nước mục tiêu phải từ 0.1 đến 20 L." };
+    return {
+      error: "Lượng nước mục tiêu phải từ 0.1 đến 20 L.",
+    };
   }
 
   return {
@@ -71,26 +91,39 @@ function ThresholdStepper({
     <View style={styles.stepperRow}>
       <View style={styles.stepperLabelBlock}>
         <Text style={styles.stepperLabel}>Ngưỡng tưới</Text>
+
         <Text style={styles.stepperHint}>
-          Tưới khi độ ẩm dưới {value}%, dừng khi đạt {Math.min(100, value + STOP_OFFSET)}%.
+          Tưới khi độ ẩm dưới {value}%, dừng khi đạt{" "}
+          {Math.min(100, value + STOP_OFFSET)}%.
         </Text>
       </View>
+
       <View style={styles.stepper}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Giảm ngưỡng tưới"
           hitSlop={6}
-          onPress={() => onChange(Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP))}
+          onPress={() =>
+            onChange(
+              Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP)
+            )
+          }
           style={styles.stepButton}
         >
           <Text style={styles.stepSymbol}>-</Text>
         </Pressable>
+
         <Text style={styles.stepValue}>{value}%</Text>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Tăng ngưỡng tưới"
           hitSlop={6}
-          onPress={() => onChange(Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP))}
+          onPress={() =>
+            onChange(
+              Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP)
+            )
+          }
           style={styles.stepButton}
         >
           <Text style={styles.stepSymbol}>+</Text>
@@ -100,24 +133,37 @@ function ThresholdStepper({
   );
 }
 
-export function ZoneSettingsForm({ zone }: { zone: LiveZone }) {
+export function ZoneSettingsForm({
+  zone,
+  embedded = false,
+}: Props) {
   const { saveZone } = useGarden();
+
   const [draft, setDraft] = useState<Draft>(() => toDraft(zone));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const flow = parseNumber(draft.flowLitersPerHour);
   const target = parseNumber(draft.targetLiters);
+
   const estimateMinutes =
-    Number.isFinite(flow) && flow > 0 && Number.isFinite(target) && target > 0
+    Number.isFinite(flow) &&
+    flow > 0 &&
+    Number.isFinite(target) &&
+    target > 0
       ? (target / flow) * 60
       : null;
 
-  const update = (field: keyof Draft, value: string) =>
-    setDraft((current) => ({ ...current, [field]: value }));
+  const update = (field: keyof Draft, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
 
   const submit = async () => {
     const result = validate(draft);
+
     if ("error" in result) {
       setError(result.error);
       return;
@@ -125,20 +171,35 @@ export function ZoneSettingsForm({ zone }: { zone: LiveZone }) {
 
     setError(null);
     setSaving(true);
-    await saveZone(zone.id, result.input);
-    setSaving(false);
+
+    try {
+      await saveZone(zone.id, result.input);
+    } catch {
+      setError("Không thể lưu cấu hình. Vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
-    <Card>
+  const content = (
+    <>
       <SectionHeader
         title="Thông số tưới"
-        hint={zone.moisture === null ? "CHƯA CÓ DỮ LIỆU" : `ĐỘ ẨM ${formatNumber(zone.moisture, 0)}%`}
+        hint={
+          zone.moisture === null
+            ? "CHƯA CÓ DỮ LIỆU"
+            : `ĐỘ ẨM ${formatNumber(zone.moisture, 0)}%`
+        }
       />
 
       <ThresholdStepper
         value={draft.threshold}
-        onChange={(threshold) => setDraft((current) => ({ ...current, threshold }))}
+        onChange={(threshold) => {
+          setDraft((current) => ({
+            ...current,
+            threshold,
+          }));
+        }}
       />
 
       <NumberField
@@ -148,33 +209,47 @@ export function ZoneSettingsForm({ zone }: { zone: LiveZone }) {
         value={draft.pumpSeconds}
         onChangeText={(value) => update("pumpSeconds", value)}
       />
+
       <NumberField
         label="Lưu lượng bơm"
         hint="1 - 200 L/giờ"
         unit="L/giờ"
         value={draft.flowLitersPerHour}
-        onChangeText={(value) => update("flowLitersPerHour", value)}
+        onChangeText={(value) =>
+          update("flowLitersPerHour", value)
+        }
         keyboardType="decimal-pad"
       />
+
       <NumberField
         label="Lượng nước mục tiêu"
         hint="0.1 - 20 L"
         unit="L"
         value={draft.targetLiters}
-        onChangeText={(value) => update("targetLiters", value)}
+        onChangeText={(value) =>
+          update("targetLiters", value)
+        }
         keyboardType="decimal-pad"
       />
 
       <View style={styles.estimate}>
-        <Text style={styles.estimateLabel}>Ước tính thời gian cấp nước</Text>
+        <Text style={styles.estimateLabel}>
+          Ước tính thời gian cấp nước
+        </Text>
+
         <Text style={styles.estimateValue}>
           {estimateMinutes === null
             ? "--"
-            : `Khoảng ${formatNumber(estimateMinutes, 1)} phút cho ${formatNumber(target, 1)} L`}
+            : `Khoảng ${formatNumber(
+                estimateMinutes,
+                1
+              )} phút cho ${formatNumber(target, 1)} L`}
         </Text>
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text style={styles.error}>{error}</Text>
+      ) : null}
 
       <Button
         label="Lưu cấu hình"
@@ -183,11 +258,21 @@ export function ZoneSettingsForm({ zone }: { zone: LiveZone }) {
         onPress={() => void submit()}
         style={styles.save}
       />
-    </Card>
+    </>
+  );
+
+  return embedded ? (
+    <View style={styles.embedded}>{content}</View>
+  ) : (
+    <Card>{content}</Card>
   );
 }
 
 const styles = StyleSheet.create({
+  embedded: {
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+  },
   stepperRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,7 +324,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   estimate: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.sm,
     backgroundColor: colors.greenSoft,
@@ -261,6 +346,6 @@ const styles = StyleSheet.create({
     color: colors.red,
   },
   save: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
-});
+})
