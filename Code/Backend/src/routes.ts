@@ -4,6 +4,7 @@ import {
   type CommandRequest,
   type Telemetry,
   ZONE_PROFILE_LIMITS,
+  targetSecondsFor,
   toMqttCommand,
 } from "./domain.js";
 import { gardenConfig } from "./garden-config.js";
@@ -11,6 +12,7 @@ import type { MqttGateway } from "./mqtt-gateway.js";
 import { getLatestTelemetry, trackCommand } from "./live.js";
 import {
   getTelemetryHistory,
+  getWateringOverview,
   listCommands,
   loadLatestTelemetry,
   logCommand,
@@ -80,7 +82,6 @@ function buildDeviceConfig(deviceId: string) {
           ? {
               threshold: setting.threshold,
               stopThreshold: setting.stopThreshold,
-              duration: setting.duration ?? zone.duration,
               pumpSeconds: setting.pumpSeconds ?? zone.pumpSeconds,
               flowLitersPerHour: setting.flowLitersPerHour ?? zone.flowLitersPerHour,
               targetLiters: setting.targetLiters ?? zone.targetLiters,
@@ -117,9 +118,7 @@ function adviceForZone(
         group: zone.group,
         soil,
         threshold: zone.threshold,
-        duration: zone.duration,
         baseThreshold: baseZone.threshold,
-        baseDuration: baseZone.duration,
       },
       growth,
       telemetry,
@@ -168,7 +167,6 @@ export function createApiRouter(gateway: MqttGateway) {
     const applied: Array<{
       zoneId: string;
       threshold: number;
-      duration: number;
       appliedRemotely: boolean;
     }> = [];
 
@@ -184,7 +182,6 @@ export function createApiRouter(gateway: MqttGateway) {
         advice.suggestedThreshold,
         deriveStopThreshold(advice.suggestedThreshold),
       );
-      updateZoneProfile(deviceId, zone.id, { duration: advice.suggestedDuration });
 
       let appliedRemotely = false;
       try {
@@ -200,7 +197,6 @@ export function createApiRouter(gateway: MqttGateway) {
       applied.push({
         zoneId: zone.id,
         threshold: advice.suggestedThreshold,
-        duration: advice.suggestedDuration,
         appliedRemotely,
       });
     }
@@ -265,12 +261,11 @@ export function createApiRouter(gateway: MqttGateway) {
     }
 
     const irrigation: {
-      duration?: number;
       pumpSeconds?: number;
       flowLitersPerHour?: number;
       targetLiters?: number;
     } = {};
-    for (const field of ["duration", "pumpSeconds", "flowLitersPerHour", "targetLiters"] as const) {
+    for (const field of ["pumpSeconds", "flowLitersPerHour", "targetLiters"] as const) {
       const value = body[field];
       if (value === undefined) continue;
       const limits = ZONE_PROFILE_LIMITS[field];
@@ -376,7 +371,22 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    response.json({ ...setting, profile, appliedRemotely });
+    // Mục tiêu nước chỉ có ý nghĩa khi firmware biết thời gian chạy tương ứng.
+    let targetSynced = false;
+    if (Object.keys(irrigation).length > 0) {
+      const targetSeconds = targetSecondsFor(setting.flowLitersPerHour, setting.targetLiters);
+      try {
+        await gateway.publish(`SET_TARGET_${zoneId}_${targetSeconds}`);
+        targetSynced = true;
+      } catch (error) {
+        console.error(
+          "Target saved but MQTT publish failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    response.json({ ...setting, profile, appliedRemotely, targetSynced });
   });
 
   const photoParser = raw({
@@ -468,6 +478,33 @@ export function createApiRouter(gateway: MqttGateway) {
       bucketMs,
       count: samples.length,
       samples,
+    });
+  });
+
+  router.get("/api/devices/:deviceId/watering", (request, response) => {
+    const deviceId = request.params.deviceId;
+    const now = Date.now();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const from = startOfDay.getTime();
+
+    const byZone = new Map(
+      getWateringOverview(deviceId, from).map((item) => [item.zoneId, item]),
+    );
+
+    response.json({
+      deviceId,
+      from,
+      to: now,
+      zones: gardenConfig.zones.map(
+        (zone) =>
+          byZone.get(zone.id) ?? {
+            zoneId: zone.id,
+            lastRun: null,
+            todayLiters: 0,
+            todayRuns: 0,
+          },
+      ),
     });
   });
 

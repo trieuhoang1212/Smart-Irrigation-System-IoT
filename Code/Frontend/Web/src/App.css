@@ -9,4 +9,6 @@
 @import "./styles/history.css";
 @import "./styles/toast.css";
 @import "./styles/manager.css";
+@import "./styles/analysis.css";
 @import "./styles/responsive.css";
+@import "./styles/motion/index.css";

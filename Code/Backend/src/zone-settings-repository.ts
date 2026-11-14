@@ -5,7 +5,6 @@ export type ZoneSetting = {
   zoneId: ZoneId;
   threshold: number;
   stopThreshold: number;
-  duration: number | null;
   pumpSeconds: number | null;
   flowLitersPerHour: number | null;
   targetLiters: number | null;
@@ -22,7 +21,6 @@ export type ZoneSettingChange = {
 };
 
 export type ZoneProfilePatch = {
-  duration?: number;
   pumpSeconds?: number;
   flowLitersPerHour?: number;
   targetLiters?: number;
@@ -32,7 +30,6 @@ type ZoneSettingRow = {
   zone_id: string;
   threshold: number;
   stop_threshold: number;
-  duration: number | null;
   pump_seconds: number | null;
   flow_lph: number | null;
   target_liters: number | null;
@@ -68,7 +65,6 @@ function toZoneSetting(row: ZoneSettingRow): ZoneSetting {
     zoneId: row.zone_id as ZoneId,
     threshold: row.threshold,
     stopThreshold: row.stop_threshold,
-    duration: row.duration,
     pumpSeconds: row.pump_seconds,
     flowLitersPerHour: row.flow_lph,
     targetLiters: row.target_liters,
@@ -78,10 +74,9 @@ function toZoneSetting(row: ZoneSettingRow): ZoneSetting {
 
 const insertDefault = db.prepare(`
   INSERT INTO zone_settings
-    (device_id, zone_id, threshold, stop_threshold, duration, pump_seconds, flow_lph, target_liters, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (device_id, zone_id, threshold, stop_threshold, pump_seconds, flow_lph, target_liters, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(device_id, zone_id) DO UPDATE SET
-    duration = COALESCE(zone_settings.duration, excluded.duration),
     pump_seconds = COALESCE(zone_settings.pump_seconds, excluded.pump_seconds),
     flow_lph = COALESCE(zone_settings.flow_lph, excluded.flow_lph),
     target_liters = COALESCE(zone_settings.target_liters, excluded.target_liters)
@@ -91,7 +86,6 @@ type ZoneSeed = {
   id: string;
   threshold: number;
   stopThreshold: number;
-  duration: number;
   pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
@@ -107,7 +101,6 @@ export function seedZoneSettings(deviceId: string, zones: ZoneSeed[]): void {
         zone.id,
         zone.threshold,
         zone.stopThreshold,
-        zone.duration,
         zone.pumpSeconds,
         zone.flowLitersPerHour,
         zone.targetLiters,
@@ -121,7 +114,7 @@ export function seedZoneSettings(deviceId: string, zones: ZoneSeed[]): void {
 export function getZoneSettings(deviceId: string): ZoneSetting[] {
   const rows = db
     .prepare(`
-      SELECT zone_id, threshold, stop_threshold, duration, pump_seconds, flow_lph, target_liters, updated_at
+      SELECT zone_id, threshold, stop_threshold, pump_seconds, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ?
       ORDER BY zone_id
@@ -133,7 +126,7 @@ export function getZoneSettings(deviceId: string): ZoneSetting[] {
 export function getZoneSetting(deviceId: string, zoneId: string): ZoneSetting | null {
   const row = db
     .prepare(`
-      SELECT zone_id, threshold, stop_threshold, duration, pump_seconds, flow_lph, target_liters, updated_at
+      SELECT zone_id, threshold, stop_threshold, pump_seconds, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ? AND zone_id = ?
     `)
@@ -152,7 +145,7 @@ const upsertThreshold = db.prepare(`
 
 const updateProfile = db.prepare(`
   UPDATE zone_settings
-  SET duration = ?, pump_seconds = ?, flow_lph = ?, target_liters = ?, updated_at = ?
+  SET pump_seconds = ?, flow_lph = ?, target_liters = ?, updated_at = ?
   WHERE device_id = ? AND zone_id = ?
 `);
 
@@ -205,7 +198,6 @@ export function updateZoneProfile(
   if (!current) return null;
 
   updateProfile.run(
-    patch.duration ?? current.duration,
     patch.pumpSeconds ?? current.pumpSeconds,
     patch.flowLitersPerHour ?? current.flowLitersPerHour,
     patch.targetLiters ?? current.targetLiters,

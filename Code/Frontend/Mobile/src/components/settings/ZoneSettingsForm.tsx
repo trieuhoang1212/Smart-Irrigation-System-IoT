@@ -12,7 +12,6 @@ import { SectionHeader } from "../ui/SectionHeader";
 
 type Draft = {
   threshold: number;
-  duration: string;
   pumpSeconds: string;
   flowLitersPerHour: string;
   targetLiters: string;
@@ -26,7 +25,6 @@ const STOP_OFFSET = 20;
 function toDraft(zone: LiveZone): Draft {
   return {
     threshold: Math.round(zone.threshold),
-    duration: String(zone.duration),
     pumpSeconds: String(zone.pumpSeconds),
     flowLitersPerHour: String(zone.flowLitersPerHour),
     targetLiters: String(zone.targetLiters),
@@ -38,14 +36,10 @@ function parseNumber(value: string): number {
 }
 
 function validate(draft: Draft): { input: ZoneConfigInput } | { error: string } {
-  const duration = parseNumber(draft.duration);
   const pumpSeconds = parseNumber(draft.pumpSeconds);
   const flow = parseNumber(draft.flowLitersPerHour);
   const target = parseNumber(draft.targetLiters);
 
-  if (!Number.isInteger(duration) || duration < 1 || duration > 60) {
-    return { error: "Thời gian tưới phải là số nguyên từ 1 đến 60 phút." };
-  }
   if (!Number.isInteger(pumpSeconds) || pumpSeconds < 10 || pumpSeconds > 600) {
     return { error: "Thời gian bơm mỗi lần phải từ 10 đến 600 giây." };
   }
@@ -59,7 +53,6 @@ function validate(draft: Draft): { input: ZoneConfigInput } | { error: string } 
   return {
     input: {
       threshold: draft.threshold,
-      duration,
       pumpSeconds,
       flowLitersPerHour: flow,
       targetLiters: target,
@@ -148,13 +141,6 @@ export function ZoneSettingsForm({ zone }: { zone: LiveZone }) {
         onChange={(threshold) => setDraft((current) => ({ ...current, threshold }))}
       />
 
-      <NumberField
-        label="Thời gian tưới"
-        hint="1 - 60 phút"
-        unit="phút"
-        value={draft.duration}
-        onChangeText={(value) => update("duration", value)}
-      />
       <NumberField
         label="Thời gian bơm mỗi lần"
         hint="10 - 600 giây"

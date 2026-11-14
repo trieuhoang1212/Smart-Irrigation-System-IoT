@@ -1,16 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { useMqtt } from "./hooks/useMqtt";
 import { useActivity } from "./hooks/useActivity";
 import { useWateredLiters } from "./hooks/useWateredLiters";
+import { useWatering } from "./hooks/useWatering";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { GardenOverview } from "./components/GardenOverview";
 import { ControlPanel } from "./components/ControlPanel";
 import { HistoryChart } from "./components/HistoryChart";
 import { MetricsOverview } from "./components/MetricsOverview";
-import { ActivityAndZones } from "./components/ActivityAndZones";
+import { ActivityFeed } from "./components/ActivityFeed";
+import { BackToTop } from "./components/BackToTop";
+import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { ToastStack } from "./components/ToastStack";
 import { BACKEND_URL } from "./lib/backend";
 import { type ToastMessage, type ToastTone } from "./notifications";
@@ -53,6 +57,8 @@ export default function App() {
     brokerConnected,
     commandVersion,
     servoAngle,
+    tankDistanceCm,
+    tankEmpty,
     lastTelemetryAt,
     saveZoneConfig,
   } = useMqtt({
@@ -64,7 +70,6 @@ export default function App() {
     events,
     loading: eventsLoading,
     error: eventsError,
-    refresh: refreshEvents,
   } = useActivity({
     backendUrl: BACKEND_URL,
     deviceId,
@@ -72,7 +77,9 @@ export default function App() {
   });
 
   const wateredLitersByZone = useWateredLiters(zones);
+  const wateringByZone = useWatering(deviceId, commandVersion);
   const selectedZone = zones.find((zone) => zone.id === activeZone) ?? zones[0];
+  const selectedWatering = selectedZone ? wateringByZone[selectedZone.id] : undefined;
 
   const liveSample =
     selectedZone &&
@@ -111,12 +118,25 @@ export default function App() {
     );
   }
 
+  const controlsEnabled = connected && deviceOnline;
+
   const handleTogglePump = async () => {
-    if (!connected) {
-      notify("Chưa kết nối Backend realtime, chưa gửi được lệnh.", "error");
+    if (!controlsEnabled) {
+      notify("ESP32 đang offline — chưa gửi được lệnh tưới.", "error");
       return;
     }
-    if (mode === "auto") await changeMode("manual");
+    if (tankEmpty) {
+      notify("Bồn nước đã cạn — châm thêm nước trước khi bật bơm.", "error");
+      return;
+    }
+    if (mode === "auto") {
+      const switched = await changeMode("manual");
+      if (!switched) {
+        notify("Không chuyển được sang Thủ công nên chưa gửi lệnh tưới.", "error");
+        return;
+      }
+      notify("Đã chuyển cả vườn sang Thủ công; tưới tự động tạm dừng.", "info");
+    }
     togglePump(selectedZone.id);
   };
 
@@ -139,25 +159,21 @@ export default function App() {
       <section className="content">
         <Topbar connected={connected} lastUpdated={lastUpdated} />
 
-        {!connected && (
-          <div className="offline-banner">
-            <span>!</span>
-            <div>
-              <strong>Backend chưa kết nối</strong>
-              <small>
-                Hãy chắc chắn Backend đang chạy và kết nối được Mosquitto.
-              </small>
-            </div>
-            <button onClick={reconnect}>Kết nối lại</button>
-          </div>
-        )}
+        <DeviceStatusBanner
+          connected={connected}
+          brokerConnected={brokerConnected}
+          deviceOnline={deviceOnline}
+          lastTelemetryAt={lastTelemetryAt}
+          onReconnect={reconnect}
+        />
 
         <GardenOverview
           zones={zones}
           activeZone={activeZone}
           soil={soil}
-          connected={connected}
+          controlsEnabled={controlsEnabled}
           deviceId={deviceId}
+          tankEmpty={tankEmpty}
           onSelectZone={setActiveZone}
           onToggleIrrigation={handleToggleIrrigation}
           onApplyAdvice={(input) => saveZoneConfig(selectedZone.id, input)}
@@ -172,6 +188,13 @@ export default function App() {
           rainPercent={rainPercent}
           rainBlock={rainBlock}
           wateredLiters={wateredLitersByZone[activeZone] ?? 0}
+          lastRun={selectedWatering?.lastRun ?? null}
+          todayLiters={selectedWatering?.todayLiters ?? 0}
+          todayRuns={selectedWatering?.todayRuns ?? 0}
+          wateringLoaded={selectedWatering !== undefined}
+          tankDistanceCm={tankDistanceCm}
+          tankEmpty={tankEmpty}
+          controlsEnabled={controlsEnabled}
           onChangeMode={changeMode}
           onTogglePump={handleTogglePump}
           onChangeThreshold={(val) => setZoneThreshold(activeZone, val)}
@@ -179,15 +202,29 @@ export default function App() {
           onSaveZoneConfig={(input) => saveZoneConfig(selectedZone.id, input)}
         />
 
-        <HistoryChart
-          backendUrl={BACKEND_URL}
-          deviceId={deviceId}
-          zones={zones}
-          activeZone={activeZone}
-          onSelectZone={setActiveZone}
-          connected={connected}
-          liveSample={liveSample}
-        />
+        <section className="panel overview-panel">
+          <div className="panel-heading overview-panel-head">
+            <div>
+              <h2>Diễn biến 6 giờ</h2>
+              <p>
+                {selectedZone.id} · {selectedZone.name} · độ ẩm đất
+              </p>
+            </div>
+            <Link className="link-button" href={`/history?zone=${activeZone}`}>
+              Xem lịch sử
+            </Link>
+          </div>
+          <HistoryChart
+            compact
+            backendUrl={BACKEND_URL}
+            deviceId={deviceId}
+            zones={zones}
+            activeZone={activeZone}
+            connected={connected}
+            onSelectZone={setActiveZone}
+            liveSample={liveSample}
+          />
+        </section>
 
         <MetricsOverview
           temperature={temperature}
@@ -198,13 +235,26 @@ export default function App() {
           selectedZone={selectedZone}
         />
 
-        <ActivityAndZones
-          events={events}
-          eventsLoading={eventsLoading}
-          eventsError={eventsError}
-          onRefreshEvents={refreshEvents}
-        />
+        <section className="panel overview-panel">
+          <div className="panel-heading overview-panel-head">
+            <div>
+              <h2>Hoạt động gần đây</h2>
+              <p>3 lệnh hoặc thay đổi ngưỡng mới nhất</p>
+            </div>
+            <Link className="link-button" href="/activity">
+              Xem tất cả
+            </Link>
+          </div>
+          <ActivityFeed
+            events={events.slice(0, 3)}
+            loading={eventsLoading}
+            error={eventsError}
+            scroll={false}
+          />
+        </section>
       </section>
+
+      <BackToTop />
     </main>
   );
 }

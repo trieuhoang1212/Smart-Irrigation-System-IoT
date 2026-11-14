@@ -6,6 +6,11 @@ export const CROP_GROUPS = [
   "Rau ăn quả",
   "Cây lấy củ",
   "Cây gia vị",
+  "Cây hoa cảnh",
+  "Cây ăn quả / thân gỗ",
+  "Sen đá / Xương rồng",
+  "Cây trong nhà",
+  "Hoa lan",
   "Khác",
 ] as const;
 

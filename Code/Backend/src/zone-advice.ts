@@ -49,12 +49,106 @@ const STAGE_RULES: Record<CropGroup, StageRule[]> = {
     { until: 0.8, stage: "vegetative", label: "Sinh trưởng" },
     { until: 1, stage: "harvest", label: "Thu hoạch" },
   ],
+  "Cây hoa cảnh": [
+    { until: 0.25, stage: "seedling", label: "Cây con" },
+    { until: 0.6, stage: "vegetative", label: "Phát triển" },
+    { until: 0.9, stage: "flowering", label: "Ra hoa" },
+    { until: 1, stage: "mature", label: "Giữ hoa" },
+  ],
+  "Cây ăn quả / thân gỗ": [
+    { until: 0.2, stage: "seedling", label: "Cây con" },
+    { until: 0.55, stage: "vegetative", label: "Sinh trưởng" },
+    { until: 0.85, stage: "flowering", label: "Ra hoa - đậu quả" },
+    { until: 1, stage: "harvest", label: "Thu hoạch" },
+  ],
+  "Sen đá / Xương rồng": [
+    { until: 0.2, stage: "seedling", label: "Cây con" },
+    { until: 0.7, stage: "vegetative", label: "Phát triển" },
+    { until: 1, stage: "mature", label: "Trưởng thành" },
+  ],
+  "Cây trong nhà": [
+    { until: 0.25, stage: "seedling", label: "Cây con" },
+    { until: 0.7, stage: "vegetative", label: "Phát triển" },
+    { until: 1, stage: "mature", label: "Trưởng thành" },
+  ],
+  "Hoa lan": [
+    { until: 0.2, stage: "seedling", label: "Cây con" },
+    { until: 0.6, stage: "vegetative", label: "Phát triển" },
+    { until: 0.9, stage: "flowering", label: "Ra hoa" },
+    { until: 1, stage: "mature", label: "Giữ hoa" },
+  ],
   Khác: [
     { until: 0.25, stage: "seedling", label: "Cây con" },
     { until: 0.6, stage: "vegetative", label: "Sinh trưởng" },
     { until: 0.9, stage: "mature", label: "Trưởng thành" },
     { until: 1, stage: "harvest", label: "Thu hoạch" },
   ],
+};
+
+type WaterWindow = { label: string; start: string; end: string; note: string };
+
+// Giờ tưới tham khảo theo nhóm cây; không dùng để điều khiển bơm.
+const GROUP_WATER_WINDOWS: Record<CropGroup, WaterWindow> = {
+  "Rau ăn lá": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng để lá khô trước tối, tránh nấm và thối nhũn.",
+  },
+  "Rau ăn quả": {
+    label: "Sáng sớm hoặc chiều mát",
+    start: "05:30",
+    end: "07:30",
+    note: "Có thể tưới thêm 16:00–17:30 khi đất khô; tránh tưới tối.",
+  },
+  "Cây lấy củ": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:00",
+    note: "Tưới sáng giúp đất ẩm đều cả ngày.",
+  },
+  "Cây gia vị": {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng để lá khô trước tối, tránh nấm và thối nhũn.",
+  },
+  "Cây hoa cảnh": {
+    label: "Sáng sớm",
+    start: "06:00",
+    end: "08:00",
+    note: "Chỉ tưới vào gốc, tránh làm ướt cánh hoa.",
+  },
+  "Cây ăn quả / thân gỗ": {
+    label: "Sáng sớm hoặc chiều mát",
+    start: "05:30",
+    end: "07:30",
+    note: "Có thể tưới 16:00–17:30 để đất giữ ẩm qua đêm.",
+  },
+  "Sen đá / Xương rồng": {
+    label: "Chiều mát",
+    start: "16:30",
+    end: "18:00",
+    note: "Tưới chiều mát để cây hấp thụ tốt, tránh luộc rễ.",
+  },
+  "Cây trong nhà": {
+    label: "Buổi sáng",
+    start: "08:00",
+    end: "10:00",
+    note: "Tưới sáng để nước kịp khô trước khi đóng cửa bật điều hòa.",
+  },
+  "Hoa lan": {
+    label: "Sáng sớm",
+    start: "06:00",
+    end: "08:00",
+    note: "Tưới sáng để lá khô nhanh, tránh thối ngọn.",
+  },
+  Khác: {
+    label: "Sáng sớm",
+    start: "05:30",
+    end: "07:30",
+    note: "Tưới sáng là an toàn nhất cho phần lớn cây trồng.",
+  },
 };
 
 export function growthFor(
@@ -87,22 +181,17 @@ export function growthFor(
 export type AdviceZone = {
   group: string;
   soil: SoilType;
-  /** Ngưỡng và thời lượng người dùng đang dùng, chỉ để so sánh. */
+  /** Ngưỡng người dùng đang dùng, chỉ để so sánh. */
   threshold: number;
-  duration: number;
-  /** Cấu hình gốc của vùng; khuyến nghị luôn tính từ đây nên áp dụng nhiều lần không bị cộng dồn. */
+  /** Ngưỡng gốc của vùng; khuyến nghị luôn tính từ đây nên áp dụng nhiều lần không bị cộng dồn. */
   baseThreshold: number;
-  baseDuration: number;
 };
 
 export type ZoneAdvice = {
   currentThreshold: number;
-  currentDuration: number;
   suggestedThreshold: number;
-  suggestedDuration: number;
   thresholdDelta: number;
-  durationDelta: number;
-  window: { start: string; end: string } | null;
+  window: { label: string; start: string; end: string } | null;
   windowNote: string;
   summary: string;
   reasons: string[];
@@ -144,34 +233,28 @@ export function buildZoneAdvice(
   };
 
   let thresholdShift = 0;
-  let durationShift = 0;
   const reasons: string[] = [];
 
   if (growth) {
     switch (growth.stage) {
       case "seedling":
         thresholdShift += 5;
-        durationShift += 1;
-        reasons.push(`Cây con (ngày ${growth.day}/${growth.totalDays}) cần ẩm đều nên tăng nhẹ`);
+        reasons.push(`Cây con (ngày ${growth.day}/${growth.totalDays}) cần ẩm đều nên tăng nhẹ ngưỡng`);
         break;
       case "flowering":
         thresholdShift += 6;
-        durationShift += 2;
         reasons.push(`Ra hoa - đậu quả (ngày ${growth.day}/${growth.totalDays}) cần nhiều nước hơn`);
         break;
       case "bulking":
         thresholdShift += 5;
-        durationShift += 1;
         reasons.push(`Hình thành củ (ngày ${growth.day}/${growth.totalDays}) cần ẩm ổn định`);
         break;
       case "harvest":
         thresholdShift -= 5;
-        durationShift -= 1;
         reasons.push(`Đang thu hoạch (ngày ${growth.day}/${growth.totalDays}) nên giảm nước`);
         break;
       case "overdue":
         thresholdShift -= 5;
-        durationShift -= 1;
         reasons.push(`Đã quá ${growth.overdueDays} ngày so với dự kiến, kiểm tra lại lịch chăm sóc`);
         break;
       default:
@@ -185,13 +268,11 @@ export function buildZoneAdvice(
   switch (zone.soil) {
     case "Đất cát":
       thresholdShift += 8;
-      durationShift += 2;
-      reasons.push("Đất cát thoát nước nhanh nên tưới sớm và lâu hơn");
+      reasons.push("Đất cát thoát nước nhanh nên tưới sớm hơn");
       break;
     case "Đất đỏ bazan":
       thresholdShift += 4;
-      durationShift += 1;
-      reasons.push("Đất đỏ bazan thoát nước khá nên tăng nhẹ ngưỡng và thời lượng");
+      reasons.push("Đất đỏ bazan thoát nước khá nên tăng nhẹ ngưỡng");
       break;
     default:
       reasons.push("Đất phù sa giàu mùn, giữ ẩm tốt (mặc định)");
@@ -200,7 +281,6 @@ export function buildZoneAdvice(
 
   if (weather.raining || weather.rain >= 60) {
     thresholdShift -= 12;
-    durationShift -= 2;
     reasons.push(
       `Cảm biến mưa báo ${weather.raining ? "đang mưa" : "độ ẩm cao"} (${weather.rain}%) nên hoãn tưới`,
     );
@@ -216,7 +296,6 @@ export function buildZoneAdvice(
 
   if (weather.temperature !== null && weather.temperature >= 35) {
     thresholdShift += 5;
-    durationShift += 1;
     reasons.push(`Nắng nóng ${weather.temperature}°C nên cây mất nước nhanh`);
   }
 
@@ -237,31 +316,28 @@ export function buildZoneAdvice(
     15,
     85,
   );
-  const suggestedDuration = clamp(Math.round(zone.baseDuration + durationShift), 1, 60);
 
+  const recommended = GROUP_WATER_WINDOWS[isCropGroup(zone.group) ? zone.group : "Khác"];
   let window: ZoneAdvice["window"] = null;
-  let windowNote = "Khung giờ chỉ là gợi ý; ESP32 vẫn tưới theo ngưỡng đất.";
+  let windowNote = `Chỉ là gợi ý theo nhóm cây; ESP32 vẫn tưới theo độ ẩm đất. ${recommended.note}`;
   if (weather.raining) {
     windowNote = "Tạm hoãn tưới đến khi hết mưa.";
-  } else if (weather.temperature !== null && weather.temperature >= 35) {
-    window = { start: "05:00", end: "06:30" };
-  } else if (season === "Mùa khô") {
-    window = { start: "05:30", end: "07:00" };
   } else {
-    window = { start: "06:00", end: "07:30" };
+    window = {
+      label: recommended.label,
+      start: recommended.start,
+      end: recommended.end,
+    };
   }
 
   const summary = weather.raining
     ? "Đang mưa, chưa nên tưới. Kiểm tra lại khi tạm tắt mưa."
-    : `Gợi ý tưới ở ngưỡng ${suggestedThreshold}% trong ${suggestedDuration} phút, khung ${window?.start}–${window?.end}.`;
+    : `Gợi ý tưới ở ngưỡng ${suggestedThreshold}%, tham khảo khung ${window?.start}–${window?.end}.`;
 
   return {
     currentThreshold: zone.threshold,
-    currentDuration: zone.duration,
     suggestedThreshold,
-    suggestedDuration,
     thresholdDelta: suggestedThreshold - zone.threshold,
-    durationDelta: suggestedDuration - zone.duration,
     window,
     windowNote,
     summary,

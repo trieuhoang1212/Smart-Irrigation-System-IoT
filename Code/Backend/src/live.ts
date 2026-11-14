@@ -1,5 +1,5 @@
 import type { WebSocket, WebSocketServer } from "ws";
-import { ZONE_IDS, type Telemetry } from "./domain.js";
+import { ZONE_IDS, targetSecondsFor, type Telemetry } from "./domain.js";
 import { getZoneSettings } from "./zone-settings-repository.js";
 import {
   loadAllLatestTelemetry,
@@ -11,12 +11,14 @@ import type { MqttGateway } from "./mqtt-gateway.js";
 const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 10_000;
 const THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
+const TARGET_SYNC_COOLDOWN_MS = 10_000;
 
 const latestByDevice = new Map<string, Telemetry>();
 const onlineByDevice = new Map<string, boolean>();
 const lastLiveAtByDevice = new Map<string, number>();
 const lastHistoryWriteByDevice = new Map<string, number>();
 const lastThresholdSyncAt = new Map<string, number>();
+const lastTargetSyncAt = new Map<string, number>();
 
 type PendingCommand = {
   id: string;
@@ -87,6 +89,37 @@ function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
       );
     });
     console.log(`Threshold resync ${zone.id}: ${zone.threshold} -> ${setting.threshold}`);
+  }
+}
+
+function resyncTargets(telemetry: Telemetry, gateway: MqttGateway) {
+  const settings = getZoneSettings(telemetry.deviceId);
+  if (settings.length === 0) return;
+
+  const byZone = new Map(
+    settings.map((setting) => [setting.zoneId as string, setting]),
+  );
+  const now = Date.now();
+
+  for (const zone of telemetry.zones) {
+    const setting = byZone.get(zone.id);
+    if (!setting) continue;
+
+    const targetSeconds = targetSecondsFor(setting.flowLitersPerHour, setting.targetLiters);
+    if ((zone.targetSeconds ?? 0) === targetSeconds) continue;
+
+    const key = `${telemetry.deviceId}:${zone.id}`;
+    if (now - (lastTargetSyncAt.get(key) ?? 0) < TARGET_SYNC_COOLDOWN_MS) continue;
+    lastTargetSyncAt.set(key, now);
+
+    const command = `SET_TARGET_${zone.id}_${targetSeconds}`;
+    void gateway.publish(command).catch((error) => {
+      console.error(
+        `Target resync failed (${zone.id}):`,
+        error instanceof Error ? error.message : error,
+      );
+    });
+    console.log(`Target resync ${zone.id}: ${zone.targetSeconds ?? 0} -> ${targetSeconds}s`);
   }
 }
 
@@ -188,6 +221,7 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     }
 
     resyncThresholds(telemetry, gateway);
+    resyncTargets(telemetry, gateway);
 
     if (meta.retained) {
       // Retained message chỉ là snapshot cuối, không chứng minh thiết bị đang chạy.

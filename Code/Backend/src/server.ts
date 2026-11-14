@@ -8,7 +8,11 @@ import { gardenConfig } from "./garden-config.js";
 import { getLiveStats, startLive, stopLive } from "./live.js";
 import { MqttGateway } from "./mqtt-gateway.js";
 import { createApiRouter } from "./routes.js";
-import { pruneHistory, timeoutStaleCommands } from "./telemetry-repository.js";
+import {
+  backfillWateringRuns,
+  pruneHistory,
+  timeoutStaleCommands,
+} from "./telemetry-repository.js";
 import { seedZoneSettings } from "./zone-settings-repository.js";
 import { seedZoneProfiles } from "./zone-profile-repository.js";
 import { uploadDir } from "./uploads.js";
@@ -18,6 +22,10 @@ seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
 
 // Hồ sơ cây (tên, nhóm, ngày trồng, ảnh) do người dùng chỉnh trên Web.
 seedZoneProfiles(gardenConfig.deviceId, gardenConfig.zones);
+
+// Lần đầu chạy, dựng lại các lần tưới từ telemetry 6 giờ gần nhất.
+const backfilled = backfillWateringRuns(gardenConfig.deviceId);
+if (backfilled > 0) console.log(`Backfilled watering runs from ${backfilled} samples`);
 
 // Lệnh pending chỉ nằm trong RAM; restart xong thì không còn ai xác nhận nữa.
 const staleCommands = timeoutStaleCommands();

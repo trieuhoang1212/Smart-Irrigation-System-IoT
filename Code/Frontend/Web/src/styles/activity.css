@@ -7,9 +7,18 @@
 }
 
 .activity-list {
-  margin-top: 10px;
+  margin-top: 12px;
   max-height: 320px;
   overflow-y: auto;
+}
+
+.activity-list.expanded {
+  max-height: none;
+  overflow: visible;
+}
+
+.activity-page-card {
+  padding: 18px 20px 12px;
 }
 
 .activity-item {
@@ -19,7 +28,7 @@
   padding: 10px 0;
   border-top: 1px solid var(--line-soft);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .activity-item i {
@@ -34,7 +43,7 @@
 .activity-item time {
   flex: none;
   color: var(--faint);
-  font-size: 11px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -54,13 +63,34 @@
 .activity-status {
   flex: none;
   color: var(--faint);
-  font-size: 11px;
+  font-size: 11.5px;
+}
+
+.activity-item.selected {
+  padding-left: 8px;
+  border-radius: 6px;
+  background: #f6f9f3;
+  box-shadow: inset 3px 0 0 #c08a35;
+}
+
+.activity-link {
+  flex: none;
+  margin-left: auto;
+  color: var(--green-strong);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.activity-link:hover {
+  text-decoration: underline;
 }
 
 .empty-state {
   padding: 18px 0;
   color: var(--faint);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .empty-state.error {
