@@ -42,6 +42,8 @@ export type Telemetry = {
   temperature: number | null;
   humidity: number | null;
   rain: number;
+  // Firmware cũ dùng mốc cố định 80/100 nên chưa gửi ngưỡng.
+  rainThreshold?: number;
   raining: boolean;
   weatherGate: boolean;
   pump: boolean;
@@ -127,6 +129,9 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
     temperature: nullableNumberInRange(raw.temperature, "temperature", -40, 125),
     humidity: nullableNumberInRange(raw.humidity, "humidity", 0, 100),
     rain: numberInRange(raw.rain, "rain", 0, 100),
+    rainThreshold: raw.rainThreshold === undefined
+      ? undefined
+      : numberInRange(raw.rainThreshold, "rainThreshold", 0, 100),
     raining: booleanValue(raw.raining, "raining"),
     weatherGate: booleanValue(raw.weatherGate, "weatherGate"),
     pump,

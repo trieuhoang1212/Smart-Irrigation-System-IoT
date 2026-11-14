@@ -110,9 +110,10 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS garden_settings (
-    device_id   TEXT PRIMARY KEY,
-    soil        TEXT NOT NULL DEFAULT 'Đất phù sa',
-    updated_at  INTEGER NOT NULL
+    device_id      TEXT PRIMARY KEY,
+    soil           TEXT NOT NULL DEFAULT 'Đất phù sa',
+    rain_threshold INTEGER NOT NULL DEFAULT 100,
+    updated_at     INTEGER NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS zone_setting_changes (
@@ -220,6 +221,20 @@ function migrateGardenSoil() {
 }
 
 migrateGardenSoil();
+
+// DB cũ chưa có ngưỡng mưa chỉnh từ Web.
+function migrateGardenRainThreshold() {
+  const columns = db.prepare("PRAGMA table_info(garden_settings)").all() as Array<{
+    name: string;
+  }>;
+  if (!columns.some((column) => column.name === "rain_threshold")) {
+    db.exec(
+      "ALTER TABLE garden_settings ADD COLUMN rain_threshold INTEGER NOT NULL DEFAULT 100",
+    );
+  }
+}
+
+migrateGardenRainThreshold();
 
 export function closeDatabase() {
   if (db.open) db.close();

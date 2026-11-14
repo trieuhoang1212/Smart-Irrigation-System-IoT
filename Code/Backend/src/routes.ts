@@ -37,8 +37,10 @@ import {
 } from "./zone-profile-repository.js";
 import {
   type SoilType,
+  getGardenRainThreshold,
   getGardenSoil,
   isSoilType,
+  saveGardenRainThreshold,
   saveGardenSoil,
 } from "./garden-settings-repository.js";
 import { buildZoneAdvice, growthFor } from "./zone-advice.js";
@@ -56,6 +58,7 @@ function buildDeviceConfig(deviceId: string) {
   return {
     ...gardenConfig,
     soil: getGardenSoil(deviceId),
+    rainThreshold: getGardenRainThreshold(deviceId),
     zones: gardenConfig.zones.map((zone) => {
       const setting = settings.get(zone.id);
       const profile = profiles.get(zone.id);
@@ -231,6 +234,28 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
     response.json({ deviceId: request.params.deviceId, ...saveGardenSoil(request.params.deviceId, soil) });
+  });
+
+  router.put("/api/devices/:deviceId/config/rain", async (request, response) => {
+    const threshold = (request.body as { threshold?: unknown } | undefined)?.threshold;
+    if (typeof threshold !== "number" || !Number.isFinite(threshold)) {
+      response.status(400).json({ error: "threshold must be a number" });
+      return;
+    }
+
+    const saved = saveGardenRainThreshold(request.params.deviceId, threshold);
+    let appliedRemotely = false;
+    try {
+      await gateway.publish(`SET_RAIN_THRESHOLD_${saved.rainThreshold}`);
+      appliedRemotely = true;
+    } catch (error) {
+      console.error(
+        "Rain threshold saved but MQTT publish failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    response.json({ deviceId: request.params.deviceId, ...saved, appliedRemotely });
   });
 
   router.get("/api/devices/:deviceId/config/changes", (request, response) => {

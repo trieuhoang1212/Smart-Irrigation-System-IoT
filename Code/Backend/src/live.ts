@@ -1,6 +1,7 @@
 import type { WebSocket, WebSocketServer } from "ws";
 import { ZONE_IDS, targetSecondsFor, type Telemetry } from "./domain.js";
 import { getZoneSettings } from "./zone-settings-repository.js";
+import { getGardenRainThreshold } from "./garden-settings-repository.js";
 import {
   loadAllLatestTelemetry,
   resolveCommand,
@@ -12,6 +13,7 @@ const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 10_000;
 const THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
 const TARGET_SYNC_COOLDOWN_MS = 10_000;
+const RAIN_THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
 
 const latestByDevice = new Map<string, Telemetry>();
 const onlineByDevice = new Map<string, boolean>();
@@ -19,6 +21,7 @@ const lastLiveAtByDevice = new Map<string, number>();
 const lastHistoryWriteByDevice = new Map<string, number>();
 const lastThresholdSyncAt = new Map<string, number>();
 const lastTargetSyncAt = new Map<string, number>();
+const lastRainThresholdSyncAt = new Map<string, number>();
 
 type PendingCommand = {
   id: string;
@@ -123,6 +126,28 @@ function resyncTargets(telemetry: Telemetry, gateway: MqttGateway) {
   }
 }
 
+function resyncRainThreshold(telemetry: Telemetry, gateway: MqttGateway) {
+  // Firmware cũ chưa gửi ngưỡng mưa; không đẩy lệnh để tránh đổi hành vi ngoài ý muốn.
+  if (telemetry.rainThreshold === undefined) return;
+
+  const stored = getGardenRainThreshold(telemetry.deviceId);
+  if (stored === telemetry.rainThreshold) return;
+
+  const now = Date.now();
+  if (now - (lastRainThresholdSyncAt.get(telemetry.deviceId) ?? 0) < RAIN_THRESHOLD_SYNC_COOLDOWN_MS) {
+    return;
+  }
+  lastRainThresholdSyncAt.set(telemetry.deviceId, now);
+
+  void gateway.publish(`SET_RAIN_THRESHOLD_${stored}`).catch((error) => {
+    console.error(
+      "Rain threshold resync failed:",
+      error instanceof Error ? error.message : error,
+    );
+  });
+  console.log(`Rain threshold resync: ${telemetry.rainThreshold} -> ${stored}`);
+}
+
 function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean {
   if (command === "MODE_AUTO") return telemetry.mode === "auto";
   if (command === "MODE_MANUAL") return telemetry.mode === "manual";
@@ -138,6 +163,9 @@ function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean
 
   const threshold = command.match(new RegExp(`^SET_THRESHOLD_(${zonePattern})_(\\d{1,3})$`));
   if (threshold) return telemetry.zones.find((zone) => zone.id === threshold[1])?.threshold === Number(threshold[2]);
+
+  const rainThreshold = command.match(/^SET_RAIN_THRESHOLD_(\d{1,3})$/);
+  if (rainThreshold) return telemetry.rainThreshold === Number(rainThreshold[1]);
 
   return false;
 }
@@ -222,6 +250,7 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
 
     resyncThresholds(telemetry, gateway);
     resyncTargets(telemetry, gateway);
+    resyncRainThreshold(telemetry, gateway);
 
     if (meta.retained) {
       // Retained message chỉ là snapshot cuối, không chứng minh thiết bị đang chạy.
