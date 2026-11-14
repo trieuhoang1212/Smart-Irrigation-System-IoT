@@ -90,7 +90,7 @@ flowchart LR
 ### An toàn và tự chủ
 
 - **Mất Internet vẫn tưới:** vòng điều khiển cục bộ không phụ thuộc backend.
-- **Giới hạn thời gian:** tối đa 10 phút/vùng; quá hạn thì dừng và khóa vùng.
+- **Giới hạn thời gian:** tối đa 10 phút/vùng; quá hạn thì dừng, nghỉ 2 phút rồi auto tiếp tục, khóa vùng nếu đất không ẩm lên.
 - **Tự thoát MANUAL:** sau 10 phút tự về AUTO để tránh tưới mãi khi đi vắng.
 - **Chống chạy khô:** HC-SR04 đo mực nước bồn; cạn thì dừng và chặn bơm.
 - Cảnh báo tại chỗ bằng LCD, còi và serial.
@@ -134,19 +134,21 @@ flowchart LR
 | Chức năng | GPIO | Ghi chú |
 |---|:---:|---|
 | DHT22 data | 4 | |
-| MUX SIG / S0–S3 | 34 / 12, 13, 14, 25 | 34 là input-only |
-| Mưa analog / digital | 33 / 36 | 36 input-only |
+| Độ ẩm T001–T006 | 32, 33, 34, 35, 36, 39 | GPIO34–39 là input-only |
+| Mưa amount (PWM) | 27 | Custom chip rain-sensor |
 | Relay T001–T006 | 16, 17, 18, 23, 15, 19 | Active LOW |
 | Servo van tổng | 5 | |
 | I2C SDA / SCL | 21 / 22 | 6 LCD địa chỉ 0x20–0x25 |
 | LED trạng thái | 2 | |
 | Còi | 0 | Chân strapping; phần cứng thật nên qua transistor |
-| Nút mất mạng / thủ công | 35 / 32 | Active LOW; 35 cần trở kéo ngoài |
-| HC-SR04 TRIG / ECHO | 27 / 26 | |
+| Nút mất mạng / thủ công | 14 / 13 | Active LOW |
+| HC-SR04 TRIG / ECHO | 12 / 26 | |
 
 ### Mô phỏng Wokwi
 
-- 6 biến trở thay cảm biến độ ẩm, chip cảm biến mưa tùy chỉnh.
+- 6 biến trở nối trực tiếp vào sáu chân ADC, chip cảm biến mưa tùy chỉnh.
+- Chiết áp là số đo độ ẩm trực tiếp: vặn 0–100% thì Web hiện đúng 0–100% trong tối đa 2 giây.
+- Tùy chọn `SIMULATE_SOIL_DYNAMICS 1` (mặc định tắt): bơm chạy thì ẩm lên ~2%/phút, tắt thì khô ~0,5%/phút; nóng/khô hanh thì khô nhanh hơn, không khí ẩm hoặc mưa thì chậm lại.
 - Nút giả lập mất mạng và nút bật/tắt bơm thủ công.
 - Slider `distance` của HC-SR04 để mô phỏng mực nước bồn.
 - Relay, servo, LCD, LED và còi hiển thị trạng thái trực quan.
@@ -158,7 +160,7 @@ flowchart LR
 | Firmware | C++ · Arduino Framework · PlatformIO |
 | Mô phỏng | Wokwi |
 | Vi điều khiển | ESP32 DevKit C V4 |
-| Cảm biến | 74HC4067 · DHT22 · cảm biến mưa · HC-SR04 |
+| Cảm biến | Biến trở ADC · DHT22 · cảm biến mưa · HC-SR04 |
 | Giao tiếp | Wi-Fi · MQTT (PubSubClient) |
 | Broker | Mosquitto |
 | Backend | Node.js 20+ · TypeScript · Express 5 |
