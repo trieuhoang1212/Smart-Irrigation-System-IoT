@@ -11,6 +11,7 @@ type BackendTelemetry = {
   temperature?: number | null;
   humidity?: number | null;
   rain?: number | null;
+  rainThreshold?: number;
   raining?: boolean;
   rainWarning?: boolean;
   weatherGate?: boolean;
@@ -47,6 +48,14 @@ const MAX_RECONNECT_DELAY = 15000;
 const OPTIMISTIC_WINDOW_MS = 3000;
 const THRESHOLD_PENDING_MS = 5000;
 const THRESHOLD_DEBOUNCE_MS = 400;
+export const MIN_RAIN_THRESHOLD = 40;
+export const MAX_RAIN_THRESHOLD = 100;
+// Cảnh báo "có thể mưa" đi trước ngưỡng dừng 20 điểm, khớp firmware.
+const RAIN_WARN_OFFSET = 20;
+
+function clampRainThreshold(value: number): number {
+  return Math.max(MIN_RAIN_THRESHOLD, Math.min(MAX_RAIN_THRESHOLD, Math.round(value)));
+}
 
 export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const [zones, setZones] = useState<Zone[]>([]);
@@ -60,6 +69,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const [temperature, setTemperature] = useState<number | null>(null);
   const [humidity, setHumidity] = useState<number | null>(null);
   const [rainPercent, setRainPercent] = useState<number | null>(null);
+  const [rainThreshold, setRainThresholdState] = useState(MAX_RAIN_THRESHOLD);
   const [raining, setRaining] = useState(false);
   const [rainBlock, setRainBlock] = useState(true);
   const [deviceOnline, setDeviceOnline] = useState(false);
@@ -77,6 +87,9 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
   const pendingThresholdRef = useRef<Record<string, number>>({});
   const thresholdTimerRef = useRef<Record<string, number>>({});
+  const pendingRainThresholdRef = useRef(0);
+  const rainThresholdRef = useRef(MAX_RAIN_THRESHOLD);
+  const rainThresholdTimerRef = useRef<number | undefined>(undefined);
   const hadDisconnectRef = useRef(false);
   const tankEmptyRef = useRef<boolean | null>(null);
   const overTargetRef = useRef<Record<string, boolean>>({});
@@ -133,6 +146,13 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         }
         setDeviceId(config.deviceId);
         setSoil(config.soil ?? "Đất phù sa");
+        const configuredRainThreshold = clampRainThreshold(
+          typeof config.rainThreshold === "number" ? config.rainThreshold : MAX_RAIN_THRESHOLD,
+        );
+        rainThresholdRef.current = configuredRainThreshold;
+        setRainThresholdState(configuredRainThreshold);
+        // Chặn telemetry retained cũ ghi đè cấu hình vừa tải trong lúc thiết bị đồng bộ lại.
+        pendingRainThresholdRef.current = Date.now() + THRESHOLD_PENDING_MS;
         setZones(zonesFromConfig(config));
       })
       .catch(() => {
@@ -217,14 +237,25 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     setRainPercent(nextRain);
     if (data.raining !== undefined) setRaining(data.raining);
 
-    // Cảnh báo mưa theo mốc 80% (có thể mưa) và 100% (đã mưa).
+    // Ngưỡng mưa chỉnh từ Web; firmware cũ không gửi thì giữ giá trị đang dùng.
+    const receivedRainThreshold =
+      typeof data.rainThreshold === "number" && Number.isFinite(data.rainThreshold)
+        ? clampRainThreshold(data.rainThreshold)
+        : null;
+    if (receivedRainThreshold !== null && now > pendingRainThresholdRef.current) {
+      rainThresholdRef.current = receivedRainThreshold;
+      setRainThresholdState(receivedRainThreshold);
+    }
+    const activeRainThreshold = rainThresholdRef.current;
+    const warnThreshold = Math.max(0, activeRainThreshold - RAIN_WARN_OFFSET);
+
     const rainingNow = Boolean(data.raining);
-    const rainWarnNow = !rainingNow && nextRain !== null && nextRain >= 80;
+    const rainWarnNow = !rainingNow && nextRain !== null && nextRain >= warnThreshold;
     if (isOnline && rainingNow && !rainFullRef.current) {
       notify(
         data.weatherGate === false
-          ? "Cảm biến mưa 100% — đã mưa, nhưng chế độ hoãn mưa đang tắt."
-          : "Cảm biến mưa 100% — đã mưa, bơm tự động dừng vì đang bật hoãn mưa.",
+          ? `Cảm biến mưa đạt ${activeRainThreshold}% — đã mưa, nhưng chế độ hoãn mưa đang tắt.`
+          : `Cảm biến mưa đạt ${activeRainThreshold}% — đã mưa, bơm tự động dừng vì đang bật hoãn mưa.`,
         "error",
       );
     } else if (isOnline && rainWarnNow && !rainWarnRef.current) {
@@ -495,6 +526,53 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     [sendCommand],
   );
 
+  const setRainThreshold = useCallback(
+    (value: number) => {
+      const clamped = clampRainThreshold(value);
+      pendingRainThresholdRef.current = Date.now() + THRESHOLD_PENDING_MS;
+      rainThresholdRef.current = clamped;
+      setRainThresholdState(clamped);
+
+      // Kéo slider sinh nhiều request: chỉ gửi giá trị cuối sau khi ngừng kéo.
+      window.clearTimeout(rainThresholdTimerRef.current);
+      rainThresholdTimerRef.current = window.setTimeout(() => {
+        rainThresholdTimerRef.current = undefined;
+        if (!deviceId) {
+          notify("Chưa tải được cấu hình thiết bị, chưa lưu được ngưỡng mưa.", "error");
+          return;
+        }
+        void fetch(
+          `${backendUrl.replace(/\/+$/, "")}/api/devices/${encodeURIComponent(deviceId)}/config/rain`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ threshold: clamped }),
+          },
+        )
+          .then(async (response) => {
+            if (!response.ok) {
+              log(`Backend từ chối ngưỡng mưa ${clamped}%.`);
+              notify("Backend từ chối ngưỡng mưa mới.", "error");
+              return;
+            }
+            const saved = (await response.json()) as { appliedRemotely?: boolean };
+            log(
+              saved.appliedRemotely
+                ? `Đã lưu và gửi ngưỡng mưa ${clamped}% tới thiết bị.`
+                : `Đã lưu ngưỡng mưa ${clamped}%, nhưng chưa gửi được tới thiết bị.`,
+            );
+            if (!saved.appliedRemotely) {
+              notify("Đã lưu ngưỡng mưa nhưng ESP32 chưa nhận được.", "error");
+            }
+          })
+          .catch(() => {
+            notify("Không gửi được ngưỡng mưa tới Backend.", "error");
+          });
+      }, THRESHOLD_DEBOUNCE_MS);
+    },
+    [backendUrl, deviceId, log, notify],
+  );
+
   const saveZoneConfig = useCallback(
     async (zoneId: string, input: ZoneConfigInput) => {
       if (!deviceId) {
@@ -569,14 +647,17 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     const timers = thresholdTimerRef.current;
     return () => {
       Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+      window.clearTimeout(rainThresholdTimerRef.current);
     };
   }, []);
 
   return {
     zones, setZones, soil, connected, mode, pumpOn, setPumpOn, temperature, humidity,
-    rainPercent, raining, rainBlock, lastUpdated, sendCommand, togglePump,
-    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, saveZoneConfig,
-    configLoading, configError, deviceId, deviceOnline, brokerConnected,
+    rainPercent, raining, rainThreshold,
+    rainWarnThreshold: Math.max(0, rainThreshold - RAIN_WARN_OFFSET),
+    rainBlock, lastUpdated, sendCommand, togglePump,
+    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, setRainThreshold,
+    saveZoneConfig, configLoading, configError, deviceId, deviceOnline, brokerConnected,
     commandVersion, servoAngle, tankDistanceCm, tankEmpty, lastTelemetryAt,
   };
 }

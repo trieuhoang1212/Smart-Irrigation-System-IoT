@@ -1,7 +1,11 @@
 "use client";
 
 import { type Zone } from "../garden-data";
-import type { ZoneConfigInput } from "../hooks/useMqtt";
+import {
+  MAX_RAIN_THRESHOLD,
+  MIN_RAIN_THRESHOLD,
+  type ZoneConfigInput,
+} from "../hooks/useMqtt";
 import type { WateringRunSummary } from "../lib/garden-api";
 import { ZoneConfigCard } from "./ZoneConfigCard";
 import { CloudIcon, DropletIcon, RainIcon, ThermometerIcon } from "./icons";
@@ -13,6 +17,8 @@ interface ControlPanelProps {
   humidity: number | null;
   raining: boolean;
   rainPercent: number | null;
+  rainThreshold: number;
+  rainWarnThreshold: number;
   rainBlock: boolean;
   wateredLiters: number;
   lastRun: WateringRunSummary | null;
@@ -25,6 +31,7 @@ interface ControlPanelProps {
   onChangeMode: (mode: "auto" | "manual") => Promise<boolean>;
   onTogglePump: () => void;
   onChangeThreshold: (val: number) => void;
+  onChangeRainThreshold: (val: number) => void;
   onToggleWeatherGate: (enabled: boolean) => void;
   onSaveZoneConfig: (input: ZoneConfigInput) => Promise<boolean>;
 }
@@ -36,6 +43,8 @@ export function ControlPanel({
   humidity,
   raining,
   rainPercent,
+  rainThreshold,
+  rainWarnThreshold,
   rainBlock,
   wateredLiters,
   lastRun,
@@ -48,6 +57,7 @@ export function ControlPanel({
   onChangeMode,
   onTogglePump,
   onChangeThreshold,
+  onChangeRainThreshold,
   onToggleWeatherGate,
   onSaveZoneConfig,
 }: ControlPanelProps) {
@@ -214,7 +224,7 @@ export function ControlPanel({
           <strong>
             {raining
               ? `Đang mưa (${rainPercent === null ? "--" : `${rainPercent}%`})`
-              : rainPercent !== null && rainPercent >= 80
+              : rainPercent !== null && rainPercent >= rainWarnThreshold
                 ? `Có thể mưa (${rainPercent}%)`
                 : temperature !== null && temperature > 32
                   ? "Nắng nóng"
@@ -234,6 +244,31 @@ export function ControlPanel({
           <strong>{rainPercent === null ? "--" : `${rainPercent}%`}</strong>
         </div>
 
+        <div className="threshold-control">
+          <label htmlFor="rain-threshold">
+            Dừng tưới khi mưa đạt <strong>{rainThreshold}%</strong>
+          </label>
+          <input
+            id="rain-threshold"
+            type="range"
+            min={MIN_RAIN_THRESHOLD}
+            max={MAX_RAIN_THRESHOLD}
+            step="1"
+            value={rainThreshold}
+            onChange={(event) => onChangeRainThreshold(Number(event.target.value))}
+            disabled={!controlsEnabled}
+            title={controlsEnabled ? undefined : offlineReason}
+          />
+          <div>
+            <span>{MIN_RAIN_THRESHOLD}% · dừng sớm</span>
+            <span>{MAX_RAIN_THRESHOLD}% · dừng muộn</span>
+          </div>
+          <p className="rain-threshold-note">
+            Cảnh báo từ {rainWarnThreshold}% · bơm dừng từ {rainThreshold}% nếu bật
+            hoãn mưa.
+          </p>
+        </div>
+
         <label className="check-row">
           <input
             type="checkbox"
@@ -246,10 +281,10 @@ export function ControlPanel({
         <div className={`weather-alert ${rainBlock ? "" : "off"}`}>
           {rainBlock ? "Đang bật bảo vệ thời tiết" : "Weather gate đang tắt"}
         </div>
-        {!raining && rainPercent !== null && rainPercent >= 80 && (
+        {!raining && rainPercent !== null && rainPercent >= rainWarnThreshold && (
           <div className="weather-alert warn" role="status">
-            Có thể mưa ({rainPercent}%): còi đã báo, hệ thống vẫn tưới. Ở 100% bơm sẽ
-            dừng nếu đang bật hoãn mưa.
+            Có thể mưa ({rainPercent}%): còi đã báo, hệ thống vẫn tưới. Ở{" "}
+            {rainThreshold}% bơm sẽ dừng nếu đang bật hoãn mưa.
           </div>
         )}
       </article>

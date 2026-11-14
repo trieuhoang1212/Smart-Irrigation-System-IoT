@@ -148,6 +148,7 @@ export type Zone = {
 export type GardenConfigResponse = {
   deviceId: string;
   soil: SoilType;
+  rainThreshold?: number;
   zones: Array<Omit<Zone, "moisture" | "pump" | "online">>;
 };
 

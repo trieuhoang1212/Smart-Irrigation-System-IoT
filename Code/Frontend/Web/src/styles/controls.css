@@ -317,6 +317,13 @@
   font-size: 11px;
 }
 
+.rain-threshold-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
 .card-icon {
   display: grid;
   place-items: center;
