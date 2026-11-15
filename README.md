@@ -148,8 +148,10 @@ flowchart LR
 
 - 6 biến trở nối trực tiếp vào sáu chân ADC, chip cảm biến mưa tùy chỉnh.
 - Độ ẩm mô phỏng theo động học đất: bơm chạy thì ẩm tăng theo lưu lượng đầu tưới (1 L ≈ +2%, tức 2%/phút ở 60 L/giờ), tắt thì khô ~2%/phút (3,5%/phút ở 25°C); nóng thì khô nhanh hơn, không khí ẩm hoặc mưa thì chậm lại. Một vòng khô → tự tưới → đủ ẩm khoảng 15 phút để tiện demo.
-- Chiết áp là tay chỉnh nhanh: vặn đến đâu độ ẩm bám tới đó, không vặn thì giữ nguyên mô phỏng. Đặt `SIMULATE_SOIL_DYNAMICS 0` nếu muốn đọc chiết áp trực tiếp.
+- Chiết áp là tay chỉnh nhanh: vặn đến đâu độ ẩm bám tới đó, không vặn thì giữ nguyên mô phỏng. Env `esp32dev` bật mô phỏng đất; env `board` tắt và đọc thẳng ADC (chỉnh mốc hiệu chuẩn `SOIL_ADC_DRY` / `SOIL_ADC_WET` trong `src/config.h` khi dùng cảm biến thật).
 - Wokwi xoá NVS mỗi lần chạy lại nên độ ẩm không giữ được giữa các lần. Firmware khởi tạo ở giữa cặp ngưỡng, và ngay khi Backend đồng bộ ngưỡng thật thì đặt lại theo cặp ngưỡng đó, nên số khởi động luôn giống nhau.
+- Firmware tách thành `config.h`, `app.h`, `sensors.cpp`, `soil_sim.cpp`, `control.cpp`, `link.cpp` và `main.cpp` (setup/loop/UI).
+- Chip mưa dùng wasm build sẵn; sửa `chips/rain-sensor.chip.c` thì phải build lại wasm (xem `chips/README.md`).
 - Nút giả lập mất mạng và nút bật/tắt bơm thủ công.
 - Slider `distance` của HC-SR04 để mô phỏng mực nước bồn.
 - Relay, servo, LCD, LED và còi hiển thị trạng thái trực quan.
@@ -261,11 +263,12 @@ Sửa `.env` thành `EXPO_PUBLIC_API_URL=http://<IP-LAN-máy-tính>:3001` nếu 
 
 Mở thư mục `Wokwi\Smart-Irrigation` bằng PlatformIO hoặc Wokwi. Firmware kết nối MQTT tới `host.wokwi.internal`, nên cần chạy Wokwi với gateway (VS Code extension hoặc Wokwi CLI) để tới được backend trên máy host.
 
-Build kiểm tra:
+Build kiểm tra (mặc định là env Wokwi):
 
 ```powershell
 cd Wokwi\Smart-Irrigation
-pio run
+pio run              # Wokwi: bật mô phỏng động học đất
+pio run -e board     # board thật: tắt mô phỏng, đọc cảm biến trực tiếp
 ```
 
 ## 🎬 Demo
