@@ -1,3 +1,4 @@
+
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +12,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
+
       <ToastProvider>
         <GardenProvider>
           <Tabs
@@ -18,13 +20,22 @@ export default function RootLayout() {
               headerShown: false,
               tabBarActiveTintColor: colors.green,
               tabBarInactiveTintColor: colors.faint,
+
               tabBarStyle: {
                 backgroundColor: colors.surface,
                 borderTopColor: colors.line,
+                height: 72,
+                paddingTop: 8,
+                paddingBottom: 8,
               },
+
               tabBarLabelStyle: {
-                fontSize: 11,
-                fontWeight: "600",
+                fontSize: 12,
+                fontWeight: "700",
+              },
+
+              tabBarIconStyle: {
+                marginBottom: 2,
               },
             }}
           >
@@ -32,32 +43,24 @@ export default function RootLayout() {
               name="index"
               options={{
                 title: "Tổng quan",
-                tabBarIcon: ({ color, size, focused }) => (
-                  <Ionicons name={focused ? "grid" : "grid-outline"} size={size} color={typeof color === "string" ? color : colors.faint} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="history"
-              options={{
-                title: "Lịch sử",
-                tabBarIcon: ({ color, size, focused }) => (
+                tabBarIcon: ({ color, focused }) => (
                   <Ionicons
-                    name={focused ? "analytics" : "analytics-outline"}
-                    size={size}
+                    name={focused ? "grid" : "grid-outline"}
+                    size={25}
                     color={typeof color === "string" ? color : colors.faint}
                   />
                 ),
               }}
             />
+
             <Tabs.Screen
-              name="settings"
+              name="history"
               options={{
-                title: "Cấu hình",
-                tabBarIcon: ({ color, size, focused }) => (
+                title: "Lịch sử",
+                tabBarIcon: ({ color, focused }) => (
                   <Ionicons
-                    name={focused ? "options" : "options-outline"}
-                    size={size}
+                    name={focused ? "analytics" : "analytics-outline"}
+                    size={25}
                     color={typeof color === "string" ? color : colors.faint}
                   />
                 ),

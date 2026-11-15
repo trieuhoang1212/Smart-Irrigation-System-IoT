@@ -1,6 +1,8 @@
+
 import { useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
+import { ControlPanel } from "@/components/controls/ControlPanel";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { ZoneSettingsForm } from "@/components/settings/ZoneSettingsForm";
@@ -18,16 +20,24 @@ export default function SettingsScreen() {
   return (
     <Screen>
       <PageHeader
-        title="Cấu hình tưới"
-        subtitle="Điều chỉnh ngưỡng và lượng nước cho từng khu vườn."
+        title="Cấu hình hệ thống"
+        subtitle="Quản lý chế độ hoạt động và thông số tưới."
       />
 
+      <ControlPanel />
+
       <Card>
-        <SectionHeader title="Khu vườn" hint={zone ? zone.crop : undefined} />
+        <SectionHeader
+          title="Cấu hình khu vườn"
+          hint={zone ? zone.crop : undefined}
+        />
+
         {loading && zones.length === 0 ? (
           <View style={styles.state}>
             <ActivityIndicator size="small" color={colors.green} />
-            <Text style={styles.stateText}>Đang tải cấu hình khu vườn...</Text>
+            <Text style={styles.stateText}>
+              Đang tải cấu hình khu vườn...
+            </Text>
           </View>
         ) : configError ? (
           <View style={styles.state}>
@@ -37,7 +47,11 @@ export default function SettingsScreen() {
             </Text>
           </View>
         ) : (
-          <ZonePicker zones={zones} value={zone?.id ?? ""} onChange={setZoneId} />
+          <ZonePicker
+            zones={zones}
+            value={zone?.id ?? ""}
+            onChange={setZoneId}
+          />
         )}
       </Card>
 
@@ -53,17 +67,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   stateText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.faint,
   },
   errorText: {
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
     color: colors.red,
     textAlign: "center",
   },
   retry: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: "600",
     color: colors.green,
   },

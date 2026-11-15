@@ -1,6 +1,6 @@
+
 import { StyleSheet, Text } from "react-native";
 
-import { ControlPanel } from "@/components/controls/ControlPanel";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { SystemStatusCard } from "@/components/dashboard/SystemStatusCard";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -16,17 +16,27 @@ export default function OverviewScreen() {
   return (
     <Screen>
       <AppHeader />
-      {telemetry === null ? (
+
+      {telemetry === null && (
         <Card style={styles.notice}>
+          <Text style={styles.noticeTitle}>
+            Chưa có dữ liệu thiết bị
+          </Text>
+
           <Text style={styles.noticeText}>
-            Chưa nhận được dữ liệu từ ESP32. Kiểm tra thiết bị, MQTT và Backend.
+            Vui lòng kiểm tra kết nối thiết bị và hệ thống.
           </Text>
         </Card>
-      ) : null}
+      )}
+
+      {/* Thông tin môi trường */}
       <MetricsGrid />
-      <ControlPanel />
-      <SystemStatusCard />
+
+      {/* Danh sách khu vườn */}
       <ZoneList />
+
+      {/* Trạng thái hệ thống ở cuối */}
+      <SystemStatusCard />
     </Screen>
   );
 }
@@ -36,10 +46,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.amberSoft,
     borderColor: colors.amberSoft,
+    gap: spacing.xs,
+  },
+  noticeTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.amber,
   },
   noticeText: {
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 19,
     color: colors.amber,
   },
 });
