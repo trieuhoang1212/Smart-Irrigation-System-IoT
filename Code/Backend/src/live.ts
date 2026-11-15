@@ -11,10 +11,8 @@ import type { MqttGateway } from "./mqtt-gateway.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 10_000;
-const THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
-const TARGET_SYNC_COOLDOWN_MS = 10_000;
-const FLOW_SYNC_COOLDOWN_MS = 10_000;
-const RAIN_THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
+// Không gửi lại cùng một cấu hình xuống thiết bị quá dày.
+const SYNC_COOLDOWN_MS = 10_000;
 
 const latestByDevice = new Map<string, Telemetry>();
 const onlineByDevice = new Map<string, boolean>();
@@ -83,19 +81,16 @@ function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
     if (!setting || setting.threshold === zone.threshold) continue;
 
     const key = `${telemetry.deviceId}:${zone.id}`;
-    if (now - (lastThresholdSyncAt.get(key) ?? 0) < THRESHOLD_SYNC_COOLDOWN_MS) continue;
+    if (now - (lastThresholdSyncAt.get(key) ?? 0) < SYNC_COOLDOWN_MS) continue;
+    lastThresholdSyncAt.set(key, now);
 
     const command = `SET_THRESHOLD_${zone.id}_${Math.round(setting.threshold)}`;
-    void gateway.publish(command)
-      .then(() => {
-        lastThresholdSyncAt.set(key, Date.now());
-      })
-      .catch((error) => {
-        console.error(
-          `Threshold resync failed (${zone.id}):`,
-          error instanceof Error ? error.message : error,
-        );
-      });
+    void gateway.publish(command).catch((error) => {
+      console.error(
+        `Threshold resync failed (${zone.id}):`,
+        error instanceof Error ? error.message : error,
+      );
+    });
     console.log(`Threshold resync ${zone.id}: ${zone.threshold} -> ${setting.threshold}`);
   }
 }
@@ -110,14 +105,16 @@ function resyncTargets(telemetry: Telemetry, gateway: MqttGateway) {
   const now = Date.now();
 
   for (const zone of telemetry.zones) {
+    // Firmware cũ chưa gửi mục tiêu; không đẩy lệnh lặp lại ngoài ý muốn.
+    if (zone.targetSeconds === undefined) continue;
     const setting = byZone.get(zone.id);
     if (!setting) continue;
 
     const targetSeconds = targetSecondsFor(setting.flowLitersPerHour, setting.targetLiters);
-    if ((zone.targetSeconds ?? 0) === targetSeconds) continue;
+    if (zone.targetSeconds === targetSeconds) continue;
 
     const key = `${telemetry.deviceId}:${zone.id}`;
-    if (now - (lastTargetSyncAt.get(key) ?? 0) < TARGET_SYNC_COOLDOWN_MS) continue;
+    if (now - (lastTargetSyncAt.get(key) ?? 0) < SYNC_COOLDOWN_MS) continue;
     lastTargetSyncAt.set(key, now);
 
     const command = `SET_TARGET_${zone.id}_${targetSeconds}`;
@@ -148,7 +145,7 @@ function resyncFlows(telemetry: Telemetry, gateway: MqttGateway) {
     if (setting.flowLitersPerHour === zone.flowLph) continue;
 
     const key = `${telemetry.deviceId}:${zone.id}`;
-    if (now - (lastFlowSyncAt.get(key) ?? 0) < FLOW_SYNC_COOLDOWN_MS) continue;
+    if (now - (lastFlowSyncAt.get(key) ?? 0) < SYNC_COOLDOWN_MS) continue;
     lastFlowSyncAt.set(key, now);
 
     const command = `SET_FLOW_${zone.id}_${setting.flowLitersPerHour}`;
@@ -170,7 +167,7 @@ function resyncRainThreshold(telemetry: Telemetry, gateway: MqttGateway) {
   if (stored === telemetry.rainThreshold) return;
 
   const now = Date.now();
-  if (now - (lastRainThresholdSyncAt.get(telemetry.deviceId) ?? 0) < RAIN_THRESHOLD_SYNC_COOLDOWN_MS) {
+  if (now - (lastRainThresholdSyncAt.get(telemetry.deviceId) ?? 0) < SYNC_COOLDOWN_MS) {
     return;
   }
   lastRainThresholdSyncAt.set(telemetry.deviceId, now);
@@ -189,13 +186,13 @@ function restoreSoilAfterReboot(
   current: Telemetry,
   gateway: MqttGateway,
 ) {
-  if (
-    !previous ||
-    current.uptimeMs === undefined ||
-    (previous?.uptimeMs !== undefined && current.uptimeMs >= previous.uptimeMs)
-  ) {
+  if (!previous || current.uptimeMs === undefined || previous.uptimeMs === undefined) {
     return;
   }
+
+  // Uptime là số 32-bit nên sau ~49,7 ngày sẽ quay về 0; đó không phải reboot.
+  const wrapped = previous.uptimeMs > 0xffff0000 && current.uptimeMs < 0x00010000;
+  if (wrapped || current.uptimeMs + 5000 >= previous.uptimeMs) return;
 
   for (const zone of previous.zones) {
     const command = `SET_SOIL_${zone.id}_${Math.round(zone.moisture)}`;
@@ -216,16 +213,19 @@ function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean
   if (command === "MODE_MANUAL") return telemetry.mode === "manual";
   if (command === "WEATHER_GATE_ON") return telemetry.weatherGate;
   if (command === "WEATHER_GATE_OFF") return !telemetry.weatherGate;
-  // Firmware chỉ nhận lệnh bơm toàn vườn ở chế độ manual.
-  if (command === "PUMP_ON") return telemetry.mode === "manual" && telemetry.zones.every((zone) => zone.pump);
-  if (command === "PUMP_OFF") return telemetry.mode === "manual" && telemetry.zones.every((zone) => !zone.pump);
+  // Firmware chỉ nhận lệnh bơm ở chế độ manual; hết nước/khoá 10 phút có thể chặn bơm
+  // nên chỉ xác nhận thiết bị đã nhận lệnh, không đòi hỏi mọi vùng phải chạy.
+  if (command === "PUMP_ON" || command === "PUMP_OFF") return telemetry.mode === "manual";
 
   const zonePattern = ZONE_IDS.join("|");
   const pump = command.match(new RegExp(`^(PUMP_ON|PUMP_OFF)_(${zonePattern})$`));
-  if (pump) return telemetry.zones.find((zone) => zone.id === pump[2])?.pump === (pump[1] === "PUMP_ON");
+  if (pump) return telemetry.mode === "manual";
 
   const threshold = command.match(new RegExp(`^SET_THRESHOLD_(${zonePattern})_(\\d{1,3})$`));
   if (threshold) return telemetry.zones.find((zone) => zone.id === threshold[1])?.threshold === Number(threshold[2]);
+
+  const target = command.match(new RegExp(`^SET_TARGET_(${zonePattern})_(\\d{1,3})$`));
+  if (target) return telemetry.zones.find((zone) => zone.id === target[1])?.targetSeconds === Number(target[2]);
 
   const flow = command.match(new RegExp(`^SET_FLOW_(${zonePattern})_(\\d{1,3})$`));
   if (flow) return telemetry.zones.find((zone) => zone.id === flow[1])?.flowLph === Number(flow[2]);
@@ -343,7 +343,8 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
       data: telemetry,
       online: onlineByDevice.get(deviceId) ?? false,
     });
-    confirmPendingCommands(telemetry);
+    // Retained chỉ là snapshot cũ nên không dùng để xác nhận lệnh vừa gửi.
+    if (!meta.retained) confirmPendingCommands(telemetry);
   });
 
   deviceWatchdog = setInterval(() => {

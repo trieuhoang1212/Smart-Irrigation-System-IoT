@@ -2,7 +2,7 @@ import { db } from "./db.js";
 import type { Telemetry } from "./domain.js";
 import { getZoneSetting } from "./zone-settings-repository.js";
 
-export type CommandStatus = "pending" | "confirmed" | "timeout" | "failed";
+export type CommandStatus = "pending" | "confirmed" | "timeout";
 
 export type HistoryRow = {
   recordedAt: number;
@@ -36,6 +36,7 @@ export type HistoryQuery = {
   bucketMs?: number;
 };
 
+// Giới hạn số điểm trả về cho mỗi zone, không phải tổng số dòng của mọi zone.
 const DEFAULT_HISTORY_LIMIT = 2000;
 const MAX_HISTORY_LIMIT = 10000;
 
@@ -72,18 +73,15 @@ function recordedAtOf(telemetry: Telemetry): number {
 }
 
 const upsertLatest = db.prepare(`
-  INSERT INTO latest_telemetry (device_id, payload, received_at, updated_at)
-  VALUES (?, ?, ?, ?)
-  ON CONFLICT(device_id) DO UPDATE SET
-    payload = excluded.payload,
-    received_at = excluded.received_at,
-    updated_at = excluded.updated_at
+  INSERT INTO latest_telemetry (device_id, payload)
+  VALUES (?, ?)
+  ON CONFLICT(device_id) DO UPDATE SET payload = excluded.payload
 `);
 
 const insertSample = db.prepare(`
   INSERT INTO telemetry_samples
-    (device_id, mode, temperature, humidity, rain, raining, weather_gate, pump, recorded_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (device_id, mode, temperature, humidity, rain, raining, recorded_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
 const insertZoneSample = db.prepare(`
@@ -97,10 +95,14 @@ const LIVE_GAP_MS = 60_000;
 // Dữ liệu demo ghi 5 phút/lần nên khi dựng lại lịch sử cần khoảng đệm lớn hơn.
 const BACKFILL_GAP_MS = 15 * 60_000;
 
+// Chạy quá lâu không có telemetry thì coi như đã dừng, tránh hiện lần tưới ảo.
+const OPEN_RUN_STALE_MS = 15 * 60_000;
+
 type OpenWateringRun = {
   id: number;
   started_at: number;
   last_seen_at: number;
+  flow_lph: number;
 };
 
 type WateringDbRow = {
@@ -126,15 +128,15 @@ export type ZoneWateringOverview = {
 };
 
 const findOpenWateringRun = db.prepare(`
-  SELECT id, started_at, last_seen_at FROM watering_runs
+  SELECT id, started_at, last_seen_at, flow_lph FROM watering_runs
   WHERE device_id = ? AND zone_id = ? AND ended_at IS NULL
   ORDER BY id DESC
   LIMIT 1
 `);
 
 const insertWateringRun = db.prepare(`
-  INSERT INTO watering_runs (device_id, zone_id, started_at, last_seen_at)
-  VALUES (?, ?, ?, ?)
+  INSERT INTO watering_runs (device_id, zone_id, started_at, last_seen_at, flow_lph)
+  VALUES (?, ?, ?, ?, ?)
 `);
 
 const touchWateringRun = db.prepare(
@@ -158,7 +160,10 @@ function finishWateringRun(
   zoneId: string,
 ): void {
   const seconds = Math.max(0, (endedAt - run.started_at) / 1000);
-  const flow = getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
+  // Run cũ (backfill) chưa lưu lưu lượng thì tạm dùng cấu hình hiện tại.
+  const flow = run.flow_lph > 0
+    ? run.flow_lph
+    : getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
   closeWateringRun.run(endedAt, endedAt, seconds, roundLiters((seconds / 3600) * flow), run.id);
 }
 
@@ -172,21 +177,25 @@ function trackWateringSample(
   const open = findOpenWateringRun.get(deviceId, zoneId) as OpenWateringRun | undefined;
 
   if (pumpOn) {
+    const flow = getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
     if (open && recordedAt - open.last_seen_at > gapMs) {
       finishWateringRun(open, open.last_seen_at, deviceId, zoneId);
-      insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt);
+      insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt, flow);
       return;
     }
     if (open) {
       touchWateringRun.run(recordedAt, open.id);
       return;
     }
-    insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt);
+    insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt, flow);
     return;
   }
 
   if (!open) return;
-  const endedAt = recordedAt - open.last_seen_at <= gapMs ? recordedAt : open.last_seen_at;
+  // Bơm tắt ở giữa hai mẫu; lấy điểm giữa để không luôn cộng dư một chu kỳ.
+  const endedAt = recordedAt - open.last_seen_at <= gapMs
+    ? Math.round((open.last_seen_at + recordedAt) / 2)
+    : open.last_seen_at;
   finishWateringRun(open, endedAt, deviceId, zoneId);
 }
 
@@ -194,7 +203,7 @@ const persistTelemetry = db.transaction((telemetry: Telemetry) => {
   const recordedAt = recordedAtOf(telemetry);
   const payload = JSON.stringify(telemetry);
 
-  upsertLatest.run(telemetry.deviceId, payload, telemetry.receivedAt, recordedAt);
+  upsertLatest.run(telemetry.deviceId, payload);
 
   const sample = insertSample.run(
     telemetry.deviceId,
@@ -203,8 +212,6 @@ const persistTelemetry = db.transaction((telemetry: Telemetry) => {
     telemetry.humidity,
     telemetry.rain,
     telemetry.raining ? 1 : 0,
-    telemetry.weatherGate ? 1 : 0,
-    telemetry.pump ? 1 : 0,
     recordedAt,
   );
   const sampleId = Number(sample.lastInsertRowid);
@@ -269,6 +276,12 @@ const selectTodayRuns = db.prepare(`
   GROUP BY zone_id
 `);
 
+const selectOpenRuns = db.prepare(`
+  SELECT zone_id, started_at, last_seen_at, flow_lph
+  FROM watering_runs
+  WHERE device_id = ? AND ended_at IS NULL
+`);
+
 const backfillWatering = db.transaction((deviceId: string, since: number) => {
   const rows = selectRecentPumpSamples.all(deviceId, since) as PumpSampleRow[];
   for (const row of rows) {
@@ -322,6 +335,37 @@ export function getWateringOverview(
     };
     current.todayLiters = roundLiters(row.liters);
     current.todayRuns = row.runs;
+    overview.set(row.zone_id, current);
+  }
+
+  // Lần tưới đang chạy: hiện số liệu tạm tính để UI không bị 0 L trong lúc bơm.
+  const now = Date.now();
+  for (const row of selectOpenRuns.all(deviceId) as Array<{
+    zone_id: string;
+    started_at: number;
+    last_seen_at: number;
+    flow_lph: number;
+  }>) {
+    if (now - row.last_seen_at > OPEN_RUN_STALE_MS) continue;
+
+    const seconds = Math.max(0, (row.last_seen_at - row.started_at) / 1000);
+    const liters = roundLiters((seconds / 3600) * row.flow_lph);
+    const current = overview.get(row.zone_id) ?? {
+      zoneId: row.zone_id,
+      lastRun: null,
+      todayLiters: 0,
+      todayRuns: 0,
+    };
+    current.lastRun = {
+      startedAt: row.started_at,
+      endedAt: row.last_seen_at,
+      seconds: Math.round(seconds),
+      liters,
+    };
+    if (row.started_at >= since) {
+      current.todayRuns += 1;
+      current.todayLiters = roundLiters(current.todayLiters + liters);
+    }
     overview.set(row.zone_id, current);
   }
 
@@ -383,43 +427,59 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
           SELECT *,
             ROW_NUMBER() OVER (PARTITION BY bucket, zone_id ORDER BY recorded_at DESC) AS position
           FROM bucketed
+        ),
+        grouped AS (
+          SELECT
+            bucket * :bucket AS recorded_at,
+            zone_id,
+            AVG(moisture) AS moisture,
+            AVG(temperature) AS temperature,
+            AVG(humidity) AS humidity,
+            AVG(rain) AS rain,
+            MAX(CASE WHEN position = 1 THEN threshold END) AS threshold,
+            MAX(CASE WHEN position = 1 THEN stop_threshold END) AS stop_threshold,
+            MAX(CASE WHEN position = 1 THEN pump END) AS pump,
+            MAX(CASE WHEN position = 1 THEN raining END) AS raining,
+            MAX(CASE WHEN position = 1 THEN mode END) AS mode
+          FROM ranked
+          GROUP BY bucket, zone_id
+        ),
+        numbered AS (
+          SELECT *,
+            ROW_NUMBER() OVER (PARTITION BY zone_id ORDER BY recorded_at DESC) AS zone_position
+          FROM grouped
         )
-        SELECT
-          bucket * :bucket AS recorded_at,
-          zone_id,
-          AVG(moisture) AS moisture,
-          AVG(temperature) AS temperature,
-          AVG(humidity) AS humidity,
-          AVG(rain) AS rain,
-          MAX(CASE WHEN position = 1 THEN threshold END) AS threshold,
-          MAX(CASE WHEN position = 1 THEN stop_threshold END) AS stop_threshold,
-          MAX(CASE WHEN position = 1 THEN pump END) AS pump,
-          MAX(CASE WHEN position = 1 THEN raining END) AS raining,
-          MAX(CASE WHEN position = 1 THEN mode END) AS mode
-        FROM ranked
-        GROUP BY bucket, zone_id
-        ORDER BY bucket DESC
-        LIMIT :limit
+        SELECT recorded_at, zone_id, moisture, temperature, humidity, rain,
+               threshold, stop_threshold, pump, raining, mode
+        FROM numbered
+        WHERE zone_position <= :limit
+        ORDER BY recorded_at ASC
       `)
       .all({ ...params, bucket: Math.max(1000, Math.floor(query.bucketMs)), limit }) as HistoryDbRow[];
 
-    return rows.reverse().map(toHistoryRow);
+    return rows.map(toHistoryRow);
   }
 
   const rows = db
     .prepare(`
-      SELECT
-        z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
-        s.temperature, s.humidity, s.rain, s.raining, s.mode
-      FROM telemetry_zone_samples z
-      JOIN telemetry_samples s ON s.id = z.sample_id
-      WHERE ${filters.join(" AND ")}
-      ORDER BY z.recorded_at DESC
-      LIMIT :limit
+      WITH ranked AS (
+        SELECT
+          z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
+          s.temperature, s.humidity, s.rain, s.raining, s.mode,
+          ROW_NUMBER() OVER (PARTITION BY z.zone_id ORDER BY z.recorded_at DESC) AS zone_position
+        FROM telemetry_zone_samples z
+        JOIN telemetry_samples s ON s.id = z.sample_id
+        WHERE ${filters.join(" AND ")}
+      )
+      SELECT recorded_at, zone_id, moisture, threshold, stop_threshold, pump,
+             temperature, humidity, rain, raining, mode
+      FROM ranked
+      WHERE zone_position <= :limit
+      ORDER BY recorded_at ASC
     `)
     .all({ ...params, limit }) as HistoryDbRow[];
 
-  return rows.reverse().map(toHistoryRow);
+  return rows.map(toHistoryRow);
 }
 
 function toHistoryRow(row: HistoryDbRow): HistoryRow {
@@ -495,6 +555,8 @@ export function pruneHistory(retentionDays: number): number {
 
   db.prepare("DELETE FROM command_log WHERE created_at < ?").run(cutoff);
   db.prepare("DELETE FROM zone_setting_changes WHERE changed_at < ?").run(cutoff);
+  // last_seen_at cũng đóng vai trò "lần cuối còn hoạt động" cho run đang mở bị bỏ dở.
+  db.prepare("DELETE FROM watering_runs WHERE last_seen_at < ?").run(cutoff);
 
   return removedSamples.changes;
 }
