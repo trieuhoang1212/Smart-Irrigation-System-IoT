@@ -87,8 +87,6 @@
     { "type": "wokwi-relay-module", "id": "relay4", "top": 235, "left": -28.8, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay5", "top": 310, "left": -28.8, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay6", "top": 385, "left": -28.8, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd1", "top": 134.4, "left": -250.2, "attrs": {} },
-    { "type": "wokwi-vcc", "id": "vcc1", "top": 77.56, "left": -249.6, "attrs": {} },
     { "type": "wokwi-servo", "id": "servo1", "top": -11.6, "left": 115.2, "attrs": {} },
     {
       "type": "wokwi-hc-sr04",
@@ -151,8 +149,6 @@
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
-    [ "vcc1:VCC", "bb1:tp.1", "red", [ "v9.6" ] ],
-    [ "gnd1:GND", "bb1:tn.1", "black", [ "v0" ] ],
     [ "pot1:GND", "bb1:bn.1", "black", [] ],
     [ "pot1:VCC", "bb1:bp.1", "red", [] ],
     [ "pot2:GND", "bb1:bn.2", "black", [] ],
