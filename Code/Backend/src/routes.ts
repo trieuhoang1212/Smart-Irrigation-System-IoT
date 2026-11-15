@@ -411,7 +411,21 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    response.json({ ...setting, profile, appliedRemotely, targetSynced });
+    // Lưu lượng quyết định tốc độ ẩm lên trong mô phỏng và thời gian chạy đủ mục tiêu.
+    let flowSynced = false;
+    if (irrigation.flowLitersPerHour !== undefined && setting.flowLitersPerHour !== null) {
+      try {
+        await gateway.publish(`SET_FLOW_${zoneId}_${setting.flowLitersPerHour}`);
+        flowSynced = true;
+      } catch (error) {
+        console.error(
+          "Flow saved but MQTT publish failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    response.json({ ...setting, profile, appliedRemotely, targetSynced, flowSynced });
   });
 
   const photoParser = raw({

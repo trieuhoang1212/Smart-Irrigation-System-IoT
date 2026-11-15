@@ -10,7 +10,7 @@ export const ZONE_PROFILE_LIMITS = {
   targetLiters: { min: 0.1, max: 20 },
 } as const;
 
-// Firmware dừng bơm thủ công tối đa 10 phút/lần, nên mục tiêu dài hơn sẽ không có cảnh báo.
+// Firmware dừng bơm thủ công khi đạt mục tiêu, với giới hạn an toàn 10 phút/lần.
 export function targetSecondsFor(
   flowLitersPerHour: number | null | undefined,
   targetLiters: number | null | undefined,
@@ -28,6 +28,8 @@ export type ZoneState = {
   pump: boolean;
   // Firmware mới gửi thêm mục tiêu thời gian chạy và cờ vượt mục tiêu thủ công.
   targetSeconds?: number;
+  // Lưu lượng đầu tưới firmware đang dùng, để Backend phát hiện lệch và đồng bộ lại.
+  flowLph?: number;
   over?: boolean;
 };
 
@@ -38,6 +40,7 @@ export type TankState = {
 
 export type Telemetry = {
   deviceId: string;
+  uptimeMs?: number;
   mode: "auto" | "manual";
   temperature: number | null;
   humidity: number | null;
@@ -101,6 +104,9 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
       targetSeconds: zone.targetSeconds === undefined
         ? undefined
         : numberInRange(zone.targetSeconds, `${id}.targetSeconds`, 0, 3600),
+      flowLph: zone.flowLph === undefined
+        ? undefined
+        : numberInRange(zone.flowLph, `${id}.flowLph`, 1, 200),
       over: zone.over === undefined ? undefined : booleanValue(zone.over, `${id}.over`),
     });
   });
@@ -125,6 +131,9 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
 
   return {
     deviceId: expectedDeviceId,
+    uptimeMs: raw.uptimeMs === undefined
+      ? undefined
+      : numberInRange(raw.uptimeMs, "uptimeMs", 0, 4294967295),
     mode: raw.mode,
     temperature: nullableNumberInRange(raw.temperature, "temperature", -40, 125),
     humidity: nullableNumberInRange(raw.humidity, "humidity", 0, 100),

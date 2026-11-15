@@ -13,6 +13,7 @@ const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 10_000;
 const THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
 const TARGET_SYNC_COOLDOWN_MS = 10_000;
+const FLOW_SYNC_COOLDOWN_MS = 10_000;
 const RAIN_THRESHOLD_SYNC_COOLDOWN_MS = 10_000;
 
 const latestByDevice = new Map<string, Telemetry>();
@@ -21,6 +22,7 @@ const lastLiveAtByDevice = new Map<string, number>();
 const lastHistoryWriteByDevice = new Map<string, number>();
 const lastThresholdSyncAt = new Map<string, number>();
 const lastTargetSyncAt = new Map<string, number>();
+const lastFlowSyncAt = new Map<string, number>();
 const lastRainThresholdSyncAt = new Map<string, number>();
 
 type PendingCommand = {
@@ -82,15 +84,18 @@ function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
 
     const key = `${telemetry.deviceId}:${zone.id}`;
     if (now - (lastThresholdSyncAt.get(key) ?? 0) < THRESHOLD_SYNC_COOLDOWN_MS) continue;
-    lastThresholdSyncAt.set(key, now);
 
     const command = `SET_THRESHOLD_${zone.id}_${Math.round(setting.threshold)}`;
-    void gateway.publish(command).catch((error) => {
-      console.error(
-        `Threshold resync failed (${zone.id}):`,
-        error instanceof Error ? error.message : error,
-      );
-    });
+    void gateway.publish(command)
+      .then(() => {
+        lastThresholdSyncAt.set(key, Date.now());
+      })
+      .catch((error) => {
+        console.error(
+          `Threshold resync failed (${zone.id}):`,
+          error instanceof Error ? error.message : error,
+        );
+      });
     console.log(`Threshold resync ${zone.id}: ${zone.threshold} -> ${setting.threshold}`);
   }
 }
@@ -126,6 +131,37 @@ function resyncTargets(telemetry: Telemetry, gateway: MqttGateway) {
   }
 }
 
+function resyncFlows(telemetry: Telemetry, gateway: MqttGateway) {
+  const settings = getZoneSettings(telemetry.deviceId);
+  if (settings.length === 0) return;
+
+  const byZone = new Map(
+    settings.map((setting) => [setting.zoneId as string, setting]),
+  );
+  const now = Date.now();
+
+  for (const zone of telemetry.zones) {
+    // Firmware cũ chưa gửi lưu lượng; không đẩy lệnh để tránh đổi hành vi ngoài ý muốn.
+    if (zone.flowLph === undefined) continue;
+    const setting = byZone.get(zone.id);
+    if (!setting || setting.flowLitersPerHour === null) continue;
+    if (setting.flowLitersPerHour === zone.flowLph) continue;
+
+    const key = `${telemetry.deviceId}:${zone.id}`;
+    if (now - (lastFlowSyncAt.get(key) ?? 0) < FLOW_SYNC_COOLDOWN_MS) continue;
+    lastFlowSyncAt.set(key, now);
+
+    const command = `SET_FLOW_${zone.id}_${setting.flowLitersPerHour}`;
+    void gateway.publish(command).catch((error) => {
+      console.error(
+        `Flow resync failed (${zone.id}):`,
+        error instanceof Error ? error.message : error,
+      );
+    });
+    console.log(`Flow resync ${zone.id}: ${zone.flowLph} -> ${setting.flowLitersPerHour} L/h`);
+  }
+}
+
 function resyncRainThreshold(telemetry: Telemetry, gateway: MqttGateway) {
   // Firmware cũ chưa gửi ngưỡng mưa; không đẩy lệnh để tránh đổi hành vi ngoài ý muốn.
   if (telemetry.rainThreshold === undefined) return;
@@ -148,6 +184,33 @@ function resyncRainThreshold(telemetry: Telemetry, gateway: MqttGateway) {
   console.log(`Rain threshold resync: ${telemetry.rainThreshold} -> ${stored}`);
 }
 
+function restoreSoilAfterReboot(
+  previous: Telemetry | undefined,
+  current: Telemetry,
+  gateway: MqttGateway,
+) {
+  if (
+    !previous ||
+    current.uptimeMs === undefined ||
+    (previous?.uptimeMs !== undefined && current.uptimeMs >= previous.uptimeMs)
+  ) {
+    return;
+  }
+
+  for (const zone of previous.zones) {
+    const command = `SET_SOIL_${zone.id}_${Math.round(zone.moisture)}`;
+    void gateway.publish(command).catch((error) => {
+      console.error(
+        `Soil restore failed (${zone.id}):`,
+        error instanceof Error ? error.message : error,
+      );
+    });
+  }
+  console.log(
+    `Device reboot detected (${previous.uptimeMs} -> ${current.uptimeMs} ms); restoring soil state`,
+  );
+}
+
 function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean {
   if (command === "MODE_AUTO") return telemetry.mode === "auto";
   if (command === "MODE_MANUAL") return telemetry.mode === "manual";
@@ -163,6 +226,9 @@ function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean
 
   const threshold = command.match(new RegExp(`^SET_THRESHOLD_(${zonePattern})_(\\d{1,3})$`));
   if (threshold) return telemetry.zones.find((zone) => zone.id === threshold[1])?.threshold === Number(threshold[2]);
+
+  const flow = command.match(new RegExp(`^SET_FLOW_(${zonePattern})_(\\d{1,3})$`));
+  if (flow) return telemetry.zones.find((zone) => zone.id === flow[1])?.flowLph === Number(flow[2]);
 
   const rainThreshold = command.match(/^SET_RAIN_THRESHOLD_(\d{1,3})$/);
   if (rainThreshold) return telemetry.rainThreshold === Number(rainThreshold[1]);
@@ -233,6 +299,8 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
   unsubscribeTelemetry = gateway.onTelemetry((telemetry, meta) => {
     const deviceId = telemetry.deviceId;
     const wasKnown = latestByDevice.has(deviceId);
+    const previousTelemetry = latestByDevice.get(deviceId);
+    if (!meta.retained) restoreSoilAfterReboot(previousTelemetry, telemetry, gateway);
     latestByDevice.set(deviceId, telemetry);
 
     // Live state vẫn 2s/lần, nhưng history chỉ ghi 10s/lần cho nhẹ DB.
@@ -248,9 +316,15 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
       }
     }
 
-    resyncThresholds(telemetry, gateway);
-    resyncTargets(telemetry, gateway);
-    resyncRainThreshold(telemetry, gateway);
+    // Retained telemetry chỉ là snapshot cũ, không dùng để gửi lệnh:
+    // ESP32 có thể đang offline nên command MQTT sẽ bị mất.
+    // Chờ telemetry live kế tiếp để chắc chắn thiết bị đã online và nhận lệnh.
+    if (!meta.retained) {
+      resyncThresholds(telemetry, gateway);
+      resyncTargets(telemetry, gateway);
+      resyncFlows(telemetry, gateway);
+      resyncRainThreshold(telemetry, gateway);
+    }
 
     if (meta.retained) {
       // Retained message chỉ là snapshot cuối, không chứng minh thiết bị đang chạy.
