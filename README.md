@@ -81,7 +81,7 @@ flowchart LR
 
 - Tự động tưới theo ngưỡng riêng của từng khu vực.
 - Hysteresis hai ngưỡng, hạn chế bơm đóng cắt liên tục.
-- Weather Gate: khả năng mưa ≥ 80% thì còi + cảnh báo Web; mưa 100% thì dừng bơm cả AUTO lẫn MANUAL.
+- Weather Gate: mưa ≥ ngưỡng − 20 điểm thì còi + cảnh báo Web; mưa ≥ ngưỡng (40–100%, chỉnh từ Web) thì dừng và chặn bơm ở cả AUTO lẫn MANUAL; phải giảm dưới ngưỡng 5 điểm mới tưới lại.
 - Chuyển AUTO/MANUAL, điều khiển bơm toàn hệ thống hoặc từng vùng.
 - MANUAL đặt mục tiêu nước (lít); vượt mục tiêu thì còi và báo Web để nông dân tắt bơm.
 - Chỉnh và lưu ngưỡng từ Web; backend đồng bộ lại khi thiết bị khởi động.
@@ -147,8 +147,9 @@ flowchart LR
 ### Mô phỏng Wokwi
 
 - 6 biến trở nối trực tiếp vào sáu chân ADC, chip cảm biến mưa tùy chỉnh.
-- Chiết áp là số đo độ ẩm trực tiếp: vặn 0–100% thì Web hiện đúng 0–100% trong tối đa 2 giây.
-- Tùy chọn `SIMULATE_SOIL_DYNAMICS 1` (mặc định tắt): bơm chạy thì ẩm lên ~2%/phút, tắt thì khô ~0,5%/phút; nóng/khô hanh thì khô nhanh hơn, không khí ẩm hoặc mưa thì chậm lại.
+- Độ ẩm mô phỏng theo động học đất: bơm chạy thì ẩm tăng theo lưu lượng đầu tưới (1 L ≈ +2%, tức 2%/phút ở 60 L/giờ), tắt thì khô ~2%/phút (3,5%/phút ở 25°C); nóng thì khô nhanh hơn, không khí ẩm hoặc mưa thì chậm lại. Một vòng khô → tự tưới → đủ ẩm khoảng 15 phút để tiện demo.
+- Chiết áp là tay chỉnh nhanh: vặn đến đâu độ ẩm bám tới đó, không vặn thì giữ nguyên mô phỏng. Đặt `SIMULATE_SOIL_DYNAMICS 0` nếu muốn đọc chiết áp trực tiếp.
+- Wokwi xoá NVS mỗi lần chạy lại nên độ ẩm không giữ được giữa các lần. Firmware khởi tạo ở giữa cặp ngưỡng, và ngay khi Backend đồng bộ ngưỡng thật thì đặt lại theo cặp ngưỡng đó, nên số khởi động luôn giống nhau.
 - Nút giả lập mất mạng và nút bật/tắt bơm thủ công.
 - Slider `distance` của HC-SR04 để mô phỏng mực nước bồn.
 - Relay, servo, LCD, LED và còi hiển thị trạng thái trực quan.
@@ -279,7 +280,7 @@ Kịch bản demo 15 phút từ Web → Wokwi → Mobile: [docs/KICH_BAN_DEMO_15
 - **Chẩn đoán:** chưa có cảm biến lưu lượng/áp suất để phát hiện vỡ ống hoặc bơm hỏng.
 - **Bồn nước:** chỉ hiển thị khoảng cách cm và trạng thái cạn; chưa quy đổi %/số lít.
 - **Đồng bộ trạng thái:** vùng bị khóa do quá thời gian chưa có trong telemetry nên Web/Mobile chưa hiển thị.
-- **Mục tiêu MANUAL:** chỉ báo vượt khi mục tiêu quy đổi ra 10–600 giây (giới hạn 10 phút/vùng); mục tiêu lớn hơn không kích hoạt cảnh báo.
+- **Mục tiêu MANUAL:** tự dừng bơm khi đạt thời gian quy đổi 10–600 giây; mục tiêu lớn hơn vẫn bị giới hạn bởi thời gian an toàn 10 phút/vùng.
 - **Ước tính thời gian:** là suy đoán từ lịch sử, cần đủ mẫu khô/ướt mới hiển thị; độ ẩm đổi do mưa hoặc thay đất sẽ làm lệch.
 - **Mobile:** chưa có push notification, chưa có hồ sơ cây; chưa phải bản phát hành.
 - **Mô phỏng:** phần cứng và cảm biến đang mô phỏng trên Wokwi, chưa kiểm chứng ngoài thực địa.
