@@ -15,9 +15,9 @@
 #define MANUAL_BUTTON_PIN 13
 #define TANK_ECHO_PIN 26
 
-// 0: chiết áp Wokwi là số đo trực tiếp (vặn 0-100% thì Web đúng 0-100%).
-// 1: bật mô phỏng động học đất (bơm chạy thì ẩm lên, tắt thì khô dần).
-#define SIMULATE_SOIL_DYNAMICS 0
+// 1: mô phỏng động học đất (bơm chạy thì ẩm lên, tắt thì khô dần), chiết áp là tay chỉnh.
+// 0: chiết áp là số đo trực tiếp, bơm chạy không làm đổi số đo.
+#define SIMULATE_SOIL_DYNAMICS 1
 
 // Hệ thống 6 khu vực cây trồng (T001 - T006)
 #define ZONE_COUNT 6
@@ -28,7 +28,7 @@
 #define MASTER_VALVE_OPEN 90
 const int soilAdcPins[ZONE_COUNT] = {32, 33, 34, 35, 36, 39};
 
-// Rơ-le điều khiển van từng luống. GPIO35 input-only nên chỉ dùng cho nút nhấn.
+// Rơ-le điều khiển van từng luống (Active LOW).
 const int relayPins[ZONE_COUNT] = {16, 17, 18, 23, 15, 19};
 
 // Ngưỡng tưới tương ứng (T001: Rau muống, T002: Cà chua, T003: Cà rốt, T004: Khoai lang, T005: Dưa leo, T006: Xà lách)
@@ -37,6 +37,8 @@ int moistureOn[ZONE_COUNT]  = {60, 45, 35, 30, 45, 55};
 int moistureOff[ZONE_COUNT] = {80, 65, 55, 50, 65, 75};
 // Thời gian tưới thủ công để đạt mục tiêu nước (giây), Backend đẩy qua SET_TARGET_T00X_YY.
 int zoneTargetSeconds[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
+// Lưu lượng đầu tưới (L/giờ) của từng vùng, Backend đẩy qua SET_FLOW_T00X_YY.
+int zoneFlowLph[ZONE_COUNT] = {48, 60, 60, 60, 60, 48};
 const char* zoneNames[ZONE_COUNT] = {"T001", "T002", "T003", "T004", "T005", "T006"};
 
 const char* mqtt_server = "host.wokwi.internal";
@@ -60,8 +62,16 @@ int moisturePercent[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 float soilMoisture[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 float soilManualTarget[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 bool soilManualChase[ZONE_COUNT] = {false, false, false, false, false, false};
+bool soilStateRestored[ZONE_COUNT] = {false, false, false, false, false, false};
 int lastPotValue[ZONE_COUNT] = {-1, -1, -1, -1, -1, -1};
 float soilPotDrift[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
+// Wokwi xoá NVS mỗi lần chạy lại: vài giây đầu mới có ngưỡng thật từ Backend.
+// Trong cửa sổ này, độ ẩm khởi tạo được đặt lại theo ngưỡng vừa đồng bộ.
+bool soilSeedPending[ZONE_COUNT] = {true, true, true, true, true, true};
+const unsigned long SOIL_SEED_WINDOW_MS = 30000UL;
+const unsigned long SOIL_PERSIST_INTERVAL_MS = 30000UL;
+unsigned long lastSoilPersistAt = 0;
+float lastPersistedSoil[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 #endif
 int zoneStartMoisture[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 int rainPercent = 0;
@@ -72,7 +82,7 @@ float temperature = 0.0;
 float humidity = 0.0;
 
 unsigned long previousMillis = 0;
-const long interval = 2000;
+const unsigned long CONTROL_INTERVAL_MS = 2000UL;
 
 // Bảo vệ khi đi vắng: giới hạn thời gian tưới và thời gian giữ chế độ MANUAL.
 // Giảm xuống 1-2 phút nếu cần demo nhanh.
@@ -85,12 +95,20 @@ const unsigned long ZONE_COOLDOWN_MS = 2UL * 60UL * 1000UL;
 const int RAIN_THRESHOLD_MIN = 40;
 const int RAIN_THRESHOLD_MAX = 100;
 const int RAIN_WARN_OFFSET = 20;
+// Mưa phải giảm dưới ngưỡng 5 điểm mới coi là tạnh, tránh bơm bật/tắt quanh ngưỡng.
+const int RAIN_HYSTERESIS = 5;
+// Ngưỡng dừng = ngưỡng bật + 20 điểm, giống Backend (deriveStopThreshold).
+const int STOP_OFFSET = 20;
 const unsigned long RAIN_WARN_INTERVAL_MS = 15000UL;
 const unsigned long OVERWATER_INTERVAL_MS = 10000UL;
 int rainThreshold = RAIN_THRESHOLD_MAX;
 int rainWarnThreshold = RAIN_THRESHOLD_MAX - RAIN_WARN_OFFSET;
-const float SOIL_WET_PER_MIN = 2.0f;       // %/phút khi bơm chạy
-const float SOIL_DRY_PER_MIN = 0.5f;       // %/phút khi bơm tắt, ở 25°C / 60% RH
+// Độ ẩm tăng theo lượng nước nhận được: 1 L nâng khoảng 2% độ ẩm vùng.
+// Tốc độ tăng (%/phút) = SOIL_PERCENT_PER_LITER * lưu lượng đầu tưới (L/giờ) / 60.
+const float SOIL_PERCENT_PER_LITER = 2.0f;
+// Ở 25°C / 60% RH; nóng thì nhanh hơn, ẩm/mưa thì chậm lại (xem soilDryingFactor).
+// Chọn mức để vòng demo khô -> tự tưới -> đủ ẩm gói trong khoảng 15 phút.
+const float SOIL_DRY_PER_MIN = 3.5f;
 // Chiết áp là tay điều khiển để test: bám gần như tức thì trong 1 chu kỳ 2 giây.
 const float SOIL_MANUAL_PER_SEC = 20.0f;
 const unsigned long SOIL_STEP_CAP_MS = 10000UL;
@@ -99,6 +117,8 @@ const float TANK_EMPTY_CM = 80.0;
 const float TANK_REFILL_CM = 60.0;
 // Quá thời gian này không đọc được thì bỏ số đo cũ, tránh Web hiển thị mực nước đã lỗi thời.
 const unsigned long TANK_STALE_MS = 10000UL;
+// Một xung nhiễu không đủ để đổi trạng thái bồn: cần 2 lần đọc liên tiếp.
+const int TANK_CONFIRM_READS = 2;
 unsigned long zoneStartedAt[ZONE_COUNT] = {0};
 unsigned long zoneCooldownUntil[ZONE_COUNT] = {0};
 bool zoneLocked[ZONE_COUNT] = {false};
@@ -108,6 +128,8 @@ bool tankEmpty = false;
 bool tankValid = false;
 float tankDistanceCm = 0.0;
 unsigned long lastTankReadAt = 0;
+int tankEmptyStreak = 0;
+int tankRefillStreak = 0;
 
 bool netWasOnline = false;
 unsigned long lastWifiAttempt = 0;
@@ -210,9 +232,20 @@ void startPump(int zone) {
     Serial.println(tankEmpty ? " tank empty" : " runtime lock");
     return;
   }
+  // Chặn ngay từ đầu thay vì bật 2 giây rồi bị khối mưa tắt, tránh nháy relay.
+  if (weatherGateEnabled && isRaining) {
+    Serial.print("BLOCK ");
+    Serial.print(zoneNames[zone]);
+    Serial.println(" rain");
+    return;
+  }
   pumpRunning[zone] = true;
   zoneStartedAt[zone] = millis();
   zoneStartMoisture[zone] = moisturePercent[zone];
+#if SIMULATE_SOIL_DYNAMICS
+  // Đã có nước thật vào đất thì không chỉnh lại điểm khởi tạo nữa.
+  soilSeedPending[zone] = false;
+#endif
   digitalWrite(relayPins[zone], LOW); // Active LOW
   digitalWrite(LED_PIN, HIGH);
   masterValve.write(MASTER_VALVE_OPEN);
@@ -220,32 +253,37 @@ void startPump(int zone) {
   updateLcds();
 }
 
-void stopPump(int zone) {
+#if SIMULATE_SOIL_DYNAMICS
+void persistSoilState(int zone) {
   if (zone < 0 || zone >= ZONE_COUNT) return;
-  pumpRunning[zone] = false;
-  zoneStartedAt[zone] = 0;
-  digitalWrite(relayPins[zone], HIGH);
-  
-  bool anyRunning = false;
-  for (int i = 0; i < ZONE_COUNT; i++) {
-    if (pumpRunning[i]) {
-      anyRunning = true;
-      break;
-    }
-  }
-
-  if (!anyRunning) {
-    digitalWrite(LED_PIN, LOW);
-    masterValve.write(MASTER_VALVE_CLOSED);
-    updateLcds();
-  }
+  const String key = String("soil_") + zoneNames[zone];
+  prefs.putFloat(key.c_str(), soilMoisture[zone]);
+  lastPersistedSoil[zone] = soilMoisture[zone];
 }
+#endif
 
 bool anyPumpRunning() {
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
     if (pumpRunning[zone]) return true;
   }
   return false;
+}
+
+void stopPump(int zone) {
+  if (zone < 0 || zone >= ZONE_COUNT) return;
+  const bool wasRunning = pumpRunning[zone];
+  pumpRunning[zone] = false;
+  zoneStartedAt[zone] = 0;
+#if SIMULATE_SOIL_DYNAMICS
+  if (wasRunning) persistSoilState(zone);
+#endif
+  digitalWrite(relayPins[zone], HIGH);
+
+  if (!anyPumpRunning()) {
+    digitalWrite(LED_PIN, LOW);
+    masterValve.write(MASTER_VALVE_CLOSED);
+    updateLcds();
+  }
 }
 
 void startAllZones() {
@@ -272,6 +310,8 @@ void updateTank() {
   const unsigned long now = millis();
   const float distance = readTankDistanceCm();
   if (distance < 0 || distance > 400) {
+    tankEmptyStreak = 0;
+    tankRefillStreak = 0;
     // Cảm biến lỗi kéo dài: báo distanceCm = null thay vì phát mãi số đo cũ.
     if (tankValid && now - lastTankReadAt >= TANK_STALE_MS) {
       tankValid = false;
@@ -283,26 +323,38 @@ void updateTank() {
   tankDistanceCm = distance;
   tankValid = true;
   lastTankReadAt = now;
-  if (!tankEmpty && distance >= TANK_EMPTY_CM) {
-    tankEmpty = true;
-    Serial.println("TANK: EMPTY - stop all pumps");
-    stopAllZones();
-    beepOnce(400);
-    updateLcds();
-  } else if (tankEmpty && distance <= TANK_REFILL_CM) {
-    tankEmpty = false;
-    Serial.println("TANK: water back");
-    beepOnce(150);
-    updateLcds();
+
+  if (!tankEmpty) {
+    tankRefillStreak = 0;
+    tankEmptyStreak = distance >= TANK_EMPTY_CM ? tankEmptyStreak + 1 : 0;
+    if (tankEmptyStreak >= TANK_CONFIRM_READS) {
+      tankEmptyStreak = 0;
+      tankEmpty = true;
+      Serial.println("TANK: EMPTY - stop all pumps");
+      stopAllZones();
+      beepOnce(400);
+      updateLcds();
+    }
+  } else {
+    tankEmptyStreak = 0;
+    tankRefillStreak = distance <= TANK_REFILL_CM ? tankRefillStreak + 1 : 0;
+    if (tankRefillStreak >= TANK_CONFIRM_READS) {
+      tankRefillStreak = 0;
+      tankEmpty = false;
+      Serial.println("TANK: water back");
+      beepOnce(150);
+      updateLcds();
+    }
   }
 }
 
 #if SIMULATE_SOIL_DYNAMICS
 // Nóng thì đất khô nhanh hơn, không khí ẩm hoặc đang mưa thì khô chậm lại.
+// Sàn 0,6 giữ tốc độ khô đủ nhanh khi phòng mát để demo một vòng trong ~15 phút.
 float soilDryingFactor() {
   float factor = 1.0f;
   if (!isnan(temperature)) {
-    factor *= constrain(1.0f + (temperature - 25.0f) * 0.04f, 0.4f, 2.0f);
+    factor *= constrain(1.0f + (temperature - 25.0f) * 0.04f, 0.6f, 2.0f);
   }
   if (!isnan(humidity)) {
     factor *= constrain(1.0f - (humidity - 60.0f) * 0.008f, 0.2f, 1.5f);
@@ -321,9 +373,18 @@ void enforceRuntimeLimits() {
       Serial.println(" max runtime -> stop");
       stopPump(zone);
       zoneCooldownUntil[zone] = millis() + ZONE_COOLDOWN_MS;
-      // Chỉ khoá khi suốt lượt tưới đất không ẩm lên (cảm biến không phản hồi);
-      // nếu đất vẫn ẩm lên thì chỉ dừng do hết giờ, chu kỳ sau auto tiếp tục.
-      if (moisturePercent[zone] - zoneStartMoisture[zone] < 3) {
+      // Chỉ khoá khi suốt lượt tưới đất không ẩm lên (cảm biến không phản hồi).
+      // Ngưỡng "có ẩm lên" tính theo lưu lượng: flow nhỏ thì chỉ cần 1 điểm.
+      const int rise = moisturePercent[zone] - zoneStartMoisture[zone];
+#if SIMULATE_SOIL_DYNAMICS
+      const float expectedRise = SOIL_PERCENT_PER_LITER * zoneFlowLph[zone] *
+                                 (MAX_ZONE_RUNTIME_MS / 60000.0f) / 60.0f;
+      const int minRise = constrain(static_cast<int>(expectedRise * 0.3f), 1, 3);
+      const bool sensorStuck = expectedRise >= 1.0f && rise < minRise;
+#else
+      const bool sensorStuck = rise < 3;
+#endif
+      if (sensorStuck) {
         zoneLocked[zone] = true;
         Serial.println("SAFETY: no moisture rise -> lock zone");
       }
@@ -347,20 +408,22 @@ void enforceRuntimeLimits() {
   }
 }
 
-void updateOverTarget() {
+void enforceWaterTargets() {
   const unsigned long now = millis();
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
-    const bool over = !isAutoMode && pumpRunning[zone] && zoneTargetSeconds[zone] > 0 &&
-                      now - zoneStartedAt[zone] >=
-                        static_cast<unsigned long>(zoneTargetSeconds[zone]) * 1000UL;
-    if (over && !zoneOverTarget[zone]) {
+    zoneOverTarget[zone] = false;
+    const bool targetReached =
+      !isAutoMode && pumpRunning[zone] && zoneTargetSeconds[zone] > 0 &&
+      now - zoneStartedAt[zone] >=
+        static_cast<unsigned long>(zoneTargetSeconds[zone]) * 1000UL;
+    if (targetReached) {
       Serial.print("ALERT: ");
       Serial.print(zoneNames[zone]);
-      Serial.println(" over water target");
-      // Kêu ngay lần đầu vượt mục tiêu, sau đó lặp theo OVERWATER_INTERVAL_MS.
+      Serial.println(" water target reached -> stop pump");
+      zoneOverTarget[zone] = true;
       lastOverwaterBeepAt = now - OVERWATER_INTERVAL_MS;
+      stopPump(zone);
     }
-    zoneOverTarget[zone] = over;
   }
 }
 
@@ -375,6 +438,16 @@ bool buttonPressed(int pin, ButtonState &state) {
     return raw;
   }
   return false;
+}
+
+// Bấm nút vật lý: vào MANUAL và bật cả 6 vùng (có thể bị chặn vì bồn cạn / đang mưa).
+void startManualFromButton() {
+  manualStartedAt = millis();
+  const bool blocked = tankEmpty || (weatherGateEnabled && isRaining);
+  startAllZones();
+  Serial.println(blocked ? "BTN: manual ON (bon can hoac dang mua - bi chan)"
+                         : "BTN: manual ON (T001-T006)");
+  beepOnce(blocked ? 400 : 150);
 }
 
 void handleButtons() {
@@ -402,21 +475,13 @@ void handleButtons() {
     if (!manualOverride) {
       manualOverride = true;
       isAutoMode = false;
-      manualStartedAt = millis();
-      startAllZones();
-      Serial.println(tankEmpty ? "BTN: manual ON (tank empty, pump blocked)"
-                               : "BTN: manual ON (T001-T006)");
-      beepOnce(tankEmpty ? 400 : 150);
+      startManualFromButton();
     } else if (anyPumpRunning()) {
       stopAllZones();
       Serial.println("BTN: manual OFF (giu MANUAL)");
       beepOnce(150);
     } else {
-      manualStartedAt = millis();
-      startAllZones();
-      Serial.println(tankEmpty ? "BTN: manual ON (tank empty, pump blocked)"
-                               : "BTN: manual ON (T001-T006)");
-      beepOnce(tankEmpty ? 400 : 150);
+      startManualFromButton();
     }
     updateLcds();
   }
@@ -481,17 +546,44 @@ int readDirectMoisture(int pin) {
   return constrain(map(samples[4], 0, 4095, 0, 100), 0, 100);
 }
 
+// Chip mưa xuất PWM tối đa 90/100 ms, nên 90 mẫu HIGH tương ứng 100% mưa.
+const int RAIN_PWM_MAX_SAMPLES = 90;
+
 int readRainPercent() {
   int highSamples = 0;
   for (int sample = 0; sample < 100; sample++) {
     if (digitalRead(RAIN_DIGITAL_PIN) == HIGH) highSamples++;
     delay(1);
   }
-  return constrain(map(highSamples, 0, 90, 0, 100), 0, 100);
+  return constrain(map(highSamples, 0, RAIN_PWM_MAX_SAMPLES, 0, 100), 0, 100);
 }
 
 int readZoneMoisture(int zone) {
   return readDirectMoisture(soilAdcPins[zone]);
+}
+
+int findZoneIndex(const char* zoneId) {
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    if (strcmp(zoneNames[zone], zoneId) == 0) return zone;
+  }
+  return -1;
+}
+
+void setSimulatedSoilMoisture(int zone, int value) {
+#if SIMULATE_SOIL_DYNAMICS
+  if (zone < 0 || zone >= ZONE_COUNT) return;
+  soilMoisture[zone] = constrain(value, 0, 100);
+  soilManualTarget[zone] = soilMoisture[zone];
+  soilManualChase[zone] = false;
+  soilPotDrift[zone] = 0.0f;
+  soilStateRestored[zone] = true;
+  soilSeedPending[zone] = false;
+  moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
+  persistSoilState(zone);
+#else
+  (void)zone;
+  (void)value;
+#endif
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -531,16 +623,31 @@ void callback(char* topic, byte* payload, unsigned int length) {
       int seconds = 0;
       if (sscanf(message.c_str(), "SET_TARGET_%4[^_]_%d", zoneId, &seconds) == 2) {
         seconds = constrain(seconds, 0, static_cast<int>(MAX_ZONE_RUNTIME_MS / 1000UL));
-        for (int i = 0; i < ZONE_COUNT; i++) {
-          if (String(zoneNames[i]) == zoneId) {
-            zoneTargetSeconds[i] = seconds;
-            prefs.putInt((String("tgt_") + zoneId).c_str(), zoneTargetSeconds[i]);
-            Serial.print("Set target ");
-            Serial.print(zoneId);
-            Serial.print(" -> ");
-            Serial.print(zoneTargetSeconds[i]);
-            Serial.println("s");
-          }
+        const int zone = findZoneIndex(zoneId);
+        if (zone >= 0) {
+          zoneTargetSeconds[zone] = seconds;
+          prefs.putInt((String("tgt_") + zoneId).c_str(), seconds);
+          Serial.print("Set target ");
+          Serial.print(zoneId);
+          Serial.print(" -> ");
+          Serial.print(seconds);
+          Serial.println("s");
+        }
+      }
+    } else if (message.startsWith("SET_FLOW_")) {
+      char zoneId[5] = {0};
+      int value = 0;
+      if (sscanf(message.c_str(), "SET_FLOW_%4[^_]_%d", zoneId, &value) == 2) {
+        value = constrain(value, 1, 200);
+        const int zone = findZoneIndex(zoneId);
+        if (zone >= 0) {
+          zoneFlowLph[zone] = value;
+          prefs.putInt((String("flow_") + zoneId).c_str(), value);
+          Serial.print("Set flow ");
+          Serial.print(zoneId);
+          Serial.print(" -> ");
+          Serial.print(value);
+          Serial.println(" L/h");
         }
       }
     } else if (message.startsWith("SET_RAIN_THRESHOLD_")) {
@@ -557,17 +664,42 @@ void callback(char* topic, byte* payload, unsigned int length) {
       int value = 0;
       if (sscanf(message.c_str(), "SET_THRESHOLD_%4[^_]_%d", zoneId, &value) == 2) {
         value = constrain(value, 10, 90);
-        for (int i = 0; i < ZONE_COUNT; i++) {
-          if (String(zoneNames[i]) == zoneId) {
-            moistureOn[i] = value;
-            moistureOff[i] = constrain(value + 20, value + 5, 100);
-            prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[i]);
-            prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[i]);
-            Serial.print("Set threshold ");
-            Serial.print(zoneId);
-            Serial.print(" -> ");
-            Serial.println(value);
+        const int zone = findZoneIndex(zoneId);
+        if (zone >= 0) {
+          moistureOn[zone] = value;
+          moistureOff[zone] = constrain(value + STOP_OFFSET, value + 5, 100);
+          prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[zone]);
+          prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
+#if SIMULATE_SOIL_DYNAMICS
+          // Ngay sau khi khởi động, ngưỡng thật về muộn hơn điểm khởi tạo mặc định:
+          // đặt lại độ ẩm giữa cặp ngưỡng thật để số liệu sau reset ổn định.
+          if (soilSeedPending[zone] && !pumpRunning[zone] &&
+              millis() < SOIL_SEED_WINDOW_MS) {
+            soilMoisture[zone] = (moistureOn[zone] + moistureOff[zone]) / 2.0f;
+            soilManualTarget[zone] = soilMoisture[zone];
+            soilPotDrift[zone] = 0.0f;
+            moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
           }
+          soilSeedPending[zone] = false;
+#endif
+          Serial.print("Set threshold ");
+          Serial.print(zoneId);
+          Serial.print(" -> ");
+          Serial.println(value);
+        }
+      }
+    } else if (message.startsWith("SET_SOIL_")) {
+      char zoneId[5] = {0};
+      int value = 0;
+      if (sscanf(message.c_str(), "SET_SOIL_%4[^_]_%d", zoneId, &value) == 2) {
+        const int zone = findZoneIndex(zoneId);
+        if (zone >= 0) {
+          setSimulatedSoilMoisture(zone, value);
+          Serial.print("Set simulated moisture ");
+          Serial.print(zoneId);
+          Serial.print(" -> ");
+          Serial.print(constrain(value, 0, 100));
+          Serial.println("%");
         }
       }
     } else if (message.startsWith("PUMP_ON_")) {
@@ -576,16 +708,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if (!isAutoMode) {
         manualStartedAt = millis();
         String targetId = message.substring(8);
-        for (int i = 0; i < ZONE_COUNT; i++) {
-          if (String(zoneNames[i]) == targetId) startPump(i);
-        }
+        const int zone = findZoneIndex(targetId.c_str());
+        if (zone >= 0) startPump(zone);
       }
     } else if (message.startsWith("PUMP_OFF_")) {
       if (!isAutoMode) {
         String targetId = message.substring(9);
-        for (int i = 0; i < ZONE_COUNT; i++) {
-          if (String(zoneNames[i]) == targetId) stopPump(i);
-        }
+        const int zone = findZoneIndex(targetId.c_str());
+        if (zone >= 0) stopPump(zone);
       }
     } else if (message == "WEATHER_GATE_ON") {
       weatherGateEnabled = true;
@@ -610,6 +740,20 @@ void setup() {
     zoneTargetSeconds[i] =
       constrain(prefs.getInt(keyTarget.c_str(), 0), 0,
                 static_cast<int>(MAX_ZONE_RUNTIME_MS / 1000UL));
+    String keyFlow = String("flow_") + zoneNames[i];
+    zoneFlowLph[i] = constrain(prefs.getInt(keyFlow.c_str(), zoneFlowLph[i]), 1, 200);
+#if SIMULATE_SOIL_DYNAMICS
+    const String keySoil = String("soil_") + zoneNames[i];
+    if (prefs.isKey(keySoil.c_str())) {
+      const float savedSoil = prefs.getFloat(keySoil.c_str());
+      soilMoisture[i] = constrain(savedSoil, 0.0f, 100.0f);
+      soilManualTarget[i] = soilMoisture[i];
+      moisturePercent[i] = static_cast<int>(round(soilMoisture[i]));
+      lastPersistedSoil[i] = soilMoisture[i];
+      soilStateRestored[i] = true;
+      soilSeedPending[i] = false;
+    }
+#endif
   }
   rainThreshold = constrain(
     prefs.getInt("rain", RAIN_THRESHOLD_MAX), RAIN_THRESHOLD_MIN, RAIN_THRESHOLD_MAX);
@@ -620,7 +764,7 @@ void setup() {
   pinMode(RAIN_DIGITAL_PIN, INPUT);
   pinMode(TANK_TRIG_PIN, OUTPUT);
   pinMode(TANK_ECHO_PIN, INPUT);
-  pinMode(WIFI_BUTTON_PIN, INPUT);  // GPIO35 input-only, dùng trở kéo 10k ngoài
+  pinMode(WIFI_BUTTON_PIN, INPUT);  // Có trở kéo 10k ngoài lên 3V3
   pinMode(MANUAL_BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   noTone(BUZZER_PIN);
@@ -673,7 +817,7 @@ void loop() {
   handleButtons();
 
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
+  if (currentMillis - previousMillis >= CONTROL_INTERVAL_MS) {
 #if SIMULATE_SOIL_DYNAMICS
     const unsigned long elapsedMs =
       min(currentMillis - previousMillis, SOIL_STEP_CAP_MS);
@@ -682,7 +826,9 @@ void loop() {
 
     rainPercent = readRainPercent();
     const bool wasWarning = rainWarning;
-    isRaining = rainPercent >= rainThreshold;
+    // Bật mưa ở ngưỡng, chỉ tắt khi giảm dưới ngưỡng 5 điểm để bơm không nháy.
+    const int rainStopAt = max(0, rainThreshold - RAIN_HYSTERESIS);
+    isRaining = isRaining ? rainPercent >= rainStopAt : rainPercent >= rainThreshold;
     rainWarning = !isRaining && rainPercent >= rainWarnThreshold;
     if (rainWarning && !wasWarning) {
       Serial.println("RAIN: co the mua - canh bao");
@@ -694,15 +840,20 @@ void loop() {
     humidity = dht.readHumidity();
 
 #if SIMULATE_SOIL_DYNAMICS
-    // Đọc cảm biến độ ẩm 6 luống từ MUX 74HC4067 (C0 - C5).
+    // Bơm chạy thì đất ẩm lên, tắt thì khô dần; chiết áp đóng vai trò tay chỉnh nhanh.
     const float dtMin = elapsedMs / 60000.0f;
     const float dtSec = elapsedMs / 1000.0f;
     const float dryFactor = soilDryingFactor();
+    const bool seedWindowOpen = currentMillis < SOIL_SEED_WINDOW_MS;
     for (int zone = 0; zone < ZONE_COUNT; zone++) {
+      if (!seedWindowOpen) soilSeedPending[zone] = false;
       const int pot = readZoneMoisture(zone);
       if (lastPotValue[zone] < 0) {
-        soilMoisture[zone] = pot;
-        soilManualTarget[zone] = pot;
+        // Không ghi đè giá trị đã khôi phục sau reset; chỉ seed vùng chưa có dữ liệu.
+        if (!soilStateRestored[zone]) {
+          soilMoisture[zone] = (moistureOn[zone] + moistureOff[zone]) / 2.0f;
+          soilManualTarget[zone] = soilMoisture[zone];
+        }
       } else {
         // Cộng dồn thay đổi thay vì so từng mẫu: kéo chậm 1%/2 giây vẫn phải bám kịp.
         soilPotDrift[zone] += pot - lastPotValue[zone];
@@ -710,6 +861,9 @@ void loop() {
           soilManualTarget[zone] = pot;
           soilManualChase[zone] = true;
           soilPotDrift[zone] = 0.0f;
+          // Người dùng đã tự vặn chiết áp: giữ đúng số đó, không re-seed theo ngưỡng.
+          soilSeedPending[zone] = false;
+          soilStateRestored[zone] = false;
         }
       }
       lastPotValue[zone] = pot;
@@ -724,12 +878,21 @@ void loop() {
           soilMoisture[zone] += remaining > 0 ? maxStep : -maxStep;
         }
       } else if (pumpRunning[zone]) {
-        soilMoisture[zone] += SOIL_WET_PER_MIN * dtMin;
+        const float wetPerMin = SOIL_PERCENT_PER_LITER * zoneFlowLph[zone] / 60.0f;
+        soilMoisture[zone] += wetPerMin * dtMin;
       } else {
         soilMoisture[zone] -= SOIL_DRY_PER_MIN * dtMin * dryFactor;
       }
       soilMoisture[zone] = constrain(soilMoisture[zone], 0.0f, 100.0f);
       moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
+    }
+    if (currentMillis - lastSoilPersistAt >= SOIL_PERSIST_INTERVAL_MS) {
+      for (int zone = 0; zone < ZONE_COUNT; zone++) {
+        if (fabs(soilMoisture[zone] - lastPersistedSoil[zone]) >= 0.5f) {
+          persistSoilState(zone);
+        }
+      }
+      lastSoilPersistAt = currentMillis;
     }
 #else
     for (int zone = 0; zone < ZONE_COUNT; zone++) {
@@ -739,7 +902,7 @@ void loop() {
 
     updateTank();
     enforceRuntimeLimits();
-    updateOverTarget();
+    enforceWaterTargets();
 
     // Mưa 100% + bật hoãn: dừng cả bơm tự động lẫn thủ công.
     if (weatherGateEnabled && isRaining && anyPumpRunning()) {
@@ -756,7 +919,7 @@ void loop() {
                    moisturePercent[zone] >= moistureOff[zone]) {
           stopPump(zone);
         } else if (!pumpRunning[zone] && !tankEmpty && !zoneLocked[zone] &&
-                   millis() >= zoneCooldownUntil[zone] &&
+                   static_cast<long>(millis() - zoneCooldownUntil[zone]) >= 0 &&
                    (!weatherGateEnabled || !isRaining) &&
                    moisturePercent[zone] <= moistureOn[zone]) {
           startPump(zone);
@@ -790,10 +953,10 @@ void loop() {
 
     // Gửi JSON trực tiếp dạng 6 Zone T001 - T006 cho Web
     String json;
-    json.reserve(768);
+    json.reserve(1200);  // JSON đầy đủ khoảng 1000-1030 byte
     json = "{";
     json += "\"deviceId\":\"esp32-garden-01\",";
-    json += "\"moisture\":" + String(moisturePercent[1]) + ","; // Zone T002 đại diện
+    json += "\"uptimeMs\":" + String(millis()) + ",";
     if (isnan(temperature)) json += "\"temperature\":null,";
     else json += "\"temperature\":" + String(temperature, 1) + ",";
     if (isnan(humidity)) json += "\"humidity\":null,";
@@ -812,6 +975,7 @@ void loop() {
       json += "\"threshold\":" + String(moistureOn[zone]) + ",";
       json += "\"stopThreshold\":" + String(moistureOff[zone]) + ",";
       json += "\"targetSeconds\":" + String(zoneTargetSeconds[zone]) + ",";
+      json += "\"flowLph\":" + String(zoneFlowLph[zone]) + ",";
       json += "\"over\":" + String(zoneOverTarget[zone] ? "true" : "false") + ",";
       json += "\"pump\":" + String(pumpRunning[zone] ? "true" : "false") + "}";
     }
