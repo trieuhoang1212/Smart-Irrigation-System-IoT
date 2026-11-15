@@ -126,8 +126,8 @@ export function ControlPanel({
         {mode === "manual" && selectedZone.overTarget && (
           <div className="mode-warning overwater" role="status">
             <span>
-              {selectedZone.id} đã vượt mục tiêu {selectedZone.targetLiters} L — tắt bơm
-              nếu đất đã đủ ẩm. Sau 10 phút hệ thống tự về Tự động.
+              {selectedZone.id} đã đạt mục tiêu {selectedZone.targetLiters} L — bơm đã
+              tự dừng. Sau 10 phút hệ thống tự về Tự động.
             </span>
           </div>
         )}

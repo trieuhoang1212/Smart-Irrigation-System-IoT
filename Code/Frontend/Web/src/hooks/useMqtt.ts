@@ -85,7 +85,6 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const socketRef = useRef<WebSocket | null>(null);
   const pumpByZoneRef = useRef<Record<string, boolean>>({});
   const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
-  const pendingThresholdRef = useRef<Record<string, number>>({});
   const thresholdTimerRef = useRef<Record<string, number>>({});
   const pendingRainThresholdRef = useRef(0);
   const rainThresholdRef = useRef(MAX_RAIN_THRESHOLD);
@@ -178,27 +177,23 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         const live = hasZoneList
           ? data.zones?.find((item) => item.id === zone.id)
           : undefined;
-        if (!live) return hasZoneList ? { ...zone, online: false } : zone;
-
-        const isThresholdPending = now <= (pendingThresholdRef.current[zone.id] ?? 0);
+        if (!live) {
+          return hasZoneList
+            ? { ...zone, moisture: null, pump: false, overTarget: false, online: false }
+            : zone;
+        }
 
         return {
           ...zone,
-          moisture: typeof live.moisture === "number" && Number.isFinite(live.moisture)
+          moisture: isOnline && typeof live.moisture === "number" && Number.isFinite(live.moisture)
             ? round1(Math.max(0, Math.min(100, live.moisture)))
-            : zone.moisture,
+            : isOnline ? zone.moisture : null,
           pump: isOnline ? Boolean(live.pump) : false,
           overTarget: isOnline && Boolean(live.over),
-          threshold: isThresholdPending
-            ? zone.threshold
-            : typeof live.threshold === "number" && Number.isFinite(live.threshold)
-              ? Math.max(0, Math.min(100, live.threshold))
-              : zone.threshold,
-          stopThreshold: isThresholdPending
-            ? zone.stopThreshold
-            : typeof live.stopThreshold === "number" && Number.isFinite(live.stopThreshold)
-              ? Math.max(0, Math.min(100, live.stopThreshold))
-              : zone.stopThreshold,
+          // Backend config là nguồn chuẩn của ngưỡng. Telemetry retained/live
+          // có thể còn giá trị cũ trong lúc ESP32 đang được resync.
+          threshold: zone.threshold,
+          stopThreshold: zone.stopThreshold,
           online: isOnline,
         };
       }),
@@ -503,7 +498,6 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const setZoneThreshold = useCallback(
     (zoneId: string, value: number) => {
       const clamped = Math.max(10, Math.min(90, Math.round(value)));
-      pendingThresholdRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
       setZones((current) =>
         current.map((zone) =>
           zone.id === zoneId
@@ -583,9 +577,6 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       const threshold = input.threshold === undefined
         ? undefined
         : Math.max(10, Math.min(90, Math.round(input.threshold)));
-      if (threshold !== undefined) {
-        pendingThresholdRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
-      }
       setZones((current) =>
         current.map((zone) =>
           zone.id === zoneId

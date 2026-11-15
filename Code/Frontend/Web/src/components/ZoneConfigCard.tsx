@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Zone } from "../garden-data";
 import type { ZoneConfigInput } from "../hooks/useMqtt";
 import type { WateringRunSummary } from "../lib/garden-api";
@@ -24,7 +24,7 @@ const FIELDS: Field[] = [
     unit: "L/giờ",
     min: 1,
     max: 200,
-    hint: "Ghi trên bơm hoặc đầu tưới nhỏ giọt",
+    hint: "Càng lớn thì độ ẩm lên càng nhanh",
   },
   {
     key: "targetLiters",
@@ -101,6 +101,13 @@ export function ZoneConfigCard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setValues({
+      flowLitersPerHour: String(zone.flowLitersPerHour),
+      targetLiters: String(zone.targetLiters),
+    });
+  }, [zone.id, zone.flowLitersPerHour, zone.targetLiters]);
+
   const parsed = Object.fromEntries(
     FIELDS.map((field) => [field.key, parseField(field, values[field.key])]),
   ) as Record<FieldKey, ParsedField>;
@@ -157,7 +164,7 @@ export function ZoneConfigCard({
           </p>
           <p className="config-role">
             ESP32 tự tưới theo ngưỡng đất khô {zone.threshold}% (chỉnh ở thẻ Điều khiển
-            bơm). Hai số dưới đây dùng để tính lượng nước và cảnh báo.
+            bơm). Hai số dưới đây dùng để tính lượng nước và thời gian tự dừng.
           </p>
         </div>
       </div>
