@@ -3,21 +3,25 @@ export type ZoneId = (typeof ZONE_IDS)[number];
 
 export const MIN_THRESHOLD = 10;
 export const MAX_THRESHOLD = 90;
+// Firmware dừng khi độ ẩm đạt ngưỡng bật + 20 (tối đa 100).
+export const STOP_OFFSET = 20;
+
+export const MIN_RUN_SECONDS = 10;
+export const MAX_RUN_SECONDS = 600;
 
 export const ZONE_PROFILE_LIMITS = {
-  pumpSeconds: { min: 10, max: 600 },
   flowLitersPerHour: { min: 1, max: 200 },
   targetLiters: { min: 0.1, max: 20 },
 } as const;
 
-// Firmware dừng bơm thủ công khi đạt mục tiêu, với giới hạn an toàn 10 phút/lần.
+// Đổi lượng nước mục tiêu thành thời gian chạy; 0 nghĩa là cấu hình không dùng được.
 export function targetSecondsFor(
   flowLitersPerHour: number | null | undefined,
   targetLiters: number | null | undefined,
 ): number {
   if (!flowLitersPerHour || !targetLiters) return 0;
   const seconds = Math.round((targetLiters / flowLitersPerHour) * 3600);
-  return seconds >= 10 && seconds <= 600 ? seconds : 0;
+  return seconds >= MIN_RUN_SECONDS && seconds <= MAX_RUN_SECONDS ? seconds : 0;
 }
 
 export type ZoneState = {

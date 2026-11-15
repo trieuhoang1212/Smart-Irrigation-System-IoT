@@ -16,10 +16,6 @@ export function clampRainThreshold(value: number): number {
   return Math.max(MIN_RAIN_THRESHOLD, Math.min(MAX_RAIN_THRESHOLD, Math.round(value)));
 }
 
-export function rainWarnThresholdFor(threshold: number): number {
-  return Math.max(0, threshold - RAIN_WARN_OFFSET);
-}
-
 export function isSoilType(value: string): value is SoilType {
   return SOIL_TYPES.includes(value as SoilType);
 }
