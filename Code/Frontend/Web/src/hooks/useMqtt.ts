@@ -33,7 +33,6 @@ type BackendTelemetry = {
 
 export type ZoneConfigInput = {
   threshold?: number;
-  pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
 };
@@ -587,7 +586,6 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
                   threshold === undefined
                     ? zone.stopThreshold
                     : Math.min(100, threshold + 20),
-                pumpSeconds: input.pumpSeconds,
                 flowLitersPerHour: input.flowLitersPerHour,
                 targetLiters: input.targetLiters,
               }

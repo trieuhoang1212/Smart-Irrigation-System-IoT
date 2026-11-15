@@ -134,7 +134,6 @@ export type Zone = {
   threshold: number;
   stopThreshold: number;
   method: string;
-  pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
   color: string;
