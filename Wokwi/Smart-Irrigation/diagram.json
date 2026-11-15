@@ -106,13 +106,6 @@
       "attrs": { "rain": "0", "threshold": "10" }
     },
     {
-      "type": "wokwi-led",
-      "id": "led2",
-      "top": 150,
-      "left": -293.8,
-      "attrs": { "color": "blue" }
-    },
-    {
       "type": "wokwi-pushbutton",
       "id": "btn1",
       "top": -89.8,
@@ -239,7 +232,6 @@
     [ "dht1:VCC", "bb1:tp.2", "red", [ "v0" ] ],
     [ "chip1:VCC", "bb1:bp.9", "red", [ "v-96", "h180.8" ] ],
     [ "chip1:GND", "bb1:tn.12", "black", [ "v-28.8", "h180.8" ] ],
-    [ "led2:C", "bb1:tn.10", "black", [ "h152" ] ],
     [ "chip1:DO", "esp:27", "purple", [] ],
     [ "esp:GND.2", "btn1:1.l", "black", [ "v-153.6", "h326.4" ] ],
     [ "btn2:1.r", "esp:GND.2", "black", [ "v0" ] ],
