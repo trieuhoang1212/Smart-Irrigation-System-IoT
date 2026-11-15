@@ -12,7 +12,6 @@ import { SectionHeader } from "../ui/SectionHeader";
 
 type Draft = {
   threshold: number;
-  pumpSeconds: string;
   flowLitersPerHour: string;
   targetLiters: string;
 };
@@ -21,11 +20,12 @@ const THRESHOLD_MIN = 10;
 const THRESHOLD_MAX = 90;
 const THRESHOLD_STEP = 5;
 const STOP_OFFSET = 20;
+const MIN_RUNTIME_SECONDS = 10;
+const MAX_RUNTIME_MINUTES = 10;
 
 function toDraft(zone: LiveZone): Draft {
   return {
     threshold: Math.round(zone.threshold),
-    pumpSeconds: String(zone.pumpSeconds),
     flowLitersPerHour: String(zone.flowLitersPerHour),
     targetLiters: String(zone.targetLiters),
   };
@@ -36,24 +36,29 @@ function parseNumber(value: string): number {
 }
 
 function validate(draft: Draft): { input: ZoneConfigInput } | { error: string } {
-  const pumpSeconds = parseNumber(draft.pumpSeconds);
   const flow = parseNumber(draft.flowLitersPerHour);
   const target = parseNumber(draft.targetLiters);
 
-  if (!Number.isInteger(pumpSeconds) || pumpSeconds < 10 || pumpSeconds > 600) {
-    return { error: "Thời gian bơm mỗi lần phải từ 10 đến 600 giây." };
-  }
-  if (!Number.isFinite(flow) || flow < 1 || flow > 200) {
-    return { error: "Lưu lượng bơm phải từ 1 đến 200 L/giờ." };
+  if (!Number.isInteger(flow) || flow < 1 || flow > 200) {
+    return { error: "Lưu lượng bơm phải là số nguyên từ 1 đến 200 L/giờ." };
   }
   if (!Number.isFinite(target) || target < 0.1 || target > 20) {
     return { error: "Lượng nước mục tiêu phải từ 0.1 đến 20 L." };
+  }
+  if ((target / flow) * 60 > MAX_RUNTIME_MINUTES) {
+    return {
+      error: `Mục tiêu cần hơn ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ lượng nước hoặc tăng lưu lượng.`,
+    };
+  }
+  if ((target / flow) * 3600 < MIN_RUNTIME_SECONDS) {
+    return {
+      error: `Mỗi lần chạy dưới ${MIN_RUNTIME_SECONDS} giây. Tăng lượng nước hoặc giảm lưu lượng.`,
+    };
   }
 
   return {
     input: {
       threshold: draft.threshold,
-      pumpSeconds,
       flowLitersPerHour: flow,
       targetLiters: target,
     },
@@ -142,19 +147,12 @@ export function ZoneSettingsForm({ zone }: { zone: LiveZone }) {
       />
 
       <NumberField
-        label="Thời gian bơm mỗi lần"
-        hint="10 - 600 giây"
-        unit="giây"
-        value={draft.pumpSeconds}
-        onChangeText={(value) => update("pumpSeconds", value)}
-      />
-      <NumberField
         label="Lưu lượng bơm"
-        hint="1 - 200 L/giờ"
+        hint="Số nguyên 1 - 200 L/giờ"
         unit="L/giờ"
         value={draft.flowLitersPerHour}
         onChangeText={(value) => update("flowLitersPerHour", value)}
-        keyboardType="decimal-pad"
+        keyboardType="number-pad"
       />
       <NumberField
         label="Lượng nước mục tiêu"
