@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
-import { colors, radius, spacing } from "../../theme";
+import { colors, radius } from "../../theme";
 
 export function ModeSwitch() {
   const { mode, setMode, pending } = useGarden();

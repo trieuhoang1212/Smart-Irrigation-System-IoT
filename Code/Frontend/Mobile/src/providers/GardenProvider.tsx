@@ -109,8 +109,6 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let disposed = false;
-    setLoading(true);
-    setConfigError(null);
 
     getGardenConfig()
       .then((config) => {
@@ -320,6 +318,12 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
     [runCommand, zones],
   );
 
+  const reloadConfig = useCallback(() => {
+    setLoading(true);
+    setConfigError(null);
+    setConfigToken((token) => token + 1);
+  }, []);
+
   const saveZone = useCallback(
     async (zoneId: string, input: ZoneConfigInput) => {
       try {
@@ -351,7 +355,7 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
       pending,
       loading,
       configError,
-      reloadConfig: () => setConfigToken((token) => token + 1),
+      reloadConfig,
       setMode,
       toggleWeatherGate,
       togglePump,
@@ -373,6 +377,7 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
       pending,
       loading,
       configError,
+      reloadConfig,
       setMode,
       toggleWeatherGate,
       togglePump,

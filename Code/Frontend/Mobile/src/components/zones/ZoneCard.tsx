@@ -9,7 +9,8 @@ import {
   type DimensionValue,
 } from "react-native";
 
-import type { LiveZone, Mode } from "../../api/types";
+import type { LiveZone } from "../../api/types";
+import { useGarden } from "../../providers/GardenProvider";
 import { colors, radius, spacing } from "../../theme";
 import { formatNumber } from "../../utils/format";
 import { Badge } from "../ui/Badge";
@@ -31,10 +32,8 @@ export function ZoneCard({
   onTogglePump,
   disabled = false,
 }: Props) {
+  const { mode, setMode } = useGarden();
   const [showSettings, setShowSettings] = useState(false);
-
-  // Trạng thái chế độ dùng để thử nghiệm giao diện.
-  const [selectedMode, setSelectedMode] = useState<Mode>("auto");
 
   const moisture = zone.moisture;
   const needsWater = moisture !== null && moisture < zone.threshold;
@@ -161,29 +160,32 @@ export function ZoneCard({
             </Text>
           </View>
 
-          {/* Chọn chế độ hoạt động */}
-          <Text style={styles.question}>Chế độ hoạt động</Text>
+          {/* Chế độ dùng chung cho cả vườn, không riêng khu vực này */}
+          <Text style={styles.question}>Chế độ hệ thống</Text>
 
           <View style={styles.modeContainer}>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{
-                selected: selectedMode === "auto",
+                selected: mode === "auto",
+                disabled,
               }}
+              disabled={disabled}
               onPress={() => {
-                setSelectedMode("auto");
                 setShowSettings(false);
+                void setMode("auto");
               }}
               style={[
                 styles.modeButton,
-                selectedMode === "auto" && styles.modeButtonActive,
+                mode === "auto" && styles.modeButtonActive,
+                disabled && styles.disabled,
               ]}
             >
               <Ionicons
                 name="sync-circle-outline"
                 size={22}
                 color={
-                  selectedMode === "auto"
+                  mode === "auto"
                     ? colors.white
                     : colors.greenStrong
                 }
@@ -192,7 +194,7 @@ export function ZoneCard({
               <Text
                 style={[
                   styles.modeText,
-                  selectedMode === "auto" && styles.modeTextActive,
+                  mode === "auto" && styles.modeTextActive,
                 ]}
               >
                 Tự động
@@ -202,22 +204,25 @@ export function ZoneCard({
             <Pressable
               accessibilityRole="button"
               accessibilityState={{
-                selected: selectedMode === "manual",
+                selected: mode === "manual",
+                disabled,
               }}
+              disabled={disabled}
               onPress={() => {
-                setSelectedMode("manual");
                 setShowSettings(false);
+                void setMode("manual");
               }}
               style={[
                 styles.modeButton,
-                selectedMode === "manual" && styles.modeButtonActive,
+                mode === "manual" && styles.modeButtonActive,
+                disabled && styles.disabled,
               ]}
             >
               <Ionicons
                 name="hand-left-outline"
                 size={22}
                 color={
-                  selectedMode === "manual"
+                  mode === "manual"
                     ? colors.white
                     : colors.greenStrong
                 }
@@ -226,7 +231,7 @@ export function ZoneCard({
               <Text
                 style={[
                   styles.modeText,
-                  selectedMode === "manual" && styles.modeTextActive,
+                  mode === "manual" && styles.modeTextActive,
                 ]}
               >
                 Thủ công
@@ -235,7 +240,7 @@ export function ZoneCard({
           </View>
 
           {/* Chế độ thủ công */}
-          {selectedMode === "manual" && (
+          {mode === "manual" && (
             <View style={styles.modeContent}>
               <Text style={styles.modeDescription}>
                 Chủ động điều khiển máy bơm cho khu vực này.
@@ -301,7 +306,7 @@ export function ZoneCard({
           )}
 
           {/* Chế độ tự động */}
-          {selectedMode === "auto" && (
+          {mode === "auto" && (
             <View style={styles.modeContent}>
               <Text style={styles.modeDescription}>
                 Hệ thống tự tưới dựa trên ngưỡng độ ẩm đã cài đặt.
@@ -355,8 +360,8 @@ export function ZoneCard({
           )}
 
           <Text style={styles.demoNote}>
-            Chế độ Auto / Manual hiện chỉ là lựa chọn giao diện thử nghiệm,
-            chưa gửi lệnh chuyển chế độ đến thiết bị.
+            Chế độ áp dụng cho toàn hệ thống. Muốn tưới riêng khu vực này,
+            chuyển sang Thủ công rồi dùng nút Tưới ngay.
           </Text>
         </View>
       )}

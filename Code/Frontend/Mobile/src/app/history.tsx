@@ -14,11 +14,11 @@ import { useGarden } from "@/providers/GardenProvider";
 import { colors, spacing } from "@/theme";
 import { formatNumber } from "@/utils/format";
 
-const RANGE_OPTIONS: Array<{ value: RangeKey; label: string }> = (
+const RANGE_OPTIONS: { value: RangeKey; label: string }[] = (
   Object.keys(HISTORY_RANGES) as RangeKey[]
 ).map((key) => ({ value: key, label: HISTORY_RANGES[key].label }));
 
-const METRIC_OPTIONS: Array<{ value: HistoryMetric; label: string }> = [
+const METRIC_OPTIONS: { value: HistoryMetric; label: string }[] = [
   { value: "moisture", label: "Độ ẩm đất" },
   { value: "temperature", label: "Nhiệt độ" },
   { value: "humidity", label: "Độ ẩm khí" },

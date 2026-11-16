@@ -28,9 +28,9 @@ Theo dõi độ ẩm đất và trạng thái máy bơm.
 
 Settings
 
-Xem cấu hình các vùng tưới.
+Chuyển chế độ hoạt động Tự động / Thủ công.
 
-Theo dõi lịch sử thay đổi cấu hình.
+Xem và chỉnh ngưỡng, lưu lượng, lượng nước mục tiêu của từng vùng.
 
 Real-time
 
@@ -65,7 +65,7 @@ Backend đang hoạt động.
 
 Máy chạy Mobile và Backend có thể kết nối với nhau qua mạng.
 
-44. Cài đặt và chạy ứng dụng
+4. Cài đặt và chạy ứng dụng
 
 Bước 1: Di chuyển vào thư mục Mobile
 
