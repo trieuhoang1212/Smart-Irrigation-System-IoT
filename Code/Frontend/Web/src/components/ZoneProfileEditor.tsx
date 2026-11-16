@@ -260,15 +260,12 @@ export function ZoneProfileEditor({
             {expectedHarvest
               ? `Dự kiến thu hoạch: ${expectedHarvest}`
               : "Nhập ngày trồng và số ngày để tính ngày thu hoạch dự kiến."}
+            {zone.growth &&
+              ` · ${zone.growth.label} · ngày ${zone.growth.day}/${zone.growth.totalDays}`}
+            {zone.growth && zone.growth.overdueDays > 0
+              ? ` · trễ ${zone.growth.overdueDays} ngày`
+              : ""}
           </p>
-
-          {zone.growth && (
-            <p className="manager-hint field-wide">
-              Giai đoạn hiện tại: {zone.growth.label} · ngày {zone.growth.day}/
-              {zone.growth.totalDays}
-              {zone.growth.overdueDays > 0 ? ` · trễ ${zone.growth.overdueDays} ngày` : ""}
-            </p>
-          )}
 
           <label className="field field-wide">
             <span>Ghi chú</span>

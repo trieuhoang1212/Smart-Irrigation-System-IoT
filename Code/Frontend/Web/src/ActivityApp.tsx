@@ -9,7 +9,6 @@ import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { BackToTop } from "./components/BackToTop";
-import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { CloseIcon } from "./components/icons";
 import { BACKEND_URL } from "./lib/backend";
 import {
@@ -93,7 +92,6 @@ export function ActivityApp() {
     configError,
     deviceId,
     lastUpdated,
-    lastTelemetryAt,
     deviceOnline,
     brokerConnected,
     reconnect,
@@ -223,14 +221,6 @@ export function ActivityApp() {
             setZoneFilter(zoneId);
             if (focusAt !== null) clearFocus();
           }}
-        />
-
-        <DeviceStatusBanner
-          connected={connected}
-          brokerConnected={brokerConnected}
-          deviceOnline={deviceOnline}
-          lastTelemetryAt={lastTelemetryAt}
-          onReconnect={reconnect}
         />
 
         {focusAt !== null && (

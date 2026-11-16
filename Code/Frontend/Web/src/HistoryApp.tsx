@@ -8,7 +8,6 @@ import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { HistoryChart } from "./components/HistoryChart";
 import { BackToTop } from "./components/BackToTop";
-import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { CloseIcon } from "./components/icons";
 import { BACKEND_URL } from "./lib/backend";
 import {
@@ -115,14 +114,6 @@ export function HistoryApp() {
           activeZone={selectedZone.id}
           zones={zones}
           onSelectZone={handleSelectZone}
-        />
-
-        <DeviceStatusBanner
-          connected={connected}
-          brokerConnected={brokerConnected}
-          deviceOnline={deviceOnline}
-          lastTelemetryAt={lastTelemetryAt}
-          onReconnect={reconnect}
         />
 
         {focusAt !== null && (

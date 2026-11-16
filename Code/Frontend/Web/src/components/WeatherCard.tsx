@@ -29,7 +29,7 @@ export function WeatherCard({
   onChangeRainThreshold,
   onToggleWeatherGate,
 }: WeatherCardProps) {
-  const offlineReason = "Thiết bị tưới đang mất kết nối nên lệnh chưa gửi được";
+  const offlineReason = "Thiết bị mất kết nối";
 
   return (
     <article className={`panel weather-card ${raining ? "raining" : ""}`}>

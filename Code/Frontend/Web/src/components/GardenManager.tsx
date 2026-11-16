@@ -6,7 +6,6 @@ import { BACKEND_URL } from "../lib/backend";
 import { fetchGardenConfig } from "../lib/garden-api";
 import { useMqtt } from "../hooks/useMqtt";
 import { BackToTop } from "./BackToTop";
-import { DeviceStatusBanner } from "./DeviceStatusBanner";
 import { GardenSoilPlan } from "./GardenSoilPlan";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -27,7 +26,6 @@ export function GardenManager() {
     deviceOnline,
     brokerConnected,
     lastUpdated,
-    lastTelemetryAt,
     reconnect,
   } = useMqtt({ backendUrl: BACKEND_URL });
 
@@ -148,7 +146,7 @@ export function GardenManager() {
         onNavigate={guardNavigation}
       />
 
-      <section className="content">
+      <section className="content manager-page">
         <Topbar
           active="garden"
           crumb="Quản lý khu vườn"
@@ -161,14 +159,6 @@ export function GardenManager() {
           onNavigate={guardNavigation}
           zones={zones}
           onSelectZone={selectZone}
-        />
-
-        <DeviceStatusBanner
-          connected={connected}
-          brokerConnected={brokerConnected}
-          deviceOnline={deviceOnline}
-          lastTelemetryAt={lastTelemetryAt}
-          onReconnect={reconnect}
         />
 
         <div className="analysis-zone-bar" role="tablist" aria-label="Chọn ô trồng">

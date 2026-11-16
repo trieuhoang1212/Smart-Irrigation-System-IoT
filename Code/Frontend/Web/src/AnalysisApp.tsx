@@ -20,7 +20,6 @@ import { formatAge } from "./lib/time";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { BackToTop } from "./components/BackToTop";
-import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { AnalysisChart } from "./components/AnalysisChart";
 import { AlertIcon, CheckIcon, InfoIcon } from "./components/icons";
 import { Tooltip } from "./components/Tooltip";
@@ -173,14 +172,6 @@ export function AnalysisApp() {
           activeZone={selectedZone.id}
           zones={zones}
           onSelectZone={handleSelectZone}
-        />
-
-        <DeviceStatusBanner
-          connected={connected}
-          brokerConnected={brokerConnected}
-          deviceOnline={deviceOnline}
-          lastTelemetryAt={lastTelemetryAt}
-          onReconnect={reconnect}
         />
 
         <div className="analysis-zone-bar" role="tablist" aria-label="Chọn vùng trồng">

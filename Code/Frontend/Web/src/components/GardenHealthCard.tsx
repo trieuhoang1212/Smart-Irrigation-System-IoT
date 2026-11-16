@@ -1,7 +1,6 @@
 "use client";
 
 import type { Zone } from "../garden-data";
-import { LeafIcon } from "./icons";
 
 interface GardenHealthCardProps {
   zones: Zone[];
@@ -34,13 +33,7 @@ export function GardenHealthCard({ zones, mode, deviceOnline }: GardenHealthCard
   return (
     <article className="panel garden-health-card">
       <div className="panel-heading">
-        <div>
-          <h2>Sức khỏe khu vườn</h2>
-          <p>Trạng thái tổng thể toàn vườn</p>
-        </div>
-        <span className="card-icon">
-          <LeafIcon size={18} />
-        </span>
+        <h2>Sức khỏe khu vườn</h2>
       </div>
 
       <div className="health-headline">
@@ -96,9 +89,9 @@ export function GardenHealthCard({ zones, mode, deviceOnline }: GardenHealthCard
         )}
       </div>
 
-      <div className="health-footer">
+      <div className={`health-footer ${deviceOnline ? "" : "offline"}`}>
         <span>Chế độ: <strong>{mode === "auto" ? "Tự động" : "Thủ công"}</strong></span>
-        <span>Hệ thống: <strong>{deviceOnline ? "Sẵn sàng" : "Mất tín hiệu"}</strong></span>
+        <span>Hệ thống: <strong>{deviceOnline ? "Sẵn sàng" : "Mất kết nối"}</strong></span>
       </div>
     </article>
   );

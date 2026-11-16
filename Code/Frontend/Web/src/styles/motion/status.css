@@ -44,10 +44,6 @@
   animation-name: overwater-glow;
 }
 
-.offline-banner > span {
-  animation: warn-pop 2.6s ease-in-out infinite;
-}
-
 .weather-card {
   position: relative;
 }

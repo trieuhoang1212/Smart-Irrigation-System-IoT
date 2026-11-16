@@ -1,5 +1,17 @@
+.content.manager-page {
+  padding-bottom: 24px;
+}
+
+.manager-page .page-heading {
+  padding: 12px 0 10px;
+}
+
+.manager-page .analysis-zone-bar {
+  margin-bottom: 12px;
+}
+
 .manager-card {
-  padding: 20px;
+  padding: 16px;
 }
 
 .manager-card-head {
@@ -27,10 +39,10 @@
 
 .manager-photo {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 18px;
-  margin-top: 16px;
-  padding-bottom: 18px;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -63,7 +75,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border: 1px solid #dfe7dc;
   border-radius: 8px;
   background: #f4f7f2;
@@ -83,13 +95,13 @@
 }
 
 .manager-form {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .manager-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px 12px;
 }
 
 .field {
@@ -117,7 +129,7 @@
 }
 
 .field textarea {
-  min-height: 76px;
+  min-height: 52px;
   resize: vertical;
 }
 
@@ -133,8 +145,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--line-soft);
 }
 
@@ -164,7 +176,7 @@
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 14px;
   align-items: end;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .soil-plan-context {
@@ -181,7 +193,7 @@
 }
 
 .soil-plan-table-wrap {
-  margin-top: 14px;
+  margin-top: 10px;
   overflow-x: auto;
 }
 
@@ -203,7 +215,7 @@
 }
 
 .soil-plan-table td {
-  padding: 9px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--line-soft);
   color: var(--muted);
 }

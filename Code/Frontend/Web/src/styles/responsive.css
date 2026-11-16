@@ -442,8 +442,7 @@
   .config-accordion-toggle,
   .config-save,
   .primary-button,
-  .mode-warning button,
-  .offline-banner button {
+  .mode-warning button {
     min-height: 40px;
   }
 

@@ -23,20 +23,28 @@ export function PumpControlCard({
   onTogglePump,
   onChangeThreshold,
 }: PumpControlCardProps) {
-  const offlineReason = "Thiết bị tưới đang mất kết nối nên lệnh chưa gửi được";
+  const offlineReason = "Thiết bị mất kết nối";
 
   return (
     <article className="panel pump-tile">
       <div className="panel-heading">
         <div>
           <h2>
-            Điều khiển tưới
+            Điều khiển bơm
             <Tooltip text="Chế độ áp dụng cho cả vườn. Bấm nút tưới để bật bơm của ô đang chọn ngay lập tức; ở chế độ Tự động, hệ thống sẽ tự chuyển sang Thủ công." />
           </h2>
         </div>
-        <span className={`live-badge ${selectedZone.pump ? "active" : ""}`}>
+        <span
+          className={`live-badge ${
+            !controlsEnabled ? "danger" : selectedZone.pump ? "active" : ""
+          }`}
+        >
           <i />
-          {selectedZone.pump ? "Đang tưới" : "Bơm đang tắt"}
+          {!controlsEnabled
+            ? "Mất kết nối"
+            : selectedZone.pump
+              ? "Đang tưới"
+              : "Bơm đang tắt"}
         </span>
       </div>
 
@@ -88,9 +96,9 @@ export function PumpControlCard({
         {selectedZone.pump ? "Dừng tưới" : "Tưới tay ngay"}
       </button>
 
-      <p className="pump-hint">
+      <p className={`pump-hint ${!controlsEnabled ? "is-offline" : ""}`}>
         {!controlsEnabled
-          ? "Mất kết nối thiết bị — nút tưới tạm khoá."
+          ? "Thiết bị mất kết nối"
           : tankEmpty
             ? "Bồn đã cạn — bơm bị chặn để tránh chạy khô."
             : mode === "auto"

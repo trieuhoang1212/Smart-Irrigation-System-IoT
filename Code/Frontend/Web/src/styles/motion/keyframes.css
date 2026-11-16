@@ -110,16 +110,6 @@
   }
 }
 
-@keyframes warn-pop {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-}
-
 @keyframes rain-sheet {
   to {
     background-position: 0 20px;

@@ -20,7 +20,6 @@ import { ZoneConfigCard } from "./components/ZoneConfigCard";
 import { ZoneSpotlightCard } from "./components/ZoneSpotlightCard";
 import { OverviewTabs } from "./components/OverviewTabs";
 import { BackToTop } from "./components/BackToTop";
-import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { ToastStack } from "./components/ToastStack";
 import { EditIcon } from "./components/icons";
 import { BACKEND_URL } from "./lib/backend";
@@ -137,7 +136,7 @@ export default function App() {
 
   const handleTogglePump = async () => {
     if (!controlsEnabled) {
-      notify("Thiết bị tưới đang mất kết nối — chưa gửi được lệnh.", "error");
+      notify("Thiết bị mất kết nối — chưa gửi được lệnh.", "error");
       return;
     }
     if (tankEmpty) {
@@ -183,18 +182,10 @@ export default function App() {
           onSelectZone={handleSelectZone}
         />
 
-        <DeviceStatusBanner
-          connected={connected}
-          brokerConnected={brokerConnected}
-          deviceOnline={deviceOnline}
-          lastTelemetryAt={lastTelemetryAt}
-          onReconnect={reconnect}
-        />
-
         <div className="bento-dashboard">
           {/* CỘT CHÍNH (BÊN TRÁI): Giám sát vườn toàn cảnh */}
           <div className="bento-col-main">
-            {/* 0. Thao tác nhanh: ô đang chọn & điều khiển bơm */}
+            {/* 0. Thao tác nhanh: ô đang chọn, điều khiển bơm & sức khỏe toàn vườn */}
             <div className="bento-action-row">
               <ZoneSpotlightCard zone={selectedZone} soil={soil} />
               <PumpControlCard
@@ -205,6 +196,11 @@ export default function App() {
                 onChangeMode={changeMode}
                 onTogglePump={handleTogglePump}
                 onChangeThreshold={(val) => setZoneThreshold(selectedZone.id, val)}
+              />
+              <GardenHealthCard
+                zones={zones}
+                mode={mode}
+                deviceOnline={deviceOnline}
               />
             </div>
 
@@ -227,7 +223,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* 2. Môi trường: Thời tiết & Mực nước bồn */}
+            {/* 2. Môi trường: Thời tiết & mực nước bồn */}
             <div className="bento-env-row">
               <WeatherCard
                 temperature={temperature}
@@ -244,11 +240,6 @@ export default function App() {
               <TankCard
                 tankDistanceCm={tankDistanceCm}
                 tankEmpty={tankEmpty}
-              />
-              <GardenHealthCard
-                zones={zones}
-                mode={mode}
-                deviceOnline={deviceOnline}
               />
             </div>
 
