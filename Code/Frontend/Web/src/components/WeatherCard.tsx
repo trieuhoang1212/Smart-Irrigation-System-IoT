@@ -44,8 +44,14 @@ export function WeatherCard({
       </div>
 
       <div className="weather-main">
-        <strong>{temperature === null ? "--" : `${temperature}°`}</strong>
-        <span>· {humidity === null ? "--" : `${humidity}%`} độ ẩm</span>
+        {temperature === null && humidity === null ? (
+          <span className="weather-main-empty">Không có dữ liệu</span>
+        ) : (
+          <>
+            <strong>{temperature === null ? "--" : `${temperature}°`}</strong>
+            <span>· {humidity === null ? "--" : `${humidity}%`} độ ẩm</span>
+          </>
+        )}
       </div>
 
       <div className="weather-details">
@@ -53,20 +59,22 @@ export function WeatherCard({
           <CloudIcon size={15} /> Trạng thái
         </span>
         <strong>
-          {raining
-            ? `Đang mưa (${rainPercent === null ? "--" : `${rainPercent}%`})`
-            : rainPercent !== null && rainPercent >= rainWarnThreshold
-              ? `Có thể mưa (${rainPercent}%)`
-              : temperature !== null && temperature > 32
-                ? "Nắng nóng"
-                : "Ổn định"}
+          {temperature === null && rainPercent === null
+            ? "Không có dữ liệu"
+            : raining
+              ? `Đang mưa (${rainPercent === null ? "--" : `${rainPercent}%`})`
+              : rainPercent !== null && rainPercent >= rainWarnThreshold
+                ? `Có thể mưa (${rainPercent}%)`
+                : temperature !== null && temperature > 32
+                  ? "Nắng nóng"
+                  : "Ổn định"}
         </strong>
       </div>
       <div className="weather-details">
         <span>
           <RainIcon size={15} /> Khả năng mưa
         </span>
-        <strong>{rainPercent === null ? "--" : `${rainPercent}%`}</strong>
+        <strong>{rainPercent === null ? "Không có dữ liệu" : `${rainPercent}%`}</strong>
       </div>
 
       <div className="threshold-control">

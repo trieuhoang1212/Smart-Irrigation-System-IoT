@@ -343,6 +343,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.spot-value.no-data strong {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
 .spot-value small {
   margin-right: 4px;
   color: var(--muted);
@@ -702,10 +709,6 @@
   border-top: 1px solid var(--line-soft);
   color: var(--muted);
   font-size: 11px;
-}
-
-.health-footer.offline {
-  color: var(--red);
 }
 
 .health-footer strong {

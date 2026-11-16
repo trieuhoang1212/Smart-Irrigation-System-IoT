@@ -96,15 +96,15 @@ export function PumpControlCard({
         {selectedZone.pump ? "Dừng tưới" : "Tưới tay ngay"}
       </button>
 
-      <p className={`pump-hint ${!controlsEnabled ? "is-offline" : ""}`}>
-        {!controlsEnabled
-          ? "Thiết bị mất kết nối"
-          : tankEmpty
+      {controlsEnabled && (
+        <p className="pump-hint">
+          {tankEmpty
             ? "Bồn đã cạn — bơm bị chặn để tránh chạy khô."
             : mode === "auto"
               ? "Đang Tự động: tưới tay sẽ chuyển cả vườn sang Thủ công."
               : "Đang Thủ công: hệ thống không tự tưới cho tới khi bạn bật lại Tự động."}
-      </p>
+        </p>
+      )}
 
       {mode === "manual" && selectedZone.overTarget && (
         <div className="mode-warning overwater pump-warning" role="status">
@@ -130,10 +130,6 @@ export function PumpControlCard({
           disabled={!controlsEnabled}
           title={controlsEnabled ? undefined : offlineReason}
         />
-        <div>
-          <span>10% · khô</span>
-          <span>90% · ẩm</span>
-        </div>
       </div>
     </article>
   );

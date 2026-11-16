@@ -218,18 +218,19 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       });
     }
 
-    // DHT22 đọc lỗi sẽ gửi null: xoá giá trị cũ thay vì hiển thị số liệu sai.
-    setTemperature(typeof data.temperature === "number" && Number.isFinite(data.temperature)
+    // DHT22 đọc lỗi gửi null, thiết bị offline gửi snapshot cũ: xoá hết để
+    // giao diện hiển thị "Không có dữ liệu" thay vì số đo cũ.
+    setTemperature(isOnline && typeof data.temperature === "number" && Number.isFinite(data.temperature)
       ? round1(data.temperature)
       : null);
-    setHumidity(typeof data.humidity === "number" && Number.isFinite(data.humidity)
+    setHumidity(isOnline && typeof data.humidity === "number" && Number.isFinite(data.humidity)
       ? round1(Math.max(0, Math.min(100, data.humidity)))
       : null);
-    const nextRain = typeof data.rain === "number" && Number.isFinite(data.rain)
+    const nextRain = isOnline && typeof data.rain === "number" && Number.isFinite(data.rain)
       ? round1(Math.max(0, Math.min(100, data.rain)))
       : null;
     setRainPercent(nextRain);
-    if (data.raining !== undefined) setRaining(data.raining);
+    if (data.raining !== undefined) setRaining(isOnline ? data.raining : false);
 
     // Ngưỡng mưa chỉnh từ Web; firmware cũ không gửi thì giữ giá trị đang dùng.
     const receivedRainThreshold =
@@ -351,6 +352,10 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
               setTankDistanceCm(null);
               setTankEmpty(false);
               tankEmptyRef.current = null;
+              setTemperature(null);
+              setHumidity(null);
+              setRainPercent(null);
+              setRaining(false);
             }
           } else if (message.type === "command-result") {
             setCommandVersion((current) => current + 1);
@@ -379,6 +384,10 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         setTankDistanceCm(null);
         setTankEmpty(false);
         tankEmptyRef.current = null;
+        setTemperature(null);
+        setHumidity(null);
+        setRainPercent(null);
+        setRaining(false);
         setZones((current) => current.map((zone) => ({ ...zone, online: false })));
 
         attempt += 1;

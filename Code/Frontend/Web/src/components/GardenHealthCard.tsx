@@ -15,12 +15,12 @@ export function GardenHealthCard({ zones, mode, deviceOnline }: GardenHealthCard
   const dryCount = zones.filter(
     (z) => z.online && z.moisture !== null && z.moisture < z.threshold && !z.pump,
   ).length;
-  const goodCount = Math.max(0, total - wateringCount - dryCount);
+  const goodCount = deviceOnline ? Math.max(0, total - wateringCount - dryCount) : 0;
 
   let overallLabel = "Đang phát triển tốt";
   let overallTone = "active";
   if (!deviceOnline) {
-    overallLabel = "Mất kết nối";
+    overallLabel = "Không có dữ liệu";
     overallTone = "danger";
   } else if (wateringCount > 0) {
     overallLabel = `Đang tưới ${wateringCount} ô`;
@@ -73,25 +73,26 @@ export function GardenHealthCard({ zones, mode, deviceOnline }: GardenHealthCard
         </div>
       </div>
 
-      <div className="health-chips-row">
-        <span>
-          <b className="dot good" /> {goodCount} ô đủ ẩm
-        </span>
-        {wateringCount > 0 && (
+      {deviceOnline && (
+        <div className="health-chips-row">
           <span>
-            <b className="dot watering" /> {wateringCount} đang tưới
+            <b className="dot good" /> {goodCount} ô đủ ẩm
           </span>
-        )}
-        {dryCount > 0 && (
-          <span>
-            <b className="dot dry" /> {dryCount} cần tưới
-          </span>
-        )}
-      </div>
+          {wateringCount > 0 && (
+            <span>
+              <b className="dot watering" /> {wateringCount} đang tưới
+            </span>
+          )}
+          {dryCount > 0 && (
+            <span>
+              <b className="dot dry" /> {dryCount} cần tưới
+            </span>
+          )}
+        </div>
+      )}
 
-      <div className={`health-footer ${deviceOnline ? "" : "offline"}`}>
+      <div className="health-footer">
         <span>Chế độ: <strong>{mode === "auto" ? "Tự động" : "Thủ công"}</strong></span>
-        <span>Hệ thống: <strong>{deviceOnline ? "Sẵn sàng" : "Mất kết nối"}</strong></span>
       </div>
     </article>
   );

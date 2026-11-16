@@ -36,10 +36,10 @@ export function ZoneSpotlightCard({ zone, soil }: { zone: Zone; soil: SoilType }
       </div>
 
       <div className="spot-reading">
-        <div className="spot-value">
-          <strong>{moisture === null ? "--" : moisture}</strong>
-          <small>%</small>
-          <span>độ ẩm đất</span>
+        <div className={`spot-value ${moisture === null ? "no-data" : ""}`}>
+          <strong>{moisture === null ? "Không có dữ liệu" : moisture}</strong>
+          {moisture !== null && <small>%</small>}
+          {moisture !== null && <span>độ ẩm đất</span>}
         </div>
         <div className="spot-threshold">
           <span>Tự tưới khi dưới</span>

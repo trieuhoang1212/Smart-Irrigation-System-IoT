@@ -32,32 +32,28 @@ export function TankCard({ tankDistanceCm, tankEmpty }: TankCardProps) {
 
       <div className="tank-headline">
         <div className="tank-reading">
-          <strong>{waterPercent === null ? "--" : waterPercent}</strong>
-          <small>%</small>
-          {tankDistanceCm !== null && (
-            <span className="tank-cm-hint">({Math.round(tankDistanceCm)} cm tới mặt nước)</span>
+          {waterPercent === null ? (
+            <strong className="tank-no-data">Không có dữ liệu</strong>
+          ) : (
+            <>
+              <strong>{waterPercent}</strong>
+              <small>%</small>
+              {tankDistanceCm !== null && (
+                <span className="tank-cm-hint">({Math.round(tankDistanceCm)} cm tới mặt nước)</span>
+              )}
+            </>
           )}
         </div>
-        <span
-          className={`live-badge ${
-            tankEmpty
-              ? "danger"
-              : waterPercent === null
-                ? ""
-                : waterPercent <= 25
-                  ? "danger"
-                  : "active"
-          }`}
-        >
-          <i />
-          {tankEmpty
-            ? "Bồn cạn nước"
-            : waterPercent === null
-              ? "Chưa có dữ liệu"
-              : waterPercent <= 25
-                ? "Sắp hết nước"
-                : "Đủ nước tưới"}
-        </span>
+        {waterPercent !== null && (
+          <span
+            className={`live-badge ${
+              tankEmpty || waterPercent <= 25 ? "danger" : "active"
+            }`}
+          >
+            <i />
+            {tankEmpty ? "Bồn cạn nước" : waterPercent <= 25 ? "Sắp hết nước" : "Đủ nước tưới"}
+          </span>
+        )}
       </div>
 
       <div className="tank-gauge">

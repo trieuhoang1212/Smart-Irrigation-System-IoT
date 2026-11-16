@@ -40,8 +40,8 @@ export function GardenDetailPanel({
       ? null
       : Math.max(0, forecast.wateringMs - (zone.pump ? elapsed : 0));
 
-  let dryLabel = "--";
-  let wetLabel = "--";
+  let dryLabel = "Không có dữ liệu";
+  let wetLabel = "Không có dữ liệu";
   if (zone.online && zone.moisture !== null) {
     if (zone.moisture <= zone.threshold) dryLabel = "Đã tới ngưỡng";
     else if (zone.pump) dryLabel = "Đang tưới";
@@ -85,7 +85,7 @@ export function GardenDetailPanel({
       <dl className="garden-facts">
         <div>
           <dt>Độ ẩm đất</dt>
-          <dd>{zone.online && zone.moisture !== null ? `${zone.moisture}%` : "--"}</dd>
+          <dd>{zone.online && zone.moisture !== null ? `${zone.moisture}%` : "Không có dữ liệu"}</dd>
         </div>
         <div>
           <dt>Ngưỡng tưới</dt>
