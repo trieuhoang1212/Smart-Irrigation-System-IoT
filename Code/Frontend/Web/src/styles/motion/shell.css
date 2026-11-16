@@ -21,7 +21,7 @@
   position: relative;
 }
 
-.page-heading > div {
+.page-heading > * {
   position: relative;
   z-index: 1;
 }
@@ -31,8 +31,8 @@
   position: absolute;
   top: 50%;
   right: 4px;
-  width: 280px;
-  height: 190px;
+  width: 210px;
+  height: 110px;
   translate: 0 -50%;
   pointer-events: none;
   background:

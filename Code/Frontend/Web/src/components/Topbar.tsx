@@ -2,32 +2,43 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
+import { zoneHref } from "../lib/zone-link";
+import type { SearchZone } from "../lib/search";
 import { ChartIcon, ClockIcon, EditIcon, GaugeIcon, GridIcon, LeafIcon } from "./icons";
 import { LiveClock } from "./LiveClock";
 import { MobileNavDock } from "./MobileNavDock";
+import { PanelToggle } from "./PanelToggle";
+import { SearchBox } from "./SearchBox";
 
 type NavKey = "overview" | "analysis" | "history" | "activity" | "garden";
 
 export function Topbar({
   connected,
   lastUpdated,
+  mode,
+  activeZone,
   active = "overview",
   crumb = "Tổng quan",
   eyebrow = "Hệ thống tưới tự động",
   title = "Giám sát khu vườn",
-  subtitle = "ESP32 Wokwi · Mosquitto MQTT · dữ liệu cảm biến cập nhật mỗi 2 giây.",
+  zones = [],
   onNavigate,
+  onSelectZone,
 }: {
   connected: boolean;
   lastUpdated: string;
+  mode?: "auto" | "manual";
+  activeZone?: string | null;
   active?: NavKey;
   crumb?: string;
   eyebrow?: string;
   title?: string;
-  subtitle?: string;
+  zones?: SearchZone[];
   onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onSelectZone?: (zoneId: string) => void;
 }) {
   const onDashboard = active === "overview";
+  const overviewHref = onDashboard ? "#top" : zoneHref("/", activeZone);
 
   return (
     <>
@@ -38,64 +49,85 @@ export function Topbar({
           </span>
           Greenflow
         </div>
-        <span className="topbar-crumb">{crumb}</span>
-        <span className={`topbar-status ${connected ? "" : "off"}`}>
+        {crumb !== title && <span className="topbar-crumb">{crumb}</span>}
+        {mode && (
+          <span
+            className={`topbar-mode ${mode}`}
+            title={
+              mode === "auto"
+                ? "Chế độ Tự động cho cả vườn"
+                : "Chế độ Thủ công: tưới tự động đang tắt cho cả vườn"
+            }
+          >
+            <i />
+            {mode === "auto" ? "Tự động" : "Thủ công"}
+          </span>
+        )}
+        <SearchBox
+          active={active}
+          zones={zones}
+          onNavigate={onNavigate}
+          onSelectZone={onSelectZone}
+        />
+        <span
+          className={`topbar-status ${connected ? "" : "off"}`}
+          title={`Cập nhật lúc: ${lastUpdated}`}
+        >
           <i />
-          {connected ? `Telemetry cuối ${lastUpdated}` : "Mất kết nối backend"}
+          {connected ? `Cập nhật: ${lastUpdated}` : "Mất kết nối máy chủ"}
         </span>
         <LiveClock />
       </header>
 
       <nav className="compact-nav" aria-label="Điều hướng nhanh">
-        <a
-          className={onDashboard ? "active" : ""}
-          href={onDashboard ? "#top" : "/"}
-          onClick={onNavigate}
-        >
+        <a className={onDashboard ? "active" : ""} href={overviewHref} onClick={onNavigate}>
           <GridIcon size={15} />
           Tổng quan
         </a>
         <Link
           className={active === "analysis" ? "active" : ""}
-          href="/analysis"
+          href={zoneHref("/analysis", activeZone)}
           onClick={onNavigate}
         >
           <GaugeIcon size={15} />
-          Phân tích cây trồng
+          Phân tích
         </Link>
         <Link
           className={active === "history" ? "active" : ""}
-          href="/history"
+          href={zoneHref("/history", activeZone)}
           onClick={onNavigate}
         >
           <ChartIcon size={15} />
-          Lịch sử cảm biến
+          Lịch sử
         </Link>
         <Link
           className={active === "activity" ? "active" : ""}
-          href="/activity"
+          href={zoneHref("/activity", activeZone)}
           onClick={onNavigate}
         >
           <ClockIcon size={15} />
-          Nhật ký hoạt động
+          Nhật ký
         </Link>
         <Link
           className={active === "garden" ? "active" : ""}
-          href="/garden"
+          href={zoneHref("/garden", activeZone)}
           onClick={onNavigate}
         >
           <EditIcon size={15} />
-          Quản lý khu vườn
+          Khu vườn
         </Link>
       </nav>
 
-      <MobileNavDock active={active} onNavigate={onNavigate} />
+      <MobileNavDock active={active} activeZone={activeZone} onNavigate={onNavigate} />
 
       <div className="page-heading">
         <div>
           <p className="eyebrow">{eyebrow}</p>
           <h1>{title}</h1>
-          <p className="subtitle">{subtitle}</p>
+        </div>
+        <div className="page-heading-tools">
+          <PanelToggle panel="nav" />
+          <PanelToggle panel="rail" />
         </div>
       </div>
     </>

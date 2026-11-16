@@ -1,22 +1,26 @@
 .page-heading {
-  padding: 34px 0 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0 14px;
 }
 
 .eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   color: var(--faint);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 7px;
+  margin-bottom: 3px;
 }
 
 .eyebrow::before {
   content: "";
-  width: 22px;
+  width: 18px;
   height: 1px;
   background: var(--green);
   opacity: 0.6;
@@ -24,18 +28,84 @@
 
 .page-heading h1 {
   color: var(--ink);
-  font-size: 29px;
+  font-size: 25px;
   font-weight: 600;
-  letter-spacing: -0.7px;
+  letter-spacing: -0.6px;
   line-height: 1.2;
   text-wrap: balance;
 }
 
-.subtitle {
+.page-heading-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.panel-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--muted);
-  font-size: 13px;
-  margin-top: 7px;
-  line-height: 1.55;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.panel-toggle:hover {
+  border-color: #cdd9cd;
+  color: var(--green-strong);
+}
+
+/* Bảng đang ẩn: icon mờ để thấy trạng thái. */
+.panel-toggle[aria-expanded="false"] {
+  color: var(--faint);
+  opacity: 0.7;
+}
+
+/* Cột phụ thu gọn: cột chính chiếm trọn bề ngang nội dung. */
+@container page (min-width: 921px) {
+  html[data-rail="collapsed"] .bento-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-rail="collapsed"] .bento-col-side {
+    display: none;
+  }
+}
+
+/* Dưới 921px cột phụ đã xếp vào dòng chảy nên không cần nút thu gọn. */
+@container page (max-width: 920px) {
+  .panel-toggle-rail {
+    display: none;
+  }
+}
+
+/* Thanh điều hướng trái vốn tự ẩn dưới 1280px nên nút chỉ có tác dụng khi rộng hơn. */
+@media (min-width: 1281px) {
+  html[data-nav="collapsed"] .sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  .panel-toggle-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .page-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 14px 0 12px;
+  }
 }
 
 .panel {
@@ -96,4 +166,511 @@
 
 .link-button:hover {
   text-decoration: underline;
+}
+
+.overview-tab-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #edf1ea;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.overview-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 6px 13px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.overview-tab-btn:hover {
+  color: var(--ink);
+}
+
+.overview-tab-btn.active {
+  background: #ffffff;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(23, 54, 42, 0.1);
+}
+
+.overview-tab-sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+.overview-tab-content {
+  margin-top: 14px;
+}
+
+/* ==========================================================================
+   BENTO GRID DASHBOARD LAYOUT
+   ========================================================================== */
+.bento-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 32%, 380px);
+  gap: 16px;
+  align-items: start;
+}
+
+.bento-col-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.bento-col-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  position: sticky;
+  top: 16px;
+  align-self: start;
+}
+
+.bento-env-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.bento-garden-card {
+  padding: 16px 18px 18px;
+}
+
+.bento-garden-wrap {
+  margin-top: 10px;
+}
+
+.bento-col-main .advice-panel {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.bento-col-side .zone-config-card {
+  padding: 16px 18px;
+}
+
+.bento-col-side .zone-config-card .panel-heading h2 {
+  font-size: 15.5px;
+}
+
+.bento-col-side .zone-config-card .panel-heading p {
+  font-size: 12px;
+}
+
+.bento-col-side .water-history {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 14px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: #fbfcfa;
+  font-size: 11.5px;
+}
+
+.bento-col-side .water-history > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.bento-col-side .water-history strong {
+  font-size: 13.5px;
+}
+
+.bento-col-side .water-estimate {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.bento-col-side .config-accordion-section {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.bento-col-side .config-accordion-toggle {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+/* Bento layout dùng chung cho các trang con */
+.bento-col-main .history-panel,
+.bento-col-main .analysis-chart-panel {
+  margin-top: 0;
+}
+
+.bento-note-card {
+  padding: 18px;
+}
+
+.bento-note-card .panel-heading h2 {
+  font-size: 15.5px;
+}
+
+.bento-note-text {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.bento-note-card .link-button {
+  margin-top: 12px;
+}
+
+.bento-col-side .analysis-grid {
+  display: flex;
+  flex-direction: column;
+  /* Phá align-items:start của lưới gốc, nếu không card co lại bằng nội dung. */
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 0;
+}
+
+.bento-col-side .analysis-facts,
+.bento-col-side .analysis-advice {
+  padding: 18px;
+}
+
+.bento-col-side .fact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bento-col-side .soil-plan {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   GARDEN HEALTH CARD
+   ========================================================================== */
+.garden-health-card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+}
+
+.health-headline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.health-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.health-reading strong {
+  color: var(--ink);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.health-reading small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.health-breakdown {
+  margin-top: 12px;
+}
+
+.health-bar-track {
+  display: flex;
+  height: 9px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #edf1ea;
+  gap: 2px;
+}
+
+.health-bar-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.health-bar-seg.good {
+  background: #3f8f63;
+}
+
+.health-bar-seg.watering {
+  background: #2b7fff;
+}
+
+.health-bar-seg.dry {
+  background: #f59e0b;
+}
+
+.health-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.health-chips-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.health-chips-row .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.health-chips-row .dot.good {
+  background: #3f8f63;
+}
+
+.health-chips-row .dot.watering {
+  background: #2b7fff;
+}
+
+.health-chips-row .dot.dry {
+  background: #f59e0b;
+}
+
+.health-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.health-footer strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   TOOLTIP STYLES
+   ========================================================================== */
+.tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  cursor: help;
+  outline: none;
+}
+
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e6ece4;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: serif;
+  margin-left: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tooltip-wrap:hover .tooltip-icon,
+.tooltip-wrap:focus .tooltip-icon {
+  background: var(--green);
+  color: #fff;
+}
+
+.tooltip-box {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #1b2620;
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  width: max-content;
+  max-width: 220px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  /* Ẩn hẳn khỏi layout để tooltip không tạo thanh cuộn ngang khi thu nhỏ Web. */
+  display: none;
+  z-index: 99;
+  pointer-events: none;
+  text-align: left;
+}
+
+.tooltip-box::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  /* --tip-arrow do Tooltip tính để mũi tên vẫn chỉ đúng icon khi hộp bị đẩy vào trong. */
+  left: calc(var(--tip-arrow, 50%) - 4px);
+  border-width: 4px;
+  border-style: solid;
+  border-color: #1b2620 transparent transparent transparent;
+}
+
+.tooltip-wrap:hover .tooltip-box,
+.tooltip-wrap:focus-within .tooltip-box,
+.tooltip-wrap.open .tooltip-box {
+  display: block;
+  transform: translateX(-50%) translateY(0);
+  animation: tooltip-in 0.18s ease;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ==========================================================================
+   CONFIG ACCORDION STYLES
+   ========================================================================== */
+.config-accordion-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.config-accordion-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  background: #f7f9f5;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.config-accordion-toggle:hover {
+  background: #edf1ea;
+  border-color: #ccd7c8;
+}
+
+.config-accordion-toggle small {
+  color: var(--green);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.config-accordion-section .zone-config-form {
+  margin-top: 14px;
+  padding: 12px;
+  background: #fafbf9;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+}
+
+@container page (max-width: 1020px) {
+  .bento-env-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bento-env-row .garden-health-card {
+    grid-column: 1 / -1;
+  }
+
+  .bento-env-row .health-breakdown {
+    max-width: 460px;
+  }
+}
+
+/* Nội dung hẹp (kể cả khi sidebar chiếm chỗ): xếp dọc và giữ thứ tự đọc. */
+@container page (max-width: 920px) {
+  .bento-dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .bento-col-main,
+  .bento-col-side {
+    display: contents;
+  }
+
+  .bento-garden-card {
+    order: 1;
+  }
+
+  .garden-detail {
+    order: 2;
+  }
+
+  .pump-control-card {
+    order: 3;
+  }
+
+  .zone-config-card {
+    order: 4;
+  }
+
+  .bento-env-row {
+    order: 5;
+  }
+
+  .overview-panel {
+    order: 6;
+  }
+
+  .advice-panel {
+    order: 7;
+  }
+
+  .bento-dashboard .soil-plan {
+    order: -1;
+  }
+}
+
+@container page (max-width: 620px) {
+  .bento-env-row {
+    grid-template-columns: 1fr;
+  }
 }

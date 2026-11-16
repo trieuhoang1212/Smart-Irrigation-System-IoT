@@ -61,9 +61,11 @@ export function ControlPanel({
   onToggleWeatherGate,
   onSaveZoneConfig,
 }: ControlPanelProps) {
-  const tankLevel =
-    tankDistanceCm === null ? null : Math.min(Math.max(tankDistanceCm, 0), 100);
-  const offlineReason = "ESP32 đang offline nên lệnh chưa gửi được";
+  const waterPercent =
+    tankDistanceCm === null
+      ? null
+      : Math.max(0, Math.min(100, Math.round(100 - tankDistanceCm)));
+  const offlineReason = "Thiết bị tưới đang mất kết nối nên lệnh chưa gửi được";
 
   return (
     <section className="control-grid">
@@ -72,7 +74,8 @@ export function ControlPanel({
           <div>
             <h2>Điều khiển bơm</h2>
             <p>
-              Ngưỡng tưới {selectedZone.threshold}% · dừng ở {selectedZone.stopThreshold}%
+              {selectedZone.id} · {selectedZone.name} · tưới khi đất dưới{" "}
+              {selectedZone.threshold}% · dừng khi đạt {selectedZone.stopThreshold}%
             </p>
           </div>
           <span className={`live-badge ${selectedZone.pump ? "active" : ""}`}>
@@ -82,7 +85,7 @@ export function ControlPanel({
         </div>
 
         <div className="mode-row">
-          <span>Chế độ vận hành</span>
+          <span>Chế độ toàn vườn</span>
           <div className="mode-switch">
             <button
               type="button"
@@ -110,8 +113,7 @@ export function ControlPanel({
         {mode === "manual" && (
           <div className="mode-warning">
             <span>
-              Đang ở chế độ Thủ công: ESP32 không tự tưới, lịch tự động tạm dừng cho cả
-              vườn.
+              Đang Thủ công: hệ thống không tự tưới, lịch tự động tạm dừng cho cả vườn.
             </span>
             <button
               type="button"
@@ -126,8 +128,8 @@ export function ControlPanel({
         {mode === "manual" && selectedZone.overTarget && (
           <div className="mode-warning overwater" role="status">
             <span>
-              {selectedZone.id} đã đạt mục tiêu {selectedZone.targetLiters} L — bơm đã
-              tự dừng. Sau 10 phút hệ thống tự về Tự động.
+              {selectedZone.id} đã đủ {selectedZone.targetLiters} L cho lần tưới này —
+              bơm đã tự dừng. Sau 10 phút hệ thống tự về Tự động.
             </span>
           </div>
         )}
@@ -136,9 +138,9 @@ export function ControlPanel({
           <div>
             <strong>
               {!controlsEnabled
-                ? "ESP32 đang offline"
+                ? "Thiết bị tưới đang mất kết nối"
                 : mode === "auto"
-                  ? "ESP32 tự quyết định"
+                  ? "Hệ thống tự quyết định"
                   : "Điều khiển bằng tay"}
             </strong>
             <small>
@@ -147,8 +149,8 @@ export function ControlPanel({
                 : tankEmpty
                   ? "Bồn nước đã cạn — bơm bị chặn để tránh chạy khô"
                   : mode === "auto"
-                    ? `Bật khi độ ẩm < ${selectedZone.threshold}%, tắt khi > ${selectedZone.stopThreshold}% · chuyển Thủ công để bấm tay`
-                    : "Công tắc gửi lệnh PUMP_ON/OFF tới khu vực đang chọn"}
+                    ? `Tự tưới khi đất dưới ${selectedZone.threshold}% và dừng khi đạt ${selectedZone.stopThreshold}%. Bấm công tắc để tưới tay ngay.`
+                    : "Công tắc bật/tắt bơm của khu vực đang chọn."}
             </small>
           </div>
           <button
@@ -158,14 +160,16 @@ export function ControlPanel({
             aria-label="Bật tắt bơm khu vực đang chọn"
             className={`big-toggle ${selectedZone.pump ? "on" : ""}`}
             onClick={onTogglePump}
-            disabled={tankEmpty || !controlsEnabled || mode === "auto"}
+            disabled={tankEmpty || !controlsEnabled}
             title={
               tankEmpty
                 ? "Bồn nước đã cạn nên bơm bị chặn"
                 : !controlsEnabled
                   ? offlineReason
                   : mode === "auto"
-                    ? "Chế độ Tự động do ESP32 quyết định — chuyển sang Thủ công để bật/tắt bơm"
+                    ? selectedZone.pump
+                      ? "Dừng bơm và chuyển cả vườn sang Thủ công"
+                      : "Bật bơm khu vực này (hệ thống sẽ tự chuyển sang Thủ công)"
                     : undefined
             }
           >
@@ -175,7 +179,7 @@ export function ControlPanel({
 
         <div className="threshold-control">
           <label htmlFor="threshold">
-            Ngưỡng đất khô <strong>{selectedZone.threshold}%</strong>
+            Tưới khi đất dưới <strong>{selectedZone.threshold}%</strong>
           </label>
           <input
             id="threshold"
@@ -195,8 +199,8 @@ export function ControlPanel({
 
         {!controlsEnabled && (
           <p className="control-note">
-            ESP32 đang offline — công tắc bơm, chế độ và ngưỡng tạm khoá. Phần cấu hình
-            vùng bên dưới vẫn lưu được vào Backend.
+            Thiết bị tưới đang mất kết nối — công tắc bơm, chế độ và ngưỡng tạm khoá.
+            Phần cấu hình vùng bên dưới vẫn lưu được vào máy chủ.
           </p>
         )}
       </article>
@@ -204,8 +208,8 @@ export function ControlPanel({
       <article className={`panel weather-card ${raining ? "raining" : ""}`}>
         <div className="panel-heading">
           <div>
-            <h2>Cảm biến DHT22</h2>
-            <p>Nhiệt độ và độ ẩm không khí</p>
+            <h2>Thời tiết ngoài vườn</h2>
+            <p>Nhiệt độ, độ ẩm không khí và cảm biến mưa</p>
           </div>
           <span className="card-icon">
             <ThermometerIcon size={18} />
@@ -239,14 +243,14 @@ export function ControlPanel({
         </div>
         <div className="weather-details">
           <span>
-            <RainIcon size={15} /> Cảm biến mưa
+            <RainIcon size={15} /> Khả năng mưa
           </span>
           <strong>{rainPercent === null ? "--" : `${rainPercent}%`}</strong>
         </div>
 
         <div className="threshold-control">
           <label htmlFor="rain-threshold">
-            Dừng tưới khi mưa đạt <strong>{rainThreshold}%</strong>
+            Tạm dừng tưới khi lượng mưa đạt <strong>{rainThreshold}%</strong>
           </label>
           <input
             id="rain-threshold"
@@ -264,8 +268,8 @@ export function ControlPanel({
             <span>{MAX_RAIN_THRESHOLD}% · dừng muộn</span>
           </div>
           <p className="rain-threshold-note">
-            Cảnh báo từ {rainWarnThreshold}% · bơm dừng từ {rainThreshold}% nếu bật
-            hoãn mưa.
+            Cảnh báo từ {rainWarnThreshold}% · bơm tự động ngắt từ {rainThreshold}% nếu bật
+            tính năng hoãn mưa.
           </p>
         </div>
 
@@ -276,15 +280,15 @@ export function ControlPanel({
             onChange={(event) => onToggleWeatherGate(event.target.checked)}
             disabled={!controlsEnabled}
           />
-          <span>Hoãn tưới khi có mưa</span>
+          <span>Tự động hoãn tưới khi trời mưa</span>
         </label>
         <div className={`weather-alert ${rainBlock ? "" : "off"}`}>
-          {rainBlock ? "Đang bật bảo vệ thời tiết" : "Weather gate đang tắt"}
+          {rainBlock ? "Đang bật chế độ hoãn tưới khi có mưa" : "Đã tắt chế độ hoãn tưới khi có mưa"}
         </div>
         {!raining && rainPercent !== null && rainPercent >= rainWarnThreshold && (
           <div className="weather-alert warn" role="status">
-            Có thể mưa ({rainPercent}%): còi đã báo, hệ thống vẫn tưới. Ở{" "}
-            {rainThreshold}% bơm sẽ dừng nếu đang bật hoãn mưa.
+            Có thể sắp mưa ({rainPercent}%): còi đã báo động, hệ thống vẫn tưới. Khi mưa vượt{" "}
+            {rainThreshold}% bơm sẽ tự dừng nếu đang bật hoãn tưới.
           </div>
         )}
       </article>
@@ -292,8 +296,8 @@ export function ControlPanel({
       <article className="panel tank-card">
         <div className="panel-heading">
           <div>
-            <h2>Bồn nước</h2>
-            <p>HC-SR04 đo khoảng cách tới mặt nước</p>
+            <h2>Mực nước bồn chứa</h2>
+            <p>Dung tích nước sẵn sàng để tưới cây</p>
           </div>
           <span className="card-icon">
             <DropletIcon size={18} />
@@ -302,48 +306,65 @@ export function ControlPanel({
 
         <div className="tank-headline">
           <div className="tank-reading">
-            <strong>{tankDistanceCm === null ? "--" : Math.round(tankDistanceCm)}</strong>
-            <small>cm</small>
+            <strong>{waterPercent === null ? "--" : waterPercent}</strong>
+            <small>%</small>
+            {tankDistanceCm !== null && (
+              <span className="tank-cm-hint">({Math.round(tankDistanceCm)} cm tới mặt nước)</span>
+            )}
           </div>
           <span
             className={`live-badge ${
-              tankEmpty ? "danger" : tankDistanceCm === null ? "" : "active"
+              tankEmpty
+                ? "danger"
+                : waterPercent === null
+                  ? ""
+                  : waterPercent <= 25
+                    ? "danger"
+                    : "active"
             }`}
           >
             <i />
-            {tankEmpty ? "Bồn cạn" : tankDistanceCm === null ? "Chưa có dữ liệu" : "Còn nước"}
+            {tankEmpty
+              ? "Bồn cạn nước"
+              : waterPercent === null
+                ? "Chưa có dữ liệu"
+                : waterPercent <= 25
+                  ? "Sắp hết nước"
+                  : "Đủ nước tưới"}
           </span>
         </div>
 
         <div className="tank-gauge">
           <div className="tank-track">
-            {tankLevel !== null && (
+            {waterPercent !== null && (
               <span
-                className={`tank-marker ${tankEmpty ? "danger" : ""}`}
-                style={{ left: `${tankLevel}%` }}
+                className={`tank-marker ${tankEmpty || waterPercent <= 25 ? "danger" : ""}`}
+                style={{ left: `${waterPercent}%` }}
               />
             )}
           </div>
           <div className="tank-scale">
-            <span>0 cm · đầy</span>
-            <span>100 cm · cạn</span>
+            <span>0% · cạn</span>
+            <span>100% · đầy</span>
           </div>
         </div>
 
         <p className="tank-caption">
           {tankEmpty
-            ? "Bồn cạn: bơm đang bị chặn để tránh chạy khô."
-            : tankDistanceCm === null
+            ? "Bồn nước đã cạn: hệ thống tự động khóa bơm để chống cháy thiết bị."
+            : waterPercent === null
               ? "Chưa nhận được số đo từ cảm biến."
-              : "Khoảng cách càng lớn, mực nước càng thấp."}
+              : waterPercent <= 25
+                ? "Mực nước xuống thấp: nên sớm châm thêm nước vào bồn."
+                : "Mực nước dồi dào, sẵn sàng phục vụ các lượt tưới tự động."}
         </p>
 
         <div className="tank-limits">
           <span>
-            <em>Báo cạn</em>≥ 80 cm
+            <em>Cảnh báo cạn</em>dưới 20% (≥ 80 cm)
           </span>
           <span>
-            <em>Hồi nước</em>≤ 60 cm
+            <em>An toàn để tưới</em>trên 40% (≤ 60 cm)
           </span>
         </div>
       </article>

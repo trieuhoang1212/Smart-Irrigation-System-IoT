@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
+import { zoneHref } from "../lib/zone-link";
 import {
   ChartIcon,
   ClockIcon,
@@ -20,6 +21,7 @@ interface SidebarProps {
   deviceOnline: boolean;
   lastUpdated: string;
   onReconnect: () => void;
+  activeZone?: string | null;
   active?: NavKey;
   onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }
@@ -30,6 +32,7 @@ export function Sidebar({
   deviceOnline,
   lastUpdated,
   onReconnect,
+  activeZone,
   active = "overview",
   onNavigate,
 }: SidebarProps) {
@@ -37,13 +40,14 @@ export function Sidebar({
   const deviceLabel = !connected
     ? "chưa rõ"
     : deviceOnline
-      ? "Online"
-      : "Offline";
+      ? "đang hoạt động"
+      : "mất kết nối";
   const onDashboard = active === "overview";
+  const overviewHref = onDashboard ? "#top" : zoneHref("/", activeZone);
 
   return (
     <aside className="sidebar">
-      <a className="brand" href={onDashboard ? "#top" : "/"} onClick={onNavigate}>
+      <a className="brand" href={overviewHref} onClick={onNavigate}>
         <span className="brand-mark">
           <LeafIcon size={16} />
         </span>
@@ -56,7 +60,7 @@ export function Sidebar({
         <p className="nav-label">Bảng điều khiển</p>
         <a
           className={`nav-item ${onDashboard ? "active" : ""}`}
-          href={onDashboard ? "#top" : "/"}
+          href={overviewHref}
           onClick={onNavigate}
         >
           <GridIcon size={17} />
@@ -64,7 +68,7 @@ export function Sidebar({
         </a>
         <Link
           className={`nav-item ${active === "analysis" ? "active" : ""}`}
-          href="/analysis"
+          href={zoneHref("/analysis", activeZone)}
           onClick={onNavigate}
         >
           <GaugeIcon size={17} />
@@ -72,7 +76,7 @@ export function Sidebar({
         </Link>
         <Link
           className={`nav-item ${active === "history" ? "active" : ""}`}
-          href="/history"
+          href={zoneHref("/history", activeZone)}
           onClick={onNavigate}
         >
           <ChartIcon size={17} />
@@ -80,7 +84,7 @@ export function Sidebar({
         </Link>
         <Link
           className={`nav-item ${active === "activity" ? "active" : ""}`}
-          href="/activity"
+          href={zoneHref("/activity", activeZone)}
           onClick={onNavigate}
         >
           <ClockIcon size={17} />
@@ -88,7 +92,7 @@ export function Sidebar({
         </Link>
         <Link
           className={`nav-item ${active === "garden" ? "active" : ""}`}
-          href="/garden"
+          href={zoneHref("/garden", activeZone)}
           onClick={onNavigate}
         >
           <EditIcon size={17} />
@@ -101,13 +105,13 @@ export function Sidebar({
           <div className="connection-title">
             <span className={`pulse ${brokerOnline ? "" : "off"}`} />
             {brokerConnected === null
-              ? "Đang kiểm tra MQTT"
+              ? "Đang kiểm tra kết nối"
               : brokerOnline
-                ? "MQTT Broker online"
-                : "MQTT Broker offline"}
+                ? "Kết nối hệ thống ổn định"
+                : "Mất kết nối hệ thống"}
           </div>
-          <p>ESP32: {deviceLabel}</p>
-          <p>Telemetry cuối: {lastUpdated}</p>
+          <p>Thiết bị tưới: {deviceLabel}</p>
+          <p>Dữ liệu cuối: {lastUpdated}</p>
           <button type="button" onClick={onReconnect}>
             <RefreshIcon size={14} />
             Kết nối lại

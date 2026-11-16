@@ -21,21 +21,21 @@ export function DeviceStatusBanner({
   let detail: string;
 
   if (!connected) {
-    title = "Backend chưa kết nối";
-    detail = "Hãy chắc chắn Backend đang chạy và kết nối được Mosquitto.";
+    title = "Mất kết nối máy chủ";
+    detail = "Không tải được dữ liệu mới. Kiểm tra máy chủ đang chạy rồi thử lại.";
   } else if (brokerConnected === null) {
-    title = "Đang kiểm tra kết nối MQTT";
-    detail = "Chờ Backend xác nhận trạng thái Mosquitto.";
+    title = "Đang kiểm tra kết nối";
+    detail = "Chờ hệ thống xác nhận trạng thái thiết bị tưới.";
   } else if (!brokerConnected) {
-    title = "MQTT Broker đang offline";
+    title = "Chưa kết nối được thiết bị tưới";
     detail = lastTelemetryAt === null
-      ? "Backend chưa kết nối được Mosquitto :1883 nên chưa có telemetry."
-      : `Telemetry cuối ${formatClock(lastTelemetryAt)} (${formatAge(lastTelemetryAt)}). Lệnh điều khiển tạm khoá.`;
+      ? "Chưa nhận được dữ liệu nào. Kiểm tra nguồn thiết bị và kết nối mạng."
+      : `Dữ liệu cuối ${formatClock(lastTelemetryAt)} (${formatAge(lastTelemetryAt)}). Lệnh điều khiển tạm khoá.`;
   } else {
-    title = "ESP32 đang offline";
+    title = "Thiết bị tưới đang mất kết nối";
     detail = lastTelemetryAt === null
-      ? "Chưa nhận được telemetry nào. Kiểm tra nguồn ESP32 và kết nối Wi-Fi."
-      : `Telemetry cuối ${formatClock(lastTelemetryAt)} (${formatAge(lastTelemetryAt)}). Vẫn xem được dữ liệu cũ nhưng lệnh tưới và đổi chế độ tạm khoá.`;
+      ? "Chưa nhận được dữ liệu nào. Kiểm tra nguồn thiết bị và kết nối Wi-Fi."
+      : `Dữ liệu cuối ${formatClock(lastTelemetryAt)} (${formatAge(lastTelemetryAt)}). Vẫn xem được dữ liệu cũ nhưng lệnh tưới và đổi chế độ tạm khoá.`;
   }
 
   return (

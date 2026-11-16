@@ -8,7 +8,7 @@
     animation: topbar-in 0.42s var(--ease-garden) both;
   }
 
-  .content > *:not(.topbar):not(.compact-nav):not(.nav-dock) {
+  .content > *:not(.topbar):not(.compact-nav):not(.mobile-tabbar) {
     animation: rise-in 0.56s var(--ease-garden) both;
   }
 
@@ -166,30 +166,6 @@
 
   .toast-icon {
     animation: icon-pop 0.46s 90ms var(--ease-spring) both;
-  }
-
-  .nav-dock-menu {
-    animation: dock-menu-in 0.2s var(--ease-garden) both;
-  }
-
-  .nav-dock-menu a {
-    animation: rise-in 0.26s var(--ease-garden) both;
-  }
-
-  .nav-dock-menu a:nth-child(2) {
-    animation-delay: 30ms;
-  }
-
-  .nav-dock-menu a:nth-child(3) {
-    animation-delay: 60ms;
-  }
-
-  .nav-dock-menu a:nth-child(4) {
-    animation-delay: 90ms;
-  }
-
-  .nav-dock-menu a:nth-child(5) {
-    animation-delay: 120ms;
   }
 
   .history-line,

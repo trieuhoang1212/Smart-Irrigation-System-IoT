@@ -13,6 +13,7 @@ import { ZonePhoto } from "./ZonePhoto";
 
 export function GardenDetailPanel({
   zone,
+  mode,
   soil,
   deviceId,
   controlsEnabled,
@@ -20,6 +21,7 @@ export function GardenDetailPanel({
   onToggleIrrigation,
 }: {
   zone: Zone;
+  mode: "auto" | "manual";
   soil: SoilType;
   deviceId: string;
   controlsEnabled: boolean;
@@ -31,7 +33,12 @@ export function GardenDetailPanel({
   const blocked = !controlsEnabled || tankEmpty;
   const blockedReason = tankEmpty
     ? "Bồn nước đã cạn nên bơm bị chặn"
-    : "ESP32 đang offline nên chưa gửi được lệnh";
+    : "Thiết bị tưới đang mất kết nối nên chưa gửi được lệnh";
+  const actionLabel = zone.pump
+    ? "Dừng tưới"
+    : mode === "auto"
+      ? "Tưới tay (chuyển Thủ công)"
+      : "Tưới khu vực này";
 
   const forecast = useMoistureForecast({ backendUrl: BACKEND_URL, deviceId, zone });
   const [now, setNow] = useState(() => Date.now());
@@ -140,7 +147,13 @@ export function GardenDetailPanel({
 
       {!controlsEnabled && (
         <p className="garden-detail-note">
-          ESP32 đang offline — nút tưới tạm khoá. Vẫn sửa được hồ sơ cây.
+          Thiết bị tưới đang mất kết nối — nút tưới tạm khoá. Vẫn sửa được hồ sơ cây.
+        </p>
+      )}
+
+      {controlsEnabled && mode === "auto" && !zone.pump && (
+        <p className="garden-detail-note">
+          Đang Tự động — tưới tay sẽ chuyển cả vườn sang Thủ công.
         </p>
       )}
 
@@ -149,10 +162,18 @@ export function GardenDetailPanel({
           className={`water-button ${zone.pump ? "watering" : ""}`}
           onClick={onToggleIrrigation}
           disabled={blocked}
-          title={blocked ? blockedReason : "Tưới khu vực đang chọn"}
+          title={
+            blocked
+              ? blockedReason
+              : mode === "auto"
+                ? zone.pump
+                  ? "Dừng bơm và chuyển cả vườn sang Thủ công"
+                  : "Chuyển cả vườn sang Thủ công rồi bật bơm khu vực này"
+                : "Bật hoặc tắt bơm của khu vực đang chọn"
+          }
         >
           <DropletIcon size={15} />
-          {zone.pump ? "Đang tưới..." : "Tưới khu vực này"}
+          {zone.pump ? "Đang tưới..." : actionLabel}
         </button>
         <Link className="ghost-button" href={`/garden?zone=${zone.id}`}>
           <EditIcon size={14} />

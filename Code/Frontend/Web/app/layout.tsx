@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import "../src/App.css";
 
@@ -11,6 +11,12 @@ const lexend = Lexend({
 export const metadata: Metadata = {
   title: "Greenflow | Smart Irrigation",
   description: "Dashboard giám sát và điều khiển hệ thống tưới thông minh.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

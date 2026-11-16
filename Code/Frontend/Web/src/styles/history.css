@@ -290,10 +290,3 @@
   font-size: 12px;
   font-weight: 500;
 }
-
-.sync-note {
-  margin-top: 12px;
-  color: var(--faint);
-  font-size: 11.5px;
-  line-height: 1.6;
-}

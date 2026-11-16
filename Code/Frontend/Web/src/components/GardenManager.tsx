@@ -23,6 +23,7 @@ export function GardenManager() {
 
   const {
     connected,
+    mode,
     deviceOnline,
     brokerConnected,
     lastUpdated,
@@ -143,6 +144,7 @@ export function GardenManager() {
         deviceOnline={deviceOnline}
         lastUpdated={lastUpdated}
         onReconnect={reconnect}
+        activeZone={activeZone.id}
         onNavigate={guardNavigation}
       />
 
@@ -152,10 +154,13 @@ export function GardenManager() {
           crumb="Quản lý khu vườn"
           eyebrow="Hồ sơ cây trồng"
           title="Quản lý khu vườn"
-          subtitle="Đổi loại cây, ảnh nhận diện và thông tin canh tác cho từng ô trồng."
           connected={connected}
           lastUpdated={lastUpdated}
+          mode={mode}
+          activeZone={activeZone.id}
           onNavigate={guardNavigation}
+          zones={zones}
+          onSelectZone={selectZone}
         />
 
         <DeviceStatusBanner
@@ -184,15 +189,21 @@ export function GardenManager() {
           ))}
         </div>
 
-        <GardenSoilPlan deviceId={deviceId} initialSoil={soil} />
+        <div className="bento-dashboard">
+          <div className="bento-col-main">
+            <ZoneProfileEditor
+              key={activeZone.id}
+              zone={activeZone}
+              deviceId={deviceId}
+              onZoneChange={handleZoneChange}
+              onDirtyChange={setDirty}
+            />
+          </div>
 
-        <ZoneProfileEditor
-          key={activeZone.id}
-          zone={activeZone}
-          deviceId={deviceId}
-          onZoneChange={handleZoneChange}
-          onDirtyChange={setDirty}
-        />
+          <aside className="bento-col-side">
+            <GardenSoilPlan deviceId={deviceId} initialSoil={soil} />
+          </aside>
+        </div>
       </section>
 
       <BackToTop />

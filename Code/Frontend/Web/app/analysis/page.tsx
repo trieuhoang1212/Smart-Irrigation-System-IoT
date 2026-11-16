@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AnalysisApp } from "../../src/AnalysisApp";
 
 export const metadata: Metadata = {
@@ -8,5 +9,20 @@ export const metadata: Metadata = {
 };
 
 export default function AnalysisPage() {
-  return <AnalysisApp />;
+  return (
+    <Suspense
+      fallback={
+        <main className="app-shell">
+          <section className="content status-page">
+            <div className="status-card">
+              <strong>Đang tải...</strong>
+              <p>Đang lấy dữ liệu phân tích từ máy chủ.</p>
+            </div>
+          </section>
+        </main>
+      }
+    >
+      <AnalysisApp />
+    </Suspense>
+  );
 }

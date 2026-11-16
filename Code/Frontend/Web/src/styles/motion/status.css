@@ -50,13 +50,14 @@
 
 .weather-card {
   position: relative;
-  overflow: hidden;
 }
 
 .weather-card.raining::after {
   content: "";
   position: absolute;
   inset: 0;
+  /* Bo góc tại chỗ thay vì cắt overflow, để tooltip trong card không bị xén. */
+  border-radius: inherit;
   pointer-events: none;
   background-image: repeating-linear-gradient(112deg, rgba(61, 111, 140, 0.18) 0 1px, transparent 1px 10px);
   background-size: 100% 20px;

@@ -29,13 +29,12 @@ export function GardenBoard({
             onClick={() => onSelect(zone.id)}
           >
             <ZonePhoto zone={zone} className="garden-cell-photo" />
-            <span className={`zone-chip ${status.tone}`}>{status.label}</span>
             <span className="garden-cell-body">
               <span className="garden-cell-line">
                 <strong>{zone.name}</strong>
                 <em>{zone.id}</em>
               </span>
-              <small>{zone.group}</small>
+              <span className={`zone-chip ${status.tone}`}>{status.label}</span>
               <span className="garden-cell-meter">
                 <span className={`garden-meter ${zone.pump ? "pumping" : ""}`}>
                   <i style={{ width: `${moisture ?? 0}%` }} />

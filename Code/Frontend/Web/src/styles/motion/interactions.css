@@ -5,7 +5,7 @@
 .config-save,
 .status-card button,
 .connection-card button,
-.nav-dock-trigger {
+.mobile-tabbar a {
   transition:
     transform 0.18s var(--ease-garden),
     background-color 0.2s ease,

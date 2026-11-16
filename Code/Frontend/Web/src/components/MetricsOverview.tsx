@@ -13,7 +13,6 @@ import {
 interface MetricsOverviewProps {
   temperature: number | null;
   humidity: number | null;
-  pumpOn: boolean;
   servoAngle: number | null;
   mode: string;
   selectedZone: Zone;
@@ -22,7 +21,6 @@ interface MetricsOverviewProps {
 export function MetricsOverview({
   temperature,
   humidity,
-  pumpOn,
   servoAngle,
   mode,
   selectedZone,
@@ -46,7 +44,7 @@ export function MetricsOverview({
             {temperature === null ? "--" : `${temperature}°`}
             <small>C</small>
           </strong>
-          <p>Đọc từ DHT22 trên ESP32</p>
+          <p>Đo trực tiếp tại khu vườn</p>
         </article>
 
         <article className="metric-card">
@@ -57,7 +55,7 @@ export function MetricsOverview({
           <strong>
             {humidity === null ? "--" : `${humidity}%`}
           </strong>
-          <p>{humidity === null ? "Cảm biến chưa trả dữ liệu" : "DHT22 · cập nhật 2 giây"}</p>
+          <p>{humidity === null ? "Đang chờ dữ liệu..." : "Đo tại vườn · Cập nhật liên tục"}</p>
         </article>
 
         <article className="metric-card moisture-card">
@@ -79,13 +77,15 @@ export function MetricsOverview({
         <article className="metric-card system-card">
           <div className="system-row">
             <span>
-              <ValveIcon size={16} /> Bơm khu vực
+              <ValveIcon size={16} /> Bơm vùng đang xem
             </span>
-            <strong className={pumpOn ? "good" : ""}>{pumpOn ? "Bật" : "Tắt"}</strong>
+            <strong className={selectedZone.pump ? "good" : ""}>
+              {selectedZone.pump ? "Bật" : "Tắt"}
+            </strong>
           </div>
           <div className="system-row">
             <span>
-              <GaugeIcon size={16} /> Van servo
+              <GaugeIcon size={16} /> Van xả
             </span>
             <strong>{servoAngle === null ? "--" : `${servoAngle}°`}</strong>
           </div>

@@ -136,10 +136,15 @@
   min-width: 0;
   width: min(1220px, 100%);
   margin: 0 auto;
-  padding: 0 40px 48px;
+  padding: 0 clamp(16px, 2.6vw, 40px) 48px;
+  /* Bento co giãn theo bề rộng thật của vùng nội dung, không theo viewport. */
+  container-type: inline-size;
+  container-name: page;
 }
 
 .topbar {
+  position: relative;
+  z-index: 30;
   height: 56px;
   display: flex;
   align-items: center;
@@ -150,6 +155,31 @@
 .topbar-crumb {
   font-size: 13px;
   color: var(--muted);
+}
+
+.topbar-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green-strong);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.topbar-mode i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.topbar-mode.manual {
+  background: var(--amber-soft);
+  color: #7d5c24;
 }
 
 .topbar-status {
@@ -205,7 +235,7 @@
   display: none;
 }
 
-.nav-dock {
+.mobile-tabbar {
   display: none;
 }
 
@@ -250,48 +280,50 @@
 .offline-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-  margin: -4px 0 18px;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
   border: 1px solid #eadfca;
   border-radius: 9px;
   background: #fbf6ea;
   color: #7d5c24;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .offline-banner > span {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
   border-radius: 50%;
   background: #b58a3f;
   color: #fff;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .offline-banner strong {
   display: block;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .offline-banner small {
   display: block;
   color: #8f7440;
-  font-size: 11.5px;
-  margin-top: 2px;
+  font-size: 11px;
+  margin-top: 1px;
 }
 
 .offline-banner button {
   margin-left: auto;
+  flex: none;
   border: 1px solid #e0d2b3;
   border-radius: 7px;
-  padding: 6px 10px;
+  padding: 5px 9px;
   color: #7d5c24;
   background: var(--surface);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -334,4 +366,30 @@
   background: var(--green);
   font-size: 12px;
   font-weight: 500;
+}
+
+/* Thanh bên trái ẩn (≤1280px): ghim thanh trên và dải điều hướng
+   (Tổng quan / Phân tích / …) để đổi trang khi cuộn. */
+@media (max-width: 1280px) {
+  .content > .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 44;
+    background: var(--canvas);
+  }
+
+  .content > .compact-nav {
+    position: sticky;
+    top: 56px;
+    z-index: 43;
+    margin-top: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    background: var(--canvas);
+  }
+
+  /* Cột phải còn dính thì nằm dưới cụm thanh đã ghim. */
+  .bento-col-side {
+    top: 112px;
+  }
 }

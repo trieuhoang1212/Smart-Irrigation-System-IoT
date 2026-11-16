@@ -21,7 +21,7 @@ import {
 export function HistoryApp() {
   const router = useRouter();
   const sync = parseSyncParams(useSearchParams());
-  const [activeZone, setActiveZone] = useState(sync.zone ?? "T002");
+  const [activeZone, setActiveZone] = useState(sync.zone ?? "");
   const [focusAt, setFocusAt] = useState<number | null>(sync.at);
 
   const {
@@ -54,7 +54,7 @@ export function HistoryApp() {
 
   const clearFocus = () => {
     setFocusAt(null);
-    replaceSyncParams(null, activeZone);
+    replaceSyncParams(null, selectedZone?.id ?? null);
   };
 
   if (configLoading || configError || !selectedZone || !deviceId) {
@@ -100,6 +100,7 @@ export function HistoryApp() {
         deviceOnline={deviceOnline}
         lastUpdated={lastUpdated}
         onReconnect={reconnect}
+        activeZone={selectedZone.id}
       />
 
       <section className="content">
@@ -108,9 +109,12 @@ export function HistoryApp() {
           crumb="Lịch sử cảm biến"
           eyebrow="Dữ liệu cảm biến"
           title="Lịch sử cảm biến"
-          subtitle="Theo dõi độ ẩm, nhiệt độ và cảm biến mưa; chạm lên biểu đồ để mở nhật ký quanh mốc đó."
           connected={connected}
           lastUpdated={lastUpdated}
+          mode={mode}
+          activeZone={selectedZone.id}
+          zones={zones}
+          onSelectZone={handleSelectZone}
         />
 
         <DeviceStatusBanner
@@ -130,7 +134,7 @@ export function HistoryApp() {
               </small>
             </div>
             <div className="sync-banner-actions">
-              <Link className="link-button" href={activityHref(focusAt, activeZone)}>
+              <Link className="link-button" href={activityHref(focusAt, selectedZone.id)}>
                 Xem nhật ký quanh mốc
               </Link>
               <button type="button" onClick={clearFocus}>
@@ -141,24 +145,41 @@ export function HistoryApp() {
           </div>
         )}
 
-        <HistoryChart
-          backendUrl={BACKEND_URL}
-          deviceId={deviceId}
-          zones={zones}
-          activeZone={activeZone}
-          connected={connected}
-          onSelectZone={handleSelectZone}
-          liveSample={liveSample}
-          focusAt={focusAt}
-          onPointSelect={(sample) =>
-            router.push(activityHref(sample.recordedAt, activeZone))
-          }
-        />
+        <div className="bento-dashboard">
+          <div className="bento-col-main">
+            <HistoryChart
+              backendUrl={BACKEND_URL}
+              deviceId={deviceId}
+              zones={zones}
+              activeZone={selectedZone.id}
+              connected={connected}
+              onSelectZone={handleSelectZone}
+              liveSample={liveSample}
+              focusAt={focusAt}
+              onPointSelect={(sample) =>
+                router.push(activityHref(sample.recordedAt, selectedZone.id))
+              }
+            />
+          </div>
 
-        <p className="sync-note">
-          Nhật ký ghi lại lệnh điều khiển và thay đổi ngưỡng; biểu đồ chỉ có dữ liệu
-          cảm biến. Chạm lên biểu đồ để đối chiếu hai nguồn theo cùng một mốc thời gian.
-        </p>
+          <aside className="bento-col-side">
+            <section className="panel bento-note-card">
+              <div className="panel-heading">
+                <div>
+                  <h2>Cách đọc biểu đồ</h2>
+                  <p>Đối chiếu cảm biến với nhật ký điều khiển.</p>
+                </div>
+              </div>
+              <p className="bento-note-text">
+                Nhật ký ghi lại lệnh điều khiển và thay đổi ngưỡng; biểu đồ chỉ có dữ liệu
+                cảm biến. Chạm lên biểu đồ để mở nhật ký quanh mốc đó.
+              </p>
+              <Link className="link-button" href={activityHref(focusAt, selectedZone.id)}>
+                Mở nhật ký hoạt động
+              </Link>
+            </section>
+          </aside>
+        </div>
       </section>
 
       <BackToTop />

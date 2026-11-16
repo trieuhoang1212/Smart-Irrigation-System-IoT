@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BACKEND_URL } from "./lib/backend";
 import { useMqtt } from "./hooks/useMqtt";
@@ -22,6 +23,7 @@ import { BackToTop } from "./components/BackToTop";
 import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
 import { AnalysisChart } from "./components/AnalysisChart";
 import { AlertIcon, CheckIcon, InfoIcon } from "./components/icons";
+import { Tooltip } from "./components/Tooltip";
 
 const RING_LENGTH = 2 * Math.PI * 52;
 
@@ -30,12 +32,14 @@ function percent(value: number | null): string {
 }
 
 export function AnalysisApp() {
-  const [activeZoneId, setActiveZoneId] = useState("T002");
+  const searchParams = useSearchParams();
+  const [activeZoneId, setActiveZoneId] = useState(searchParams.get("zone") ?? "");
   const [range, setRange] = useState<AnalysisRange>("24h");
 
   const {
     zones,
     connected,
+    mode,
     configLoading,
     configError,
     deviceId,
@@ -102,6 +106,15 @@ export function AnalysisApp() {
     });
   }, [series, selectedZone, tankDistanceCm, tankEmpty, rainBlock]);
 
+  const handleSelectZone = (zoneId: string) => {
+    setActiveZoneId(zoneId);
+    window.history.replaceState(
+      null,
+      "",
+      `/analysis?zone=${encodeURIComponent(zoneId)}`,
+    );
+  };
+
   if (configLoading || configError || !selectedZone || !deviceId || !analysis) {
     return (
       <main className="app-shell">
@@ -145,6 +158,7 @@ export function AnalysisApp() {
         deviceOnline={deviceOnline}
         lastUpdated={lastUpdated}
         onReconnect={reconnect}
+        activeZone={selectedZone.id}
       />
 
       <section className="content">
@@ -153,9 +167,12 @@ export function AnalysisApp() {
           crumb="Phân tích cây trồng"
           eyebrow="Chẩn đoán khu vườn"
           title="Phân tích cây trồng"
-          subtitle="Đánh giá độ ẩm, thời tiết và nguồn nước để biết cây có ổn không."
           connected={connected}
           lastUpdated={lastUpdated}
+          mode={mode}
+          activeZone={selectedZone.id}
+          zones={zones}
+          onSelectZone={handleSelectZone}
         />
 
         <DeviceStatusBanner
@@ -175,7 +192,7 @@ export function AnalysisApp() {
               role="tab"
               aria-selected={zone.id === selectedZone.id}
               className={`zone-pill ${zone.id === selectedZone.id ? "active" : ""}`}
-              onClick={() => setActiveZoneId(zone.id)}
+              onClick={() => handleSelectZone(zone.id)}
             >
               <i style={{ background: zone.color }} />
               {zone.name}
@@ -184,7 +201,9 @@ export function AnalysisApp() {
           ))}
         </div>
 
-        <section className={`panel analysis-verdict ${verdictStatus}`}>
+        <div className="bento-dashboard">
+          <div className="bento-col-main">
+            <section className={`panel analysis-verdict ${verdictStatus}`}>
           <div className="verdict-main">
             <p className="verdict-kicker">
               <StatusIcon size={14} />
@@ -340,71 +359,77 @@ export function AnalysisApp() {
           </div>
         </section>
 
-        <div className="analysis-grid">
-          <section className="panel analysis-facts">
-            <div className="panel-heading">
-              <div>
-                <h2>Chỉ số trong {ANALYSIS_RANGES[range].label}</h2>
-                <p>Tổng hợp từ {analysis.stats.samples} mẫu telemetry</p>
-              </div>
-            </div>
-            <div className="fact-grid">
-              <div className="fact">
-                <span>Trong vùng an toàn</span>
-                <strong>{percent(analysis.stats.inSafePct)}</strong>
-              </div>
-              <div className="fact">
-                <span>Khô liên tục dài nhất</span>
-                <strong>{formatDuration(analysis.stats.longestDryMs)}</strong>
-              </div>
-              <div className="fact">
-                <span>Số lần bơm chạy</span>
-                <strong>{analysis.stats.pumpStarts}</strong>
-              </div>
-              <div className="fact">
-                <span>Độ ẩm trung bình</span>
-                <strong>{percent(analysis.stats.avgMoisture)}</strong>
-              </div>
-              <div className="fact">
-                <span>Lần tưới gần nhất</span>
-                <strong>
-                  {analysis.stats.lastPumpAt
-                    ? formatClock(analysis.stats.lastPumpAt)
-                    : "Chưa có"}
-                </strong>
-              </div>
-              <div className="fact">
-                <span>Bồn nước</span>
-                <strong>
-                  {tankEmpty
-                    ? "Đã cạn"
-                    : tankDistanceCm === null
-                      ? "Chưa rõ"
-                      : `Còn nước · ${Math.round(tankDistanceCm)} cm`}
-                </strong>
-              </div>
-            </div>
-          </section>
+          </div>
 
-          <section className="panel analysis-advice">
-            <div className="panel-heading">
-              <div>
-                <h2>Gợi ý chăm sóc</h2>
-                <p>Dựa trên ngưỡng cấu hình và dữ liệu cảm biến</p>
-              </div>
+          <aside className="bento-col-side">
+            <div className="analysis-grid">
+              <section className="panel analysis-facts">
+                <div className="panel-heading">
+                  <div>
+                    <h2>
+                      Chỉ số trong {ANALYSIS_RANGES[range].label}
+                      <Tooltip
+                        text={`Thống kê ${ANALYSIS_RANGES[range].label.toLowerCase()} gần nhất: thời gian trong vùng an toàn, khô liên tục dài nhất, số lần bơm, độ ẩm trung bình và mực nước bồn. Tổng hợp từ ${analysis.stats.samples} mẫu telemetry.`}
+                      />
+                    </h2>
+                  </div>
+                </div>
+                <div className="fact-grid">
+                  <div className="fact">
+                    <span>Trong vùng an toàn</span>
+                    <strong>{percent(analysis.stats.inSafePct)}</strong>
+                  </div>
+                  <div className="fact">
+                    <span>Khô liên tục dài nhất</span>
+                    <strong>{formatDuration(analysis.stats.longestDryMs)}</strong>
+                  </div>
+                  <div className="fact">
+                    <span>Số lần bơm chạy</span>
+                    <strong>{analysis.stats.pumpStarts}</strong>
+                  </div>
+                  <div className="fact">
+                    <span>Độ ẩm trung bình</span>
+                    <strong>{percent(analysis.stats.avgMoisture)}</strong>
+                  </div>
+                  <div className="fact">
+                    <span>Lần tưới gần nhất</span>
+                    <strong>
+                      {analysis.stats.lastPumpAt
+                        ? formatClock(analysis.stats.lastPumpAt)
+                        : "Chưa có"}
+                    </strong>
+                  </div>
+                  <div className="fact">
+                    <span>Bồn nước</span>
+                    <strong>
+                      {tankEmpty
+                        ? "Đã cạn"
+                        : tankDistanceCm === null
+                          ? "Chưa rõ"
+                          : `Còn nước · ${Math.round(tankDistanceCm)} cm`}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+
+              <section className="panel analysis-advice">
+                <div className="panel-heading">
+                  <div>
+                    <h2>
+                      Gợi ý chăm sóc
+                      <Tooltip text="Dựa trên ngưỡng tưới, nhiệt độ và nguồn nước. Điểm sức khỏe chỉ là đánh giá tham khảo, không thay thế quan sát trực tiếp của người trồng." />
+                    </h2>
+                  </div>
+                </div>
+                <ul>
+                  {analysis.advice.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              </section>
             </div>
-            <ul>
-              {analysis.advice.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
-          </section>
+          </aside>
         </div>
-
-        <p className="analysis-note">
-          Điểm sức khỏe là đánh giá tham khảo theo ngưỡng tưới, nhiệt độ và nguồn nước —
-          không thay thế quan sát trực tiếp của người trồng.
-        </p>
       </section>
 
       <BackToTop />

@@ -11,6 +11,7 @@ import { ZoneAdvicePanel } from "./ZoneAdvicePanel";
 export function GardenOverview({
   zones,
   activeZone,
+  mode,
   soil,
   controlsEnabled,
   deviceId,
@@ -21,6 +22,7 @@ export function GardenOverview({
 }: {
   zones: Zone[];
   activeZone: string;
+  mode: "auto" | "manual";
   soil: SoilType;
   controlsEnabled: boolean;
   deviceId: string;
@@ -44,7 +46,9 @@ export function GardenOverview({
       <div className="panel-heading">
         <div>
           <h2>Khu vườn</h2>
-          <p>6 ô trồng · dữ liệu realtime từ ESP32</p>
+          <p>
+            {zones.length} ô trồng · đang xem {selectedZone.id} · {selectedZone.name}
+          </p>
         </div>
         <Link className="link-button" href="/garden">
           <EditIcon size={14} />
@@ -57,6 +61,7 @@ export function GardenOverview({
         <GardenDetailPanel
           key={selectedZone.id}
           zone={selectedZone}
+          mode={mode}
           soil={soil}
           deviceId={deviceId}
           controlsEnabled={controlsEnabled}

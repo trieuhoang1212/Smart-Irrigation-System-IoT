@@ -550,10 +550,3 @@
   background: var(--green);
   opacity: 0.55;
 }
-
-.analysis-note {
-  margin-top: 16px;
-  color: var(--faint);
-  font-size: 11.5px;
-  line-height: 1.6;
-}

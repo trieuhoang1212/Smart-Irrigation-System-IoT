@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export type ActivityKind = "pump" | "mode" | "threshold" | "weather" | "other";
+
 export type ActivityEvent = {
   id: string;
   at: number;
   text: string;
+  kind: ActivityKind;
   status?: "pending" | "confirmed" | "timeout";
   zoneId?: string | null;
 };
@@ -28,7 +31,9 @@ const LIMIT = 20;
 const REFRESH_MS = 15000;
 const VISIBLE_EVENTS = 8;
 
-function describeCommand(command: string): { text: string; zoneId: string | null } | null {
+function describeCommand(
+  command: string,
+): { text: string; zoneId: string | null; kind: ActivityKind } | null {
   // SET_THRESHOLD cũng sinh bản ghi trong config/changes, tránh trùng 2 dòng.
   if (command.startsWith("SET_THRESHOLD_")) return null;
 
@@ -37,18 +42,20 @@ function describeCommand(command: string): { text: string; zoneId: string | null
     return {
       text: `${zonePump[1] === "ON" ? "Bật" : "Tắt"} bơm ${zonePump[2]}`,
       zoneId: zonePump[2],
+      kind: "pump",
     };
   }
 
-  const labels: Record<string, string> = {
-    PUMP_ON: "Bật bơm toàn vườn",
-    PUMP_OFF: "Tắt bơm toàn vườn",
-    MODE_AUTO: "Chuyển chế độ Tự động",
-    MODE_MANUAL: "Chuyển chế độ Thủ công",
-    WEATHER_GATE_ON: "Bật hoãn tưới khi mưa",
-    WEATHER_GATE_OFF: "Tắt hoãn tưới khi mưa",
+  const labels: Record<string, { text: string; kind: ActivityKind }> = {
+    PUMP_ON: { text: "Bật bơm toàn vườn", kind: "pump" },
+    PUMP_OFF: { text: "Tắt bơm toàn vườn", kind: "pump" },
+    MODE_AUTO: { text: "Chuyển chế độ Tự động", kind: "mode" },
+    MODE_MANUAL: { text: "Chuyển chế độ Thủ công", kind: "mode" },
+    WEATHER_GATE_ON: { text: "Bật hoãn tưới khi mưa", kind: "weather" },
+    WEATHER_GATE_OFF: { text: "Tắt hoãn tưới khi mưa", kind: "weather" },
   };
-  return { text: labels[command] ?? command, zoneId: null };
+  const described = labels[command];
+  return { text: described?.text ?? command, zoneId: null, kind: described?.kind ?? "other" };
 }
 
 export function useActivity({
@@ -67,6 +74,7 @@ export function useActivity({
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
   const requestRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -94,6 +102,7 @@ export function useActivity({
               id: `command-${row.commandId}`,
               at: row.createdAt,
               text: described.text,
+              kind: described.kind,
               status: row.status,
               zoneId: described.zoneId,
             }]
@@ -103,6 +112,7 @@ export function useActivity({
       const changeEvents = (changesBody.changes ?? []).map((row) => ({
         id: `change-${row.zoneId}-${row.updatedAt}`,
         at: row.updatedAt,
+        kind: "threshold" as const,
         text:
           row.oldThreshold === null
             ? `Đặt ngưỡng ${row.zoneId} → ${row.threshold}%`
@@ -115,6 +125,7 @@ export function useActivity({
           .sort((a, b) => b.at - a.at)
           .slice(0, visible),
       );
+      setLoadedAt(Date.now());
       setError(null);
     } catch {
       if (requestId === requestRef.current) {
@@ -137,5 +148,5 @@ export function useActivity({
     return () => window.clearInterval(timer);
   }, [load, deviceId]);
 
-  return { events, loading, error, refresh: load };
+  return { events, loading, error, loadedAt, refresh: load };
 }

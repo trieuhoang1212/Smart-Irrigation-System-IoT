@@ -5,6 +5,7 @@ import type { Zone } from "../garden-data";
 import type { ZoneConfigInput } from "../hooks/useMqtt";
 import type { WateringRunSummary } from "../lib/garden-api";
 import { SaveIcon } from "./icons";
+import { Tooltip } from "./Tooltip";
 
 type FieldKey = "flowLitersPerHour" | "targetLiters";
 
@@ -21,7 +22,7 @@ type Field = {
 const FIELDS: Field[] = [
   {
     key: "flowLitersPerHour",
-    label: "Lưu lượng đầu tưới",
+    label: "Lưu lượng bơm",
     unit: "L/giờ",
     min: 1,
     max: 200,
@@ -30,7 +31,7 @@ const FIELDS: Field[] = [
   },
   {
     key: "targetLiters",
-    label: "Mục tiêu mỗi lần",
+    label: "Nước mỗi lần tưới",
     unit: "L",
     min: 0.1,
     max: 20,
@@ -100,6 +101,7 @@ export function ZoneConfigCard({
   wateringLoaded: boolean;
   onSave: (input: ZoneConfigInput) => Promise<boolean>;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [values, setValues] = useState<Record<FieldKey, string>>({
     flowLitersPerHour: String(zone.flowLitersPerHour),
     targetLiters: String(zone.targetLiters),
@@ -132,10 +134,10 @@ export function ZoneConfigCard({
   if (flow !== null && target !== null && minutesToTarget !== null && maxLiters !== null) {
     if (minutesToTarget > MAX_RUNTIME_MINUTES) {
       verdictTone = "warn";
-      verdict = `Cần khoảng ${formatDuration(minutesToTarget)} mới đủ ${formatLiters(target)} L, nhưng ESP32 dừng tối đa ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ mục tiêu còn khoảng ${formatLiters(maxLiters)} L hoặc chia làm nhiều lần.`;
+      verdict = `Cần khoảng ${formatDuration(minutesToTarget)} mới đủ ${formatLiters(target)} L, nhưng hệ thống dừng tối đa ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ lượng nước còn khoảng ${formatLiters(maxLiters)} L hoặc chia làm nhiều lần.`;
     } else if (minutesToTarget * 60 < MIN_RUNTIME_SECONDS) {
       verdictTone = "warn";
-      verdict = `Mỗi lần chỉ chạy khoảng ${formatNumber(minutesToTarget * 60, 1)} giây — ngắn hơn mức tối thiểu ${MIN_RUNTIME_SECONDS} giây của ESP32.`;
+      verdict = `Mỗi lần chỉ chạy khoảng ${formatNumber(minutesToTarget * 60, 1)} giây — ngắn hơn mức tối thiểu ${MIN_RUNTIME_SECONDS} giây của hệ thống.`;
     } else {
       verdict = `Đủ ${formatLiters(target)} L sau khoảng ${formatDuration(minutesToTarget)} — trong giới hạn ${MAX_RUNTIME_MINUTES} phút mỗi lần.`;
     }
@@ -152,7 +154,7 @@ export function ZoneConfigCard({
       return;
     }
     if (minutesToTarget !== null && minutesToTarget > MAX_RUNTIME_MINUTES) {
-      setError(`Mục tiêu cần hơn ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ lượng nước hoặc tăng lưu lượng trước khi lưu.`);
+      setError(`Lượng nước này cần hơn ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ lượng nước hoặc tăng lưu lượng trước khi lưu.`);
       return;
     }
     if (minutesToTarget !== null && minutesToTarget * 60 < MIN_RUNTIME_SECONDS) {
@@ -174,88 +176,15 @@ export function ZoneConfigCard({
     <article className="panel zone-config-card">
       <div className="panel-heading">
         <div>
-          <h2>Nước cho vùng</h2>
+          <h2>
+            Lượng nước tưới
+            <Tooltip text="Thống kê nước đã tưới hôm nay và cấu hình lưu lượng, mục tiêu nước mỗi lần tưới. Số liệu tổng hợp từ lịch sử bơm bật/tắt." />
+          </h2>
           <p>
             {zone.id} · {zone.name} · {zone.method}
           </p>
-          <p className="config-role">
-            ESP32 tự tưới theo ngưỡng đất khô {zone.threshold}% (chỉnh ở thẻ Điều khiển
-            bơm). Hai số dưới đây dùng để tính lượng nước và thời gian tự dừng.
-          </p>
         </div>
       </div>
-
-      <form className="zone-config-form" onSubmit={(event) => void handleSubmit(event)}>
-        <div className="config-fields">
-          {FIELDS.map((field) => {
-            const state = parsed[field.key];
-            return (
-              <label key={field.key}>
-                <span>
-                  {field.label} <em>({field.unit})</em>
-                </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={values[field.key]}
-                  aria-invalid={state.error ? true : undefined}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setValues((current) => ({ ...current, [field.key]: next }));
-                    setError(null);
-                  }}
-                />
-                {state.error ? (
-                  <small className="config-field-error">{state.error}</small>
-                ) : (
-                  <small className="config-field-hint">{field.hint}</small>
-                )}
-              </label>
-            );
-          })}
-        </div>
-
-        {flow !== null &&
-          target !== null &&
-          maxLiters !== null &&
-          minutesToTarget !== null &&
-          verdict && (
-          <div className="config-preview" aria-live="polite">
-            <div className="config-preview-row">
-              <span>Tối đa mỗi lần (chốt an toàn {MAX_RUNTIME_MINUTES} phút) ≈</span>
-              <strong>{formatLiters(maxLiters)} L</strong>
-            </div>
-            <div className="config-preview-row">
-              <span>Đủ {formatLiters(target)} L cần khoảng</span>
-              <strong>{formatDuration(minutesToTarget)}</strong>
-            </div>
-            <p className={`config-verdict ${verdictTone}`}>{verdict}</p>
-          </div>
-        )}
-
-        <div className="config-feedback">
-          <p className="config-hint">
-            {invalidFields.length > 0
-              ? "Sửa các ô báo lỗi để xem kết quả tính."
-              : `ESP32 tưới khi đất dưới ${zone.threshold}% và tự dừng khi đất đủ ẩm, tối đa ${MAX_RUNTIME_MINUTES} phút mỗi lần.`}
-          </p>
-          {error && (
-            <p className="config-error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-
-        <button
-          type="submit"
-          className="config-save"
-          disabled={saving || invalidFields.length > 0}
-        >
-          <SaveIcon size={16} />
-          {saving ? "Đang lưu..." : "Lưu cấu hình"}
-        </button>
-      </form>
 
       <div className="water-column">
         <div className="water-history">
@@ -292,11 +221,96 @@ export function ZoneConfigCard({
             </div>
           </div>
         ) : null}
+      </div>
 
-        <small className="water-footnote">
-          Số lần tưới lấy từ nhật ký bơm bật/tắt của ESP32, nhân với lưu lượng cấu
-          hình.
-        </small>
+      <div className="config-accordion-section">
+        <button
+          type="button"
+          className="config-accordion-toggle"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          aria-expanded={isExpanded}
+        >
+          <span>Lưu lượng & mục tiêu tưới</span>
+          <small>{isExpanded ? "Thu gọn ▲" : "Tùy chỉnh ▼"}</small>
+        </button>
+
+        {isExpanded && (
+          <form className="zone-config-form" onSubmit={(event) => void handleSubmit(event)}>
+            <p className="config-role">
+              Hệ thống tự tưới theo ngưỡng tưới {zone.threshold}%. Hai số dưới đây dùng để tính lượng nước và thời gian tự dừng.
+            </p>
+
+            <div className="config-fields">
+              {FIELDS.map((field) => {
+                const state = parsed[field.key];
+                return (
+                  <label key={field.key}>
+                    <span>
+                      {field.label} <em>({field.unit})</em>
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      value={values[field.key]}
+                      aria-invalid={state.error ? true : undefined}
+                      onChange={(event) => {
+                        const next = event.target.value;
+                        setValues((current) => ({ ...current, [field.key]: next }));
+                        setError(null);
+                      }}
+                    />
+                    {state.error ? (
+                      <small className="config-field-error">{state.error}</small>
+                    ) : (
+                      <small className="config-field-hint">{field.hint}</small>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            {flow !== null &&
+              target !== null &&
+              maxLiters !== null &&
+              minutesToTarget !== null &&
+              verdict && (
+              <div className="config-preview" aria-live="polite">
+                <div className="config-preview-row">
+                  <span>Tối đa mỗi lần (chốt an toàn {MAX_RUNTIME_MINUTES} phút) ≈</span>
+                  <strong>{formatLiters(maxLiters)} L</strong>
+                </div>
+                <div className="config-preview-row">
+                  <span>Đủ {formatLiters(target)} L cần khoảng</span>
+                  <strong>{formatDuration(minutesToTarget)}</strong>
+                </div>
+                <p className={`config-verdict ${verdictTone}`}>{verdict}</p>
+              </div>
+            )}
+
+            <div className="config-feedback">
+              <p className="config-hint">
+                {invalidFields.length > 0
+                  ? "Sửa các ô báo lỗi để xem kết quả tính."
+                  : `Tưới khi đất < ${zone.threshold}% và dừng khi đủ ẩm, tối đa ${MAX_RUNTIME_MINUTES} phút/lần.`}
+              </p>
+              {error && (
+                <p className="config-error" role="alert">
+                  {error}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="config-save"
+              disabled={saving || invalidFields.length > 0}
+            >
+              <SaveIcon size={16} />
+              {saving ? "Đang lưu..." : "Lưu cấu hình"}
+            </button>
+          </form>
+        )}
       </div>
     </article>
   );

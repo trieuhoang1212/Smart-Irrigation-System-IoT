@@ -42,6 +42,15 @@ export function GridIcon(props: IconProps) {
   );
 }
 
+export function SearchIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </Base>
+  );
+}
+
 export function ChartIcon(props: IconProps) {
   return (
     <Base {...props}>
@@ -190,28 +199,28 @@ export function ArrowUpIcon(props: IconProps) {
   );
 }
 
+export function PanelLeftIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M9 4v16" />
+    </Base>
+  );
+}
+
+export function PanelRightIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M15 4v16" />
+    </Base>
+  );
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <Base {...props}>
       <path d="m6 6 12 12M18 6 6 18" />
-    </Base>
-  );
-}
-
-export function MenuIcon(props: IconProps) {
-  return (
-    <Base {...props}>
-      <path d="M4 7h16" />
-      <path d="M4 12h16" />
-      <path d="M4 17h10" />
-    </Base>
-  );
-}
-
-export function ChevronUpIcon(props: IconProps) {
-  return (
-    <Base {...props}>
-      <path d="m6 15 6-6 6 6" />
     </Base>
   );
 }
