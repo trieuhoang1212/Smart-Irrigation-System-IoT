@@ -1,0 +1,202 @@
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
+import { useEffect } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useTheme } from "../../providers/ThemeProvider";
+import { font, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
+
+type TabMeta = {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconActive: keyof typeof Ionicons.glyphMap;
+};
+
+const TAB_META: Record<string, TabMeta> = {
+  index: { icon: "grid-outline", iconActive: "grid" },
+  analysis: { icon: "pulse-outline", iconActive: "pulse" },
+  history: { icon: "analytics-outline", iconActive: "analytics" },
+  activity: { icon: "time-outline", iconActive: "time" },
+  settings: { icon: "options-outline", iconActive: "options" },
+};
+
+function TabItem({
+  label,
+  meta,
+  focused,
+  onPress,
+  onLongPress,
+}: {
+  label: string;
+  meta: TabMeta;
+  focused: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
+  const progress = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(focused ? 1 : 0, { duration: 180 });
+  }, [focused, progress]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scale: 0.94 + progress.value * 0.06 }],
+  }));
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: focused }}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={styles.item}
+    >
+      <Animated.View style={[styles.itemPill, pillStyle]} />
+
+      <Ionicons
+        name={focused ? meta.iconActive : meta.icon}
+        size={18}
+        color={focused ? colors.white : colors.muted}
+      />
+
+      <Text
+        numberOfLines={1}
+        style={[styles.label, focused && styles.labelActive]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function GlassTabBar({
+  state,
+  descriptors,
+  emitter,
+  navigateToTab,
+}: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <View
+        style={[
+          styles.wrap,
+          { bottom: Math.max(insets.bottom, 10) + 6 },
+        ]}
+      >
+        <BlurView
+          // iOS/Web thật sự làm mờ nội dung phía sau; Android cần BlurTargetView
+          // nên tạm dùng nền bán trong suốt vẫn đọc rõ.
+          intensity={isDark ? 40 : 55}
+          tint={isDark ? "dark" : "light"}
+          style={styles.bar}
+        >
+          {state.routes.map((route, index) => {
+            const focused = state.index === index;
+            const options = descriptors[route.key].options;
+            const label =
+              typeof options.title === "string" ? options.title : route.name;
+            const meta = TAB_META[route.name] ?? TAB_META.index;
+
+            const onPress = () => {
+              const event = emitter.emit({
+                type: "tabPress",
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (!focused && !event.defaultPrevented) {
+                navigateToTab(route.key);
+              }
+            };
+
+            const onLongPress = () => {
+              emitter.emit({
+                type: "tabLongPress",
+                target: route.key,
+              });
+            };
+
+            return (
+              <TabItem
+                key={route.key}
+                label={label}
+                meta={meta}
+                focused={focused}
+                onPress={onPress}
+                onLongPress={onLongPress}
+              />
+            );
+          })}
+        </BlurView>
+      </View>
+    </View>
+  );
+}
+
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    wrap: {
+      position: "absolute",
+      left: 14,
+      right: 14,
+      borderRadius: 999,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.16,
+      shadowRadius: 24,
+      elevation: 12,
+    },
+    bar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      padding: 5,
+      borderRadius: 999,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      backgroundColor: colors.glass,
+    },
+    item: {
+      flex: 1,
+      minHeight: 52,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 3,
+      borderRadius: 999,
+      overflow: "hidden",
+    },
+    itemPill: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: 999,
+      backgroundColor: colors.green,
+    },
+    label: {
+      fontFamily: font.semibold,
+      fontSize: 10,
+      lineHeight: 13,
+      letterSpacing: -0.1,
+      color: colors.muted,
+    },
+    labelActive: {
+      color: colors.white,
+    },
+  });

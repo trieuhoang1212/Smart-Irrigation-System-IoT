@@ -1,74 +1,73 @@
-
-import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import {
+  Lexend_400Regular,
+  Lexend_500Medium,
+  Lexend_600SemiBold,
+  Lexend_700Bold,
+  Lexend_800ExtraBold,
+  useFonts,
+} from "@expo-google-fonts/lexend";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { Tabs } from "expo-router/js-tabs";
+import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { GlassTabBar } from "@/components/navigation/GlassTabBar";
 import { GardenProvider } from "@/providers/GardenProvider";
+import { ThemeProvider, useTheme } from "@/providers/ThemeProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
-import { colors } from "@/theme";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
+    Lexend_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) void SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <ThemeProvider>
+        <AppTabs />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function AppTabs() {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} />
 
       <ToastProvider>
         <GardenProvider>
           <Tabs
+            tabBar={(props) => <GlassTabBar {...props} />}
             screenOptions={{
               headerShown: false,
-              tabBarActiveTintColor: colors.green,
-              tabBarInactiveTintColor: colors.faint,
-
-              tabBarStyle: {
-                backgroundColor: colors.surface,
-                borderTopColor: colors.line,
-                height: 72,
-                paddingTop: 8,
-                paddingBottom: 8,
-              },
-
-              tabBarLabelStyle: {
-                fontSize: 12,
-                fontWeight: "700",
-              },
-
-              tabBarIconStyle: {
-                marginBottom: 2,
-              },
+              animation: "fade",
+              sceneStyle: { backgroundColor: colors.canvas },
             }}
           >
-            <Tabs.Screen
-              name="index"
-              options={{
-                title: "Tổng quan",
-                tabBarIcon: ({ color, focused }) => (
-                  <Ionicons
-                    name={focused ? "grid" : "grid-outline"}
-                    size={25}
-                    color={typeof color === "string" ? color : colors.faint}
-                  />
-                ),
-              }}
-            />
-
-            <Tabs.Screen
-              name="history"
-              options={{
-                title: "Lịch sử",
-                tabBarIcon: ({ color, focused }) => (
-                  <Ionicons
-                    name={focused ? "analytics" : "analytics-outline"}
-                    size={25}
-                    color={typeof color === "string" ? color : colors.faint}
-                  />
-                ),
-              }}
-            />
+            <Tabs.Screen name="index" options={{ title: "Tổng quan" }} />
+            <Tabs.Screen name="analysis" options={{ title: "Phân tích" }} />
+            <Tabs.Screen name="history" options={{ title: "Lịch sử" }} />
+            <Tabs.Screen name="activity" options={{ title: "Nhật ký" }} />
+            <Tabs.Screen name="settings" options={{ title: "Cài đặt" }} />
           </Tabs>
         </GardenProvider>
       </ToastProvider>
-    </SafeAreaProvider>
+    </>
   );
 }
