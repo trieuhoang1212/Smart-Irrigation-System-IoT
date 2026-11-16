@@ -53,6 +53,8 @@ type GardenContextValue = {
 const GardenContext = createContext<GardenContextValue | null>(null);
 
 function normalizeTelemetry(data: Telemetry): Telemetry {
+  const distance = data.tank?.distanceCm;
+
   return {
     ...data,
     temperature: data.temperature === null ? null : round1(data.temperature),
@@ -64,6 +66,13 @@ function normalizeTelemetry(data: Telemetry): Telemetry {
         : data.pump
           ? 90
           : 0,
+    tank: {
+      distanceCm:
+        typeof distance === "number" && Number.isFinite(distance)
+          ? round1(distance)
+          : null,
+      empty: Boolean(data.tank?.empty),
+    },
     zones: data.zones.map((zone) => ({ ...zone, moisture: round1(zone.moisture) })),
   };
 }
@@ -263,7 +272,8 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
   );
 
   const mode = telemetry?.mode ?? "auto";
-  const pump = telemetry?.pump ?? false;
+  // Trạng thái bơm là số đo thiết bị: mất kết nối thì không khẳng định đang chạy.
+  const pump = deviceOnline && (telemetry?.pump ?? false);
   const weatherGate = telemetry?.weatherGate ?? true;
   const servoAngle = telemetry?.servoAngle ?? 0;
 
@@ -275,8 +285,10 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
           ...zone,
           threshold: live?.threshold ?? zone.threshold,
           stopThreshold: live?.stopThreshold ?? zone.stopThreshold,
-          moisture: live?.moisture ?? null,
-          pump: live?.pump ?? false,
+          // Snapshot cũ vẫn còn trong telemetry khi thiết bị rơi mạng: ẩn số đo
+          // để giao diện hiện "Không có dữ liệu" thay vì số liệu chết.
+          moisture: deviceOnline ? (live?.moisture ?? null) : null,
+          pump: deviceOnline ? (live?.pump ?? false) : false,
           online: deviceOnline,
         };
       }),

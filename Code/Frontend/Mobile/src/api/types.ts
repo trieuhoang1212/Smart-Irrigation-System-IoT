@@ -21,6 +21,10 @@ export type Telemetry = {
   weatherGate: boolean;
   pump: boolean;
   servoAngle: number;
+  tank: {
+    distanceCm: number | null;
+    empty: boolean;
+  };
   zones: ZoneState[];
   receivedAt: string;
 };

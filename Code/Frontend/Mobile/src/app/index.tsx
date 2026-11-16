@@ -1,61 +1,69 @@
+import { useRouter } from "expo-router";
+import { useState } from "react";
 
-import { StyleSheet, Text } from "react-native";
-
-import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
-import { SystemStatusCard } from "@/components/dashboard/SystemStatusCard";
-import { AppHeader } from "@/components/layout/AppHeader";
+import { DashboardHeader } from "@/components/overview/DashboardHeader";
+import { EnvRow } from "@/components/overview/EnvRow";
+import { MetricStrip } from "@/components/overview/MetricStrip";
+import { ModeDock } from "@/components/overview/ModeDock";
+import { StatusLine } from "@/components/overview/StatusLine";
 import { Screen } from "@/components/layout/Screen";
-import { Card } from "@/components/ui/Card";
-import { ZoneList } from "@/components/zones/ZoneList";
+import { SearchSheet } from "@/components/search/SearchSheet";
+import { Reveal } from "@/components/ui/Reveal";
+import { ZoneGrid } from "@/components/zones/ZoneGrid";
+import { ZoneSheet } from "@/components/zones/ZoneSheet";
 import { useGarden } from "@/providers/GardenProvider";
-import { colors, spacing } from "@/theme";
 
 export default function OverviewScreen() {
-  const { telemetry } = useGarden();
+  const router = useRouter();
+  const { zones } = useGarden();
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [zoneId, setZoneId] = useState<string | null>(null);
+
+  const zone = zoneId ? (zones.find((item) => item.id === zoneId) ?? null) : null;
 
   return (
     <Screen>
-      <AppHeader />
+      <DashboardHeader onOpenSearch={() => setSearchOpen(true)} />
 
-      {telemetry === null && (
-        <Card style={styles.notice}>
-          <Text style={styles.noticeTitle}>
-            Chưa có dữ liệu thiết bị
-          </Text>
+      <Reveal index={0}>
+        <ModeDock />
+      </Reveal>
 
-          <Text style={styles.noticeText}>
-            Vui lòng kiểm tra kết nối thiết bị và hệ thống.
-          </Text>
-        </Card>
-      )}
+      <Reveal index={1}>
+        <MetricStrip />
+      </Reveal>
 
-      {/* Thông tin môi trường */}
-      <MetricsGrid />
+      <Reveal index={2}>
+        <EnvRow />
+      </Reveal>
 
-      {/* Danh sách khu vườn */}
-      <ZoneList />
+      <Reveal index={3}>
+        <ZoneGrid onSelect={setZoneId} />
+      </Reveal>
 
-      {/* Trạng thái hệ thống ở cuối */}
-      <SystemStatusCard />
+      <Reveal index={4}>
+        <StatusLine />
+      </Reveal>
+
+      <ZoneSheet
+        zone={zone}
+        onClose={() => setZoneId(null)}
+        onEdit={(id) => {
+          setZoneId(null);
+          router.navigate({
+          pathname: "/settings",
+          params: { zone: id, at: String(Date.now()) },
+        });
+        }}
+      />
+
+      <SearchSheet
+        visible={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelectZone={setZoneId}
+        onNavigate={(path) => router.navigate(path)}
+      />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  notice: {
-    paddingVertical: spacing.md,
-    backgroundColor: colors.amberSoft,
-    borderColor: colors.amberSoft,
-    gap: spacing.xs,
-  },
-  noticeTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.amber,
-  },
-  noticeText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.amber,
-  },
-});

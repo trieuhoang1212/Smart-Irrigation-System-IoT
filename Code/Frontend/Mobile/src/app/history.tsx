@@ -2,7 +2,11 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ZONE_IDS } from "@/api/types";
-import { HistoryChart, HISTORY_METRICS, type HistoryMetric } from "@/components/history/HistoryChart";
+import {
+  HistoryChart,
+  HISTORY_METRICS,
+  type HistoryMetric,
+} from "@/components/history/HistoryChart";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { Card } from "@/components/ui/Card";
@@ -11,7 +15,9 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ZonePicker } from "@/components/zones/ZonePicker";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
-import { colors, spacing } from "@/theme";
+import { useTheme } from "@/providers/ThemeProvider";
+import { typo, type Palette } from "@/theme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { formatNumber } from "@/utils/format";
 
 const RANGE_OPTIONS: { value: RangeKey; label: string }[] = (
@@ -26,7 +32,10 @@ const METRIC_OPTIONS: { value: HistoryMetric; label: string }[] = [
 ];
 
 export default function HistoryScreen() {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const { deviceId, zones, loading } = useGarden();
+
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("24h");
   const [metric, setMetric] = useState<HistoryMetric>("moisture");
@@ -42,41 +51,42 @@ export default function HistoryScreen() {
   return (
     <Screen>
       <PageHeader
-        title="Lịch sử dữ liệu"
-        subtitle="Theo dõi độ ẩm đất, nhiệt độ và thời tiết theo thời gian."
+        title="Lịch sử"
+        subtitle="Độ ẩm đất, nhiệt độ và thời tiết theo thời gian."
       />
 
-      <Card>
+      <Card style={styles.zoneCard}>
         <SectionHeader title="Khu vườn" hint={zone ? zone.crop : undefined} />
+
         {loading && zones.length === 0 ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator size="small" color={colors.green} />
-            <Text style={styles.loadingText}>Đang tải danh sách khu vườn...</Text>
+            <Text style={styles.loadingText}>
+              Đang tải danh sách khu vườn...
+            </Text>
           </View>
         ) : (
           <ZonePicker zones={zones} value={activeZoneId} onChange={setZoneId} />
         )}
+
         {zone ? (
           <Text style={styles.zoneMeta}>
-            {zone.id} · Ngưỡng tưới {formatNumber(zone.threshold, 0)}% · Ngưỡng dừng{" "}
+            {zone.id} · Ngưỡng tưới {formatNumber(zone.threshold, 0)}% · Dừng{" "}
             {formatNumber(zone.stopThreshold, 0)}%
           </Text>
         ) : null}
       </Card>
 
-      <Card>
-        <SectionHeader title="Khoảng thời gian" hint="TỰ ĐỘNG LÀM MỚI 30 GIÂY" />
-        <ChipRow options={RANGE_OPTIONS} value={range} onChange={setRange} />
-      </Card>
-
-      <Card>
+      <Card style={styles.chartCard}>
         <SectionHeader
           title={HISTORY_METRICS[metric].label}
           hint={`${HISTORY_RANGES[range].label.toUpperCase()} · ${
             zone ? zone.name : activeZoneId
           }`}
         />
+
         <ChipRow options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
+        <ChipRow options={RANGE_OPTIONS} value={range} onChange={setRange} />
 
         <HistoryChart
           response={{ samples, bucketMs: HISTORY_RANGES[range].bucketMs }}
@@ -89,9 +99,10 @@ export default function HistoryScreen() {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {metric === "moisture"
-              ? "Đường nét đứt là ngưỡng tưới của khu vực."
-              : "Chỉ số lấy trung bình theo từng khoảng thời gian."}
+              ? "Đường nét đứt là ngưỡng tưới. Tự làm mới mỗi 30 giây."
+              : "Chỉ số lấy trung bình theo khoảng. Tự làm mới mỗi 30 giây."}
           </Text>
+
           <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
             <Text style={styles.reload}>Tải lại</Text>
           </Pressable>
@@ -101,41 +112,46 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: colors.faint,
-  },
-  zoneMeta: {
-    marginTop: spacing.sm,
-    fontSize: 11,
-    color: colors.faint,
-  },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    marginTop: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.lineSoft,
-  },
-  footerText: {
-    flex: 1,
-    fontSize: 10.5,
-    lineHeight: 15,
-    color: colors.faint,
-  },
-  reload: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.green,
-  },
-});
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    zoneCard: {
+      gap: 2,
+    },
+    chartCard: {
+      gap: 8,
+    },
+    loadingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 8,
+    },
+    loadingText: {
+      ...typo.small,
+      color: colors.faint,
+    },
+    zoneMeta: {
+      ...typo.caption,
+      color: colors.faint,
+      marginTop: 2,
+    },
+    footer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: 4,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.lineSoft,
+    },
+    footerText: {
+      flex: 1,
+      ...typo.caption,
+      color: colors.faint,
+    },
+    reload: {
+      ...typo.smallStrong,
+      color: colors.green,
+    },
+  });

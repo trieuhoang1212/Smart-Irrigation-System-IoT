@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { LiveZone, ZoneConfigInput } from "../../api/types";
 import { useGarden } from "../../providers/GardenProvider";
-import { colors, radius, spacing } from "../../theme";
+import { radius, spacing, typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -87,6 +88,8 @@ function ThresholdStepper({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.stepperRow}>
       <View style={styles.stepperLabelBlock}>
@@ -137,6 +140,7 @@ export function ZoneSettingsForm({
   zone,
   embedded = false,
 }: Props) {
+  const styles = useThemedStyles(createStyles);
   const { saveZone } = useGarden();
 
   const [draft, setDraft] = useState<Draft>(() => toDraft(zone));
@@ -195,14 +199,16 @@ export function ZoneSettingsForm({
 
   const content = (
     <>
-      <SectionHeader
-        title="Thông số tưới"
-        hint={
-          zone.moisture === null
-            ? "CHƯA CÓ DỮ LIỆU"
-            : `ĐỘ ẨM ${formatNumber(zone.moisture, 0)}%`
-        }
-      />
+      {embedded ? null : (
+        <SectionHeader
+          title="Thông số tưới"
+          hint={
+            zone.moisture === null
+              ? "CHƯA CÓ DỮ LIỆU"
+              : `ĐỘ ẨM ${formatNumber(zone.moisture, 0)}%`
+          }
+        />
+      )}
 
       <ThresholdStepper
         value={draft.threshold}
@@ -276,89 +282,84 @@ export function ZoneSettingsForm({
   );
 }
 
-const styles = StyleSheet.create({
-  embedded: {
-    gap: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  stepperRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.lineSoft,
-  },
-  stepperLabelBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  stepperLabel: {
-    fontSize: 12.5,
-    fontWeight: "600",
-    color: colors.inkSoft,
-  },
-  stepperHint: {
-    fontSize: 10.5,
-    lineHeight: 15,
-    color: colors.faint,
-  },
-  stepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  stepButton: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepSymbol: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: colors.greenStrong,
-  },
-  stepValue: {
-    minWidth: 42,
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  estimate: {
-    marginTop: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    backgroundColor: colors.greenSoft,
-    gap: 2,
-  },
-  estimateLabel: {
-    fontSize: 10.5,
-    color: colors.muted,
-  },
-  estimateValue: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.greenStrong,
-  },
-  estimateWarning: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.red,
-  },
-  error: {
-    marginTop: spacing.sm,
-    fontSize: 11.5,
-    lineHeight: 16,
-    color: colors.red,
-  },
-  save: {
-    marginTop: spacing.sm,
-  },
-})
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    embedded: {
+      gap: spacing.md,
+      paddingTop: spacing.sm,
+    },
+    stepperRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.md,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.lineSoft,
+    },
+    stepperLabelBlock: {
+      flex: 1,
+      gap: 2,
+    },
+    stepperLabel: {
+      ...typo.smallStrong,
+      color: colors.inkSoft,
+    },
+    stepperHint: {
+      ...typo.caption,
+      color: colors.faint,
+    },
+    stepper: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    stepButton: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.canvas,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    stepSymbol: {
+      ...typo.section,
+      color: colors.greenStrong,
+    },
+    stepValue: {
+      minWidth: 42,
+      textAlign: "center",
+      ...typo.bodyStrong,
+      color: colors.ink,
+    },
+    estimate: {
+      marginTop: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      backgroundColor: colors.greenSoft,
+      gap: 2,
+    },
+    estimateLabel: {
+      ...typo.caption,
+      color: colors.muted,
+    },
+    estimateValue: {
+      ...typo.smallStrong,
+      color: colors.greenStrong,
+    },
+    estimateWarning: {
+      ...typo.caption,
+      lineHeight: 15,
+      color: colors.red,
+    },
+    error: {
+      marginTop: spacing.sm,
+      ...typo.caption,
+      color: colors.red,
+    },
+    save: {
+      marginTop: spacing.sm,
+    },
+  });

@@ -11,23 +11,37 @@ import Svg, {
 
 import type { HistoryResponse } from "../../api/types";
 import type { RangeKey } from "../../hooks/useHistory";
-import { colors, spacing } from "../../theme";
+import { useTheme } from "../../providers/ThemeProvider";
+import { typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatShortTime } from "../../utils/format";
 
 export type HistoryMetric = "moisture" | "temperature" | "humidity" | "rain";
 
 export const HISTORY_METRICS: Record<
   HistoryMetric,
-  { label: string; unit: string; color: string; digits: number }
+  { label: string; unit: string; digits: number }
 > = {
-  moisture: { label: "Độ ẩm đất", unit: "%", color: "#4f8a63", digits: 0 },
-  temperature: { label: "Nhiệt độ", unit: "°C", color: "#a5762c", digits: 1 },
-  humidity: { label: "Độ ẩm khí", unit: "%", color: "#3d6f8c", digits: 0 },
-  rain: { label: "Cảm biến mưa", unit: "%", color: "#6b8b96", digits: 0 },
+  moisture: { label: "Độ ẩm đất", unit: "%", digits: 0 },
+  temperature: { label: "Nhiệt độ", unit: "°C", digits: 1 },
+  humidity: { label: "Độ ẩm khí", unit: "%", digits: 0 },
+  rain: { label: "Cảm biến mưa", unit: "%", digits: 0 },
 };
 
-const CHART_HEIGHT = 210;
+const CHART_HEIGHT = 200;
 const PAD = { left: 34, right: 12, top: 14, bottom: 24 };
+
+function metricColor(metric: HistoryMetric, colors: Palette): string {
+  switch (metric) {
+    case "temperature":
+      return colors.amber;
+    case "humidity":
+    case "rain":
+      return colors.blue;
+    default:
+      return colors.green;
+  }
+}
 
 function formatValue(value: number, metric: HistoryMetric): string {
   return `${value.toFixed(HISTORY_METRICS[metric].digits)}${HISTORY_METRICS[metric].unit}`;
@@ -46,8 +60,11 @@ export function HistoryChart({
   loading: boolean;
   error: string | null;
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const chartWidth = Math.min(720, Math.max(260, width - 64));
+  const lineColor = metricColor(metric, colors);
 
   const samples = response.samples;
   const series = samples
@@ -125,8 +142,8 @@ export function HistoryChart({
       <Svg width={chartWidth} height={CHART_HEIGHT}>
         <Defs>
           <LinearGradient id="historyFill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={HISTORY_METRICS[metric].color} stopOpacity={0.18} />
-            <Stop offset="100%" stopColor={HISTORY_METRICS[metric].color} stopOpacity={0} />
+            <Stop offset="0%" stopColor={lineColor} stopOpacity={0.18} />
+            <Stop offset="100%" stopColor={lineColor} stopOpacity={0} />
           </LinearGradient>
         </Defs>
 
@@ -172,7 +189,7 @@ export function HistoryChart({
         <Path
           d={linePath}
           fill="none"
-          stroke={HISTORY_METRICS[metric].color}
+          stroke={lineColor}
           strokeWidth={2.2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -185,7 +202,7 @@ export function HistoryChart({
               cx={xAt(index)}
               cy={yAt(value)}
               r={2}
-              fill={HISTORY_METRICS[metric].color}
+              fill={lineColor}
             />
           ))}
 
@@ -218,39 +235,40 @@ export function HistoryChart({
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    marginTop: spacing.sm,
-  },
-  state: {
-    minHeight: 160,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-  },
-  stateText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.faint,
-    textAlign: "center",
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.red,
-    textAlign: "center",
-  },
-  stats: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  stat: {
-    fontSize: 11,
-    color: colors.muted,
-  },
-  statValue: {
-    fontWeight: "600",
-    color: colors.inkSoft,
-  },
-});
+
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    wrapper: {
+      marginTop: 8,
+    },
+    state: {
+      minHeight: 160,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 16,
+    },
+    stateText: {
+      ...typo.small,
+      color: colors.faint,
+      textAlign: "center",
+    },
+    errorText: {
+      ...typo.small,
+      color: colors.red,
+      textAlign: "center",
+    },
+    stats: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+      marginTop: 8,
+    },
+    stat: {
+      ...typo.caption,
+      color: colors.muted,
+    },
+    statValue: {
+      ...typo.smallStrong,
+      color: colors.inkSoft,
+    },
+  });
