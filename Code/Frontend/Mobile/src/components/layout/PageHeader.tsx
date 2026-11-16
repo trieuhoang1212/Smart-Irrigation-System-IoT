@@ -1,8 +1,17 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "../../theme";
+import { typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function PageHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>{title}</Text>
@@ -11,18 +20,18 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    gap: 3,
-    paddingBottom: spacing.xs,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: colors.muted,
-  },
-});
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    wrap: {
+      gap: 4,
+      paddingBottom: 2,
+    },
+    title: {
+      ...typo.display,
+      color: colors.ink,
+    },
+    subtitle: {
+      ...typo.small,
+      color: colors.muted,
+    },
+  });

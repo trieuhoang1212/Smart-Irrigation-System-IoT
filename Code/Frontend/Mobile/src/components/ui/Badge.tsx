@@ -1,15 +1,23 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, radius } from "../../theme";
+import { useTheme } from "../../providers/ThemeProvider";
+import { radius, typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 
-type BadgeTone = "success" | "error" | "warning" | "neutral";
+export type BadgeTone = "success" | "error" | "warning" | "neutral";
 
-const TONES: Record<BadgeTone, { background: string; color: string }> = {
-  success: { background: colors.greenSoft, color: colors.greenStrong },
-  error: { background: colors.redSoft, color: colors.red },
-  warning: { background: colors.amberSoft, color: colors.amber },
-  neutral: { background: colors.lineSoft, color: colors.muted },
-};
+function toneColors(colors: Palette, tone: BadgeTone) {
+  switch (tone) {
+    case "success":
+      return { background: colors.greenSoft, color: colors.greenStrong };
+    case "error":
+      return { background: colors.redSoft, color: colors.red };
+    case "warning":
+      return { background: colors.amberSoft, color: colors.amber };
+    default:
+      return { background: colors.surfaceSunken, color: colors.muted };
+  }
+}
 
 export function Badge({
   label,
@@ -18,7 +26,10 @@ export function Badge({
   label: string;
   tone?: BadgeTone;
 }) {
-  const palette = TONES[tone];
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
+  const palette = toneColors(colors, tone);
+
   return (
     <View style={[styles.badge, { backgroundColor: palette.background }]}>
       <Text style={[styles.label, { color: palette.color }]}>{label}</Text>
@@ -26,14 +37,14 @@ export function Badge({
   );
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-});
+const createStyles = (_colors: Palette) =>
+  StyleSheet.create({
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: radius.pill,
+    },
+    label: {
+      ...typo.caption,
+    },
+  });

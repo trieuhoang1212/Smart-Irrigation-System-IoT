@@ -1,6 +1,15 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
-import { colors, radius, spacing } from "../../theme";
+import { useTheme } from "../../providers/ThemeProvider";
+import { radius, typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 
@@ -19,7 +28,16 @@ export function Button({
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const inactive = disabled || loading;
+
+  const labelColor =
+    variant === "primary"
+      ? colors.white
+      : variant === "danger"
+        ? colors.red
+        : colors.ink;
 
   return (
     <Pressable
@@ -36,56 +54,48 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === "primary" ? colors.white : colors.green}
-        />
+        <ActivityIndicator size="small" color={labelColor} />
       ) : (
-        <Text style={[styles.label, variant === "primary" && styles.labelPrimary]}>
-          {label}
-        </Text>
+        <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
       )}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 42,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primary: {
-    backgroundColor: colors.green,
-    borderColor: colors.green,
-  },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderColor: colors.line,
-  },
-  danger: {
-    backgroundColor: colors.redSoft,
-    borderColor: colors.redSoft,
-  },
-  ghost: {
-    backgroundColor: "transparent",
-    borderColor: "transparent",
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.ink,
-  },
-  labelPrimary: {
-    color: colors.white,
-  },
-});
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    base: {
+      minHeight: 44,
+      paddingHorizontal: 18,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    primary: {
+      backgroundColor: colors.green,
+      borderColor: colors.green,
+    },
+    secondary: {
+      backgroundColor: colors.surface,
+      borderColor: colors.line,
+    },
+    danger: {
+      backgroundColor: colors.redSoft,
+      borderColor: colors.redSoft,
+    },
+    ghost: {
+      backgroundColor: "transparent",
+      borderColor: "transparent",
+    },
+    pressed: {
+      opacity: 0.82,
+      transform: [{ scale: 0.98 }],
+    },
+    disabled: {
+      opacity: 0.45,
+    },
+    label: {
+      ...typo.bodyStrong,
+    },
+  });

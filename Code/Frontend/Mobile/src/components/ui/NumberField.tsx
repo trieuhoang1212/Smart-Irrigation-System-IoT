@@ -1,6 +1,8 @@
 import { StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from "react-native";
 
-import { colors, radius, spacing } from "../../theme";
+import { useTheme } from "../../providers/ThemeProvider";
+import { radius, typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 
 export function NumberField({
   label,
@@ -17,6 +19,9 @@ export function NumberField({
   keyboardType?: KeyboardTypeOptions;
   hint?: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
+
   return (
     <View style={styles.row}>
       <View style={styles.labelBlock}>
@@ -39,50 +44,49 @@ export function NumberField({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.lineSoft,
-  },
-  labelBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  label: {
-    fontSize: 12.5,
-    fontWeight: "600",
-    color: colors.inkSoft,
-  },
-  hint: {
-    fontSize: 10.5,
-    color: colors.faint,
-  },
-  inputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  input: {
-    minWidth: 62,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.ink,
-    textAlign: "right",
-  },
-  unit: {
-    minWidth: 34,
-    fontSize: 11,
-    color: colors.faint,
-  },
-});
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.lineSoft,
+    },
+    labelBlock: {
+      flex: 1,
+      gap: 2,
+    },
+    label: {
+      ...typo.smallStrong,
+      color: colors.inkSoft,
+    },
+    hint: {
+      ...typo.caption,
+      color: colors.faint,
+    },
+    inputWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    input: {
+      minWidth: 64,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.canvas,
+      ...typo.bodyStrong,
+      color: colors.ink,
+      textAlign: "right",
+    },
+    unit: {
+      minWidth: 34,
+      ...typo.caption,
+      color: colors.faint,
+    },
+  });

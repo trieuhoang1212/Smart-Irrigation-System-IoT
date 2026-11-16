@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "../../theme";
+import { radius, typo, type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
 
 export function ChipRow<T extends string>({
   options,
@@ -11,12 +12,10 @@ export function ChipRow<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-    >
+    <View style={styles.row}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -27,37 +26,41 @@ export function ChipRow<T extends string>({
             onPress={() => onChange(option.value)}
             style={[styles.chip, active && styles.active]}
           >
-            <Text style={[styles.label, active && styles.activeLabel]}>{option.label}</Text>
+            <Text style={[styles.label, active && styles.activeLabel]}>
+              {option.label}
+            </Text>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    gap: spacing.sm,
-    paddingVertical: 2,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  active: {
-    borderColor: colors.green,
-    backgroundColor: colors.greenSoft,
-  },
-  label: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  activeLabel: {
-    color: colors.greenStrong,
-    fontWeight: "600",
-  },
-});
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      paddingVertical: 2,
+    },
+    chip: {
+      paddingHorizontal: 13,
+      paddingVertical: 7,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.surface,
+    },
+    active: {
+      borderColor: colors.green,
+      backgroundColor: colors.green,
+    },
+    label: {
+      ...typo.smallStrong,
+      color: colors.muted,
+    },
+    activeLabel: {
+      color: colors.white,
+    },
+  });

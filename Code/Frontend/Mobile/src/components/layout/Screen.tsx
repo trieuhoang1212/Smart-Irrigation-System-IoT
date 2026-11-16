@@ -1,7 +1,11 @@
 import { ScrollView, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, spacing } from "../../theme";
+import { type Palette } from "../../theme";
+import { useThemedStyles } from "../../theme/useThemedStyles";
+
+// Chừa chỗ cho thanh tab nổi ở đáy để nội dung cuối không bị khuất.
+const TAB_BAR_SPACE = 104;
 
 export function Screen({
   children,
@@ -10,6 +14,7 @@ export function Screen({
   children: React.ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
 
   return (
@@ -19,7 +24,7 @@ export function Screen({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: insets.bottom + 96 },
+          { paddingBottom: insets.bottom + TAB_BAR_SPACE },
           contentStyle,
         ]}
       >
@@ -29,14 +34,15 @@ export function Screen({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    gap: spacing.lg,
-  },
-});
+const createStyles = (colors: Palette) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.canvas,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      gap: 10,
+    },
+  });
