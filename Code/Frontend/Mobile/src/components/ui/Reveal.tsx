@@ -1,16 +1,18 @@
 import { useEffect } from "react";
 import { type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
-  Easing,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
-  withTiming,
+  withSpring,
 } from "react-native-reanimated";
 
+const REVEAL_SPRING = { damping: 18, stiffness: 165, mass: 0.9 };
+
 /**
- * Vào màn hình theo nhịp so le (mỗi khối trễ thêm 45ms) — đủ nhanh để
- * không bắt người dùng chờ, đủ mượt để màn hình không bị "giật" một cục.
+ * Vào màn hình theo nhịp so le. Dùng spring thay cho timing để chuyển động
+ * có độ "nặng" nhẹ, không bị cứng như một khung hình bật lên.
  */
 export function Reveal({
   children,
@@ -21,19 +23,24 @@ export function Reveal({
   index?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const progress = useSharedValue(0);
+  const reduced = useReducedMotion();
+  const progress = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withDelay(
-      index * 45,
-      withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) }),
-    );
-  }, [index, progress]);
+    if (reduced) {
+      progress.set(1);
+      return;
+    }
+    progress.set(withDelay(index * 55, withSpring(1, REVEAL_SPRING)));
+  }, [index, progress, reduced]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * 10 }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const value = Math.min(progress.value, 1);
+    return {
+      opacity: value,
+      transform: [{ translateY: (1 - value) * 16 }],
+    };
+  });
 
   return (
     <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
