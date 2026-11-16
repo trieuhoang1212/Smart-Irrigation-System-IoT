@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../providers/ThemeProvider";
 import { radius, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { AppIcon, type AppIconName } from "./AppIcon";
 
 export type ToastTone = "success" | "error" | "info";
 
@@ -25,19 +25,22 @@ export function ToastHost({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const toneStyles = {
+  const toneStyles: Record<
+    ToastTone,
+    { icon: AppIconName; color: string; background: string }
+  > = {
     success: {
-      icon: "checkmark-circle" as const,
+      icon: "check",
       color: colors.green,
       background: colors.greenSoft,
     },
     error: {
-      icon: "alert-circle" as const,
+      icon: "error",
       color: colors.red,
       background: colors.redSoft,
     },
     info: {
-      icon: "information-circle" as const,
+      icon: "info",
       color: colors.blue,
       background: colors.blueSoft,
     },
@@ -50,7 +53,7 @@ export function ToastHost({
         return (
           <View key={toast.id} style={styles.toast}>
             <View style={[styles.iconWrap, { backgroundColor: tone.background }]}>
-              <Ionicons name={tone.icon} size={16} color={tone.color} />
+              <AppIcon name={tone.icon} size={16} color={tone.color} />
             </View>
 
             <Text style={styles.message}>{toast.message}</Text>
@@ -60,7 +63,7 @@ export function ToastHost({
               onPress={() => onClose(toast.id)}
               hitSlop={8}
             >
-              <Ionicons name="close" size={16} color={colors.faint} />
+              <AppIcon name="close" variant="outline" size={16} color={colors.faint} />
             </Pressable>
           </View>
         );

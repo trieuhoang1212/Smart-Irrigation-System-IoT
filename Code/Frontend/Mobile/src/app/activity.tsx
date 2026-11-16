@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,6 +11,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { Card } from "@/components/ui/Card";
 import { ChipRow } from "@/components/ui/ChipRow";
+import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import {
   useActivity,
@@ -34,12 +34,12 @@ const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
   { value: "weather", label: "Hoãn mưa" },
 ];
 
-const KIND_ICON: Record<ActivityKind, keyof typeof Ionicons.glyphMap> = {
-  pump: "water-outline",
-  mode: "sync-outline",
-  threshold: "options-outline",
-  weather: "rainy-outline",
-  other: "ellipse-outline",
+const KIND_ICON: Record<ActivityKind, AppIconName> = {
+  pump: "water",
+  mode: "auto",
+  threshold: "sliders",
+  weather: "rain",
+  other: "more",
 };
 
 const STATUS_LABEL = {
@@ -133,7 +133,7 @@ export default function ActivityScreen() {
               return (
                 <View key={event.id} style={styles.event}>
                   <View style={[styles.iconBox, { backgroundColor: tone.bg }]}>
-                    <Ionicons
+                    <AppIcon
                       name={KIND_ICON[event.kind]}
                       size={14}
                       color={tone.fg}

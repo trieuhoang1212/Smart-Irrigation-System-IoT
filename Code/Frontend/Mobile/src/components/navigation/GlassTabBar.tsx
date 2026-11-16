@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useEffect } from "react";
@@ -6,25 +5,27 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
+  withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../providers/ThemeProvider";
 import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { AppIcon, type AppIconName } from "../ui/AppIcon";
 
 type TabMeta = {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconActive: keyof typeof Ionicons.glyphMap;
+  icon: AppIconName;
 };
 
+const TAB_SPRING = { damping: 18, stiffness: 230, mass: 0.7 };
+
 const TAB_META: Record<string, TabMeta> = {
-  index: { icon: "grid-outline", iconActive: "grid" },
-  analysis: { icon: "pulse-outline", iconActive: "pulse" },
-  history: { icon: "analytics-outline", iconActive: "analytics" },
-  activity: { icon: "time-outline", iconActive: "time" },
-  settings: { icon: "options-outline", iconActive: "options" },
+  index: { icon: "grid" },
+  analysis: { icon: "activity" },
+  history: { icon: "chart" },
+  activity: { icon: "clock" },
+  settings: { icon: "settings" },
 };
 
 function TabItem({
@@ -45,12 +46,16 @@ function TabItem({
   const progress = useSharedValue(focused ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withTiming(focused ? 1 : 0, { duration: 180 });
+    progress.set(withSpring(focused ? 1 : 0, TAB_SPRING));
   }, [focused, progress]);
 
   const pillStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ scale: 0.94 + progress.value * 0.06 }],
+    transform: [{ scale: 0.92 + progress.value * 0.08 }],
+  }));
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 0.94 + progress.value * 0.1 }],
   }));
 
   return (
@@ -64,11 +69,14 @@ function TabItem({
     >
       <Animated.View style={[styles.itemPill, pillStyle]} />
 
-      <Ionicons
-        name={focused ? meta.iconActive : meta.icon}
-        size={18}
-        color={focused ? colors.white : colors.muted}
-      />
+      <Animated.View style={iconStyle}>
+        <AppIcon
+          name={meta.icon}
+          variant={focused ? "filled" : "outline"}
+          size={19}
+          color={focused ? colors.white : colors.muted}
+        />
+      </Animated.View>
 
       <Text
         numberOfLines={1}

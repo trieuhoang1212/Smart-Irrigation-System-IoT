@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
   Modal,
@@ -15,6 +14,7 @@ import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
 import { radius, spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { AppIcon, type AppIconName } from "../ui/AppIcon";
 
 type PageTarget = "/analysis" | "/history" | "/activity" | "/settings";
 
@@ -23,7 +23,7 @@ type SearchEntry = {
   group: "Khu vườn" | "Trang";
   title: string;
   subtitle: string;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
+  icon: AppIconName;
   keywords: string[];
   target: { kind: "zone"; zoneId: string } | { kind: "page"; path: PageTarget };
 };
@@ -72,7 +72,7 @@ export function SearchSheet({
       group: "Khu vườn",
       title: zone.name,
       subtitle: `${zone.id} · ${zone.crop}`,
-      icon: "leaf-outline",
+      icon: "leaf",
       keywords: [zone.crop, zone.group, zone.id, "khu vườn", "khu vực"],
       target: { kind: "zone", zoneId: zone.id },
     }));
@@ -83,7 +83,7 @@ export function SearchSheet({
         group: "Trang",
         title: "Phân tích cây trồng",
         subtitle: "Sức khỏe đất, ngưỡng an toàn và gợi ý xử lý",
-        icon: "pulse-outline",
+        icon: "activity",
         keywords: ["phân tích", "chẩn đoán", "sức khỏe", "cây trồng", "ngưỡng"],
         target: { kind: "page", path: "/analysis" },
       },
@@ -92,7 +92,7 @@ export function SearchSheet({
         group: "Trang",
         title: "Lịch sử dữ liệu",
         subtitle: "Độ ẩm đất, nhiệt độ, thời tiết theo thời gian",
-        icon: "analytics-outline",
+        icon: "chart",
         keywords: ["lịch sử", "biểu đồ", "nhiệt độ", "độ ẩm", "mưa"],
         target: { kind: "page", path: "/history" },
       },
@@ -101,7 +101,7 @@ export function SearchSheet({
         group: "Trang",
         title: "Nhật ký hoạt động",
         subtitle: "Lệnh bơm, đổi chế độ và thay đổi ngưỡng",
-        icon: "time-outline",
+        icon: "clock",
         keywords: ["nhật ký", "lịch sử lệnh", "hoạt động", "bơm", "thay đổi"],
         target: { kind: "page", path: "/activity" },
       },
@@ -110,7 +110,7 @@ export function SearchSheet({
         group: "Trang",
         title: "Cài đặt",
         subtitle: "Giao diện, chặn mưa và thông số tưới",
-        icon: "options-outline",
+        icon: "settings",
         keywords: ["cài đặt", "cấu hình", "ngưỡng", "lưu lượng", "giao diện"],
         target: { kind: "page", path: "/settings" },
       },
@@ -168,7 +168,7 @@ export function SearchSheet({
 
       <View style={[styles.panel, { marginTop: insets.top + 10 }]}>
         <View style={styles.searchRow}>
-          <Ionicons name="search" size={17} color={colors.faint} />
+          <AppIcon name="search" variant="outline" size={17} color={colors.faint} />
 
           <TextInput
             autoFocus
@@ -182,7 +182,7 @@ export function SearchSheet({
           />
 
           <Pressable accessibilityLabel="Đóng" onPress={close} hitSlop={10}>
-            <Ionicons name="close" size={19} color={colors.muted} />
+            <AppIcon name="close" variant="outline" size={19} color={colors.muted} />
           </Pressable>
         </View>
 
@@ -231,7 +231,7 @@ export function SearchSheet({
                     ]}
                   >
                     <View style={styles.resultIcon}>
-                      <Ionicons name={entry.icon} size={16} color={colors.green} />
+                      <AppIcon name={entry.icon} size={16} color={colors.green} />
                     </View>
 
                     <View style={styles.resultText}>
@@ -243,7 +243,12 @@ export function SearchSheet({
                       </Text>
                     </View>
 
-                    <Ionicons name="chevron-forward" size={14} color={colors.faint} />
+                    <AppIcon
+                      name="chevronRight"
+                      variant="outline"
+                      size={14}
+                      color={colors.faint}
+                    />
                   </Pressable>
                 ))}
               </View>

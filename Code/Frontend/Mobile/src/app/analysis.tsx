@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +12,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { Card } from "@/components/ui/Card";
 import { ChipRow } from "@/components/ui/ChipRow";
+import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ZonePicker } from "@/components/zones/ZonePicker";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
@@ -27,12 +27,12 @@ const RANGE_OPTIONS: { value: RangeKey; label: string }[] = (
   Object.keys(HISTORY_RANGES) as RangeKey[]
 ).map((key) => ({ value: key, label: HISTORY_RANGES[key].label }));
 
-const TONE_ICON = {
-  success: "checkmark-circle",
-  warning: "alert-circle",
-  error: "close-circle",
-  neutral: "help-circle",
-} as const;
+const TONE_ICON: Record<"success" | "warning" | "error" | "neutral", AppIconName> = {
+  success: "check",
+  warning: "error",
+  error: "cancel",
+  neutral: "help",
+};
 
 export default function AnalysisScreen() {
   const styles = useThemedStyles(createStyles);
@@ -127,7 +127,7 @@ export default function AnalysisScreen() {
 
           <View style={[styles.verdict, { backgroundColor: toneColors.bg }]}>
             <View style={styles.verdictHead}>
-              <Ionicons
+              <AppIcon
                 name={TONE_ICON[analysis.tone]}
                 size={18}
                 color={toneColors.fg}
@@ -216,7 +216,7 @@ export default function AnalysisScreen() {
             <Text style={styles.adviceTitle}>Gợi ý</Text>
             {analysis.advice.map((item, index) => (
               <View key={`${index}-${item}`} style={styles.adviceRow}>
-                <Ionicons name="leaf-outline" size={13} color={colors.green} />
+                <AppIcon name="leaf" size={13} color={colors.green} />
                 <Text style={styles.adviceText}>{item}</Text>
               </View>
             ))}
