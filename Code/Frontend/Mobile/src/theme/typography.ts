@@ -7,20 +7,23 @@ export const font = {
   semibold: "Lexend_600SemiBold",
   bold: "Lexend_700Bold",
   extrabold: "Lexend_800ExtraBold",
+  // Fraunces chỉ dùng cho tiêu đề và con số lớn: chất serif mềm, có cá tính
+  // "vườn nhà" thay vì thêm một font sans nữa.
+  display: "Fraunces_600SemiBold",
 } as const;
 
 export const typo = {
   display: {
-    fontFamily: font.extrabold,
-    fontSize: 27,
-    lineHeight: 32,
-    letterSpacing: -0.9,
+    fontFamily: font.display,
+    fontSize: 30,
+    lineHeight: 35,
+    letterSpacing: -0.4,
   },
   title: {
-    fontFamily: font.bold,
-    fontSize: 21,
-    lineHeight: 26,
-    letterSpacing: -0.6,
+    fontFamily: font.display,
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.3,
   },
   section: {
     fontFamily: font.semibold,
@@ -61,16 +64,18 @@ export const typo = {
     textTransform: "uppercase",
   },
   metric: {
-    fontFamily: font.bold,
-    fontSize: 23,
-    lineHeight: 27,
-    letterSpacing: -0.8,
+    fontFamily: font.display,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+    fontVariant: ["tabular-nums"],
   },
   zoneValue: {
-    fontFamily: font.bold,
-    fontSize: 20,
-    lineHeight: 23,
-    letterSpacing: -0.6,
+    fontFamily: font.display,
+    fontSize: 22,
+    lineHeight: 25,
+    letterSpacing: -0.3,
+    fontVariant: ["tabular-nums"],
   },
   modeLabel: {
     fontFamily: font.semibold,

@@ -1,6 +1,13 @@
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
@@ -160,6 +167,15 @@ export default function SettingsScreen() {
 
         {zone ? <ZoneSettingsForm key={zone.id} zone={zone} embedded /> : null}
       </Card>
+
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Mở trang Icons8"
+        onPress={() => void Linking.openURL("https://icons8.com")}
+        style={styles.credit}
+      >
+        <Text style={styles.creditText}>Biểu tượng: Icons8</Text>
+      </Pressable>
     </Screen>
   );
 }
@@ -259,5 +275,14 @@ const createStyles = (colors: Palette) =>
     retry: {
       ...typo.smallStrong,
       color: colors.green,
+    },
+    credit: {
+      alignSelf: "center",
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+    },
+    creditText: {
+      ...typo.caption,
+      color: colors.faint,
     },
   });
