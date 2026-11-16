@@ -16,6 +16,7 @@ import { gardenConfig } from "./garden-config.js";
 import type { MqttGateway } from "./mqtt-gateway.js";
 import { getLatestTelemetry, trackCommand } from "./live.js";
 import {
+  deleteHistoryBefore,
   getTelemetryHistory,
   getWateringOverview,
   listCommands,
@@ -603,6 +604,23 @@ export function createApiRouter(gateway: MqttGateway) {
       deviceId: request.params.deviceId,
       commands: listCommands(request.params.deviceId, limit),
     });
+  });
+
+  // Dọn dữ liệu cũ thủ công từ Web; chặn xóa dữ liệu trong ngày hiện tại.
+  router.delete("/api/devices/:deviceId/history", (request, response) => {
+    const days = queryNumber(request.query.days);
+    if (days === undefined || !Number.isInteger(days) || days < 1 || days > 365) {
+      response.status(400).json({ error: "days must be an integer between 1 and 365" });
+      return;
+    }
+
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const removed = deleteHistoryBefore(request.params.deviceId, cutoff);
+    console.log(
+      `Deleted history older than ${days} days for ${request.params.deviceId}:`,
+      removed,
+    );
+    response.json({ deviceId: request.params.deviceId, days, cutoff, removed });
   });
 
   router.post("/api/devices/:deviceId/commands", async (request, response) => {

@@ -545,6 +545,38 @@ export function timeoutStaleCommands(): number {
     .run(Date.now()).changes;
 }
 
+export type DeletedHistory = {
+  samples: number;
+  commands: number;
+  changes: number;
+  runs: number;
+};
+
+/** Xóa dữ liệu cũ của một thiết bị; mẫu vùng tự xóa theo khóa ngoại. */
+export function deleteHistoryBefore(deviceId: string, cutoff: number): DeletedHistory {
+  return db.transaction(() => {
+    const samples = db
+      .prepare("DELETE FROM telemetry_samples WHERE device_id = ? AND recorded_at < ?")
+      .run(deviceId, cutoff);
+    const commands = db
+      .prepare("DELETE FROM command_log WHERE device_id = ? AND created_at < ?")
+      .run(deviceId, cutoff);
+    const changes = db
+      .prepare("DELETE FROM zone_setting_changes WHERE device_id = ? AND changed_at < ?")
+      .run(deviceId, cutoff);
+    const runs = db
+      .prepare("DELETE FROM watering_runs WHERE device_id = ? AND last_seen_at < ?")
+      .run(deviceId, cutoff);
+
+    return {
+      samples: samples.changes,
+      commands: commands.changes,
+      changes: changes.changes,
+      runs: runs.changes,
+    };
+  })();
+}
+
 export function pruneHistory(retentionDays: number): number {
   const safeDays = Math.max(1, Math.floor(retentionDays));
   const cutoff = Date.now() - safeDays * 24 * 60 * 60 * 1000;
