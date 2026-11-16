@@ -43,6 +43,7 @@ export function Topbar({
   return (
     <>
       <header className="topbar">
+        <PanelToggle panel="nav" />
         <div className="mobile-brand">
           <span className="brand-mark">
             <LeafIcon size={14} />
@@ -77,6 +78,7 @@ export function Topbar({
           {connected ? `Cập nhật: ${lastUpdated}` : "Mất kết nối máy chủ"}
         </span>
         <LiveClock />
+        <PanelToggle panel="rail" />
       </header>
 
       <nav className="compact-nav" aria-label="Điều hướng nhanh">
@@ -124,10 +126,6 @@ export function Topbar({
         <div>
           <p className="eyebrow">{eyebrow}</p>
           <h1>{title}</h1>
-        </div>
-        <div className="page-heading-tools">
-          <PanelToggle panel="nav" />
-          <PanelToggle panel="rail" />
         </div>
       </div>
     </>
