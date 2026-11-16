@@ -33,7 +33,6 @@ export type GardenZone = {
   threshold: number;
   stopThreshold: number;
   method: string;
-  pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
   color: string;
@@ -65,7 +64,6 @@ export type CommandResponse = {
 
 export type ZoneConfigInput = {
   threshold?: number;
-  pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
 };

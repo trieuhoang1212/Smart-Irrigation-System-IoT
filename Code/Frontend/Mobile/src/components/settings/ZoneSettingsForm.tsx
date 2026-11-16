@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -13,7 +12,6 @@ import { SectionHeader } from "../ui/SectionHeader";
 
 type Draft = {
   threshold: number;
-  pumpSeconds: string;
   flowLitersPerHour: string;
   targetLiters: string;
 };
@@ -27,11 +25,13 @@ const THRESHOLD_MIN = 10;
 const THRESHOLD_MAX = 90;
 const THRESHOLD_STEP = 5;
 const STOP_OFFSET = 20;
+// Firmware chỉ chạy trong khoảng 10 giây - 10 phút mỗi lần.
+const MIN_RUNTIME_SECONDS = 10;
+const MAX_RUNTIME_MINUTES = 10;
 
 function toDraft(zone: LiveZone): Draft {
   return {
     threshold: Math.round(zone.threshold),
-    pumpSeconds: String(zone.pumpSeconds),
     flowLitersPerHour: String(zone.flowLitersPerHour),
     targetLiters: String(zone.targetLiters),
   };
@@ -44,23 +44,13 @@ function parseNumber(value: string): number {
 function validate(
   draft: Draft
 ): { input: ZoneConfigInput } | { error: string } {
-  const pumpSeconds = parseNumber(draft.pumpSeconds);
   const flow = parseNumber(draft.flowLitersPerHour);
   const target = parseNumber(draft.targetLiters);
 
-  if (
-    !Number.isInteger(pumpSeconds) ||
-    pumpSeconds < 10 ||
-    pumpSeconds > 600
-  ) {
+  // Firmware đọc lưu lượng bằng %d nên chỉ nhận số nguyên.
+  if (!Number.isInteger(flow) || flow < 1 || flow > 200) {
     return {
-      error: "Thời gian bơm mỗi lần phải từ 10 đến 600 giây.",
-    };
-  }
-
-  if (!Number.isFinite(flow) || flow < 1 || flow > 200) {
-    return {
-      error: "Lưu lượng bơm phải từ 1 đến 200 L/giờ.",
+      error: "Lưu lượng bơm phải là số nguyên từ 1 đến 200 L/giờ.",
     };
   }
 
@@ -70,10 +60,20 @@ function validate(
     };
   }
 
+  if ((target / flow) * 60 > MAX_RUNTIME_MINUTES) {
+    return {
+      error: `Mục tiêu cần hơn ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ lượng nước hoặc tăng lưu lượng.`,
+    };
+  }
+  if ((target / flow) * 3600 < MIN_RUNTIME_SECONDS) {
+    return {
+      error: `Mỗi lần chạy dưới ${MIN_RUNTIME_SECONDS} giây. Tăng lượng nước hoặc giảm lưu lượng.`,
+    };
+  }
+
   return {
     input: {
       threshold: draft.threshold,
-      pumpSeconds,
       flowLitersPerHour: flow,
       targetLiters: target,
     },
@@ -154,6 +154,15 @@ export function ZoneSettingsForm({
       ? (target / flow) * 60
       : null;
 
+  const runtimeWarning =
+    estimateMinutes === null
+      ? null
+      : estimateMinutes > MAX_RUNTIME_MINUTES
+        ? `Vượt ${MAX_RUNTIME_MINUTES} phút mỗi lần, thiết bị sẽ tự dừng trước khi đủ nước.`
+        : estimateMinutes * 60 < MIN_RUNTIME_SECONDS
+          ? `Ngắn hơn ${MIN_RUNTIME_SECONDS} giây tối thiểu của thiết bị.`
+          : null;
+
   const update = (field: keyof Draft, value: string) => {
     setDraft((current) => ({
       ...current,
@@ -173,7 +182,10 @@ export function ZoneSettingsForm({
     setSaving(true);
 
     try {
-      await saveZone(zone.id, result.input);
+      const saved = await saveZone(zone.id, result.input);
+      if (!saved) {
+        setError("Không lưu được cấu hình. Kiểm tra Backend rồi thử lại.");
+      }
     } catch {
       setError("Không thể lưu cấu hình. Vui lòng thử lại.");
     } finally {
@@ -203,22 +215,14 @@ export function ZoneSettingsForm({
       />
 
       <NumberField
-        label="Thời gian bơm mỗi lần"
-        hint="10 - 600 giây"
-        unit="giây"
-        value={draft.pumpSeconds}
-        onChangeText={(value) => update("pumpSeconds", value)}
-      />
-
-      <NumberField
         label="Lưu lượng bơm"
-        hint="1 - 200 L/giờ"
+        hint="Số nguyên 1 - 200 L/giờ"
         unit="L/giờ"
         value={draft.flowLitersPerHour}
         onChangeText={(value) =>
           update("flowLitersPerHour", value)
         }
-        keyboardType="decimal-pad"
+        keyboardType="number-pad"
       />
 
       <NumberField
@@ -245,6 +249,10 @@ export function ZoneSettingsForm({
                 1
               )} phút cho ${formatNumber(target, 1)} L`}
         </Text>
+
+        {runtimeWarning ? (
+          <Text style={styles.estimateWarning}>{runtimeWarning}</Text>
+        ) : null}
       </View>
 
       {error ? (
@@ -338,6 +346,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.greenStrong,
+  },
+  estimateWarning: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.red,
   },
   error: {
     marginTop: spacing.sm,
