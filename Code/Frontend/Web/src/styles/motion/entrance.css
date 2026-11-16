@@ -128,6 +128,19 @@
     animation: card-swap 0.36s var(--ease-garden) both;
   }
 
+  .zone-spotlight {
+    animation: rise-in 0.5s var(--ease-garden) both;
+  }
+
+  .pump-tile {
+    animation: rise-in 0.5s 40ms var(--ease-garden) both;
+  }
+
+  .spot-bar-fill {
+    transform-origin: left;
+    animation: bar-grow 0.9s 220ms var(--ease-garden) both;
+  }
+
   .activity-list .activity-item {
     animation: item-in 0.38s var(--ease-garden) both;
   }

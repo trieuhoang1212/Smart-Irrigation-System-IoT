@@ -1,6 +1,7 @@
 "use client";
 
 import type { Zone } from "../garden-data";
+import { DropletIcon } from "./icons";
 import { Tooltip } from "./Tooltip";
 
 interface PumpControlCardProps {
@@ -25,13 +26,13 @@ export function PumpControlCard({
   const offlineReason = "Thiết bị tưới đang mất kết nối nên lệnh chưa gửi được";
 
   return (
-    <article className="panel control-card pump-control-card">
+    <article className="panel pump-tile">
       <div className="panel-heading">
         <div>
-          <h2>Điều khiển bơm & chế độ</h2>
-          <p>
-            {selectedZone.id} · {selectedZone.name} · tưới khi đất dưới {selectedZone.threshold}%
-          </p>
+          <h2>
+            Điều khiển tưới
+            <Tooltip text="Chế độ áp dụng cho cả vườn. Bấm nút tưới để bật bơm của ô đang chọn ngay lập tức; ở chế độ Tự động, hệ thống sẽ tự chuyển sang Thủ công." />
+          </h2>
         </div>
         <span className={`live-badge ${selectedZone.pump ? "active" : ""}`}>
           <i />
@@ -39,9 +40,9 @@ export function PumpControlCard({
         </span>
       </div>
 
-      <div className="mode-row">
-        <span>Chế độ toàn vườn</span>
-        <div className="mode-switch">
+      <div className="pump-mode">
+        <span className="pump-label">Chế độ toàn vườn</span>
+        <div className="mode-switch mode-switch-wide" role="group" aria-label="Chế độ tưới">
           <button
             type="button"
             className={mode === "auto" ? "selected" : ""}
@@ -65,75 +66,50 @@ export function PumpControlCard({
         </div>
       </div>
 
-      {mode === "manual" && (
-        <div className="mode-warning">
-          <span>
-            Đang Thủ công: hệ thống không tự tưới, lịch tự động tạm dừng cho cả vườn.
-          </span>
-          <button
-            type="button"
-            onClick={() => void onChangeMode("auto")}
-            disabled={!controlsEnabled}
-          >
-            Quay lại Tự động
-          </button>
-        </div>
-      )}
+      <button
+        type="button"
+        className={`water-button pump-action ${selectedZone.pump ? "watering" : ""}`}
+        onClick={onTogglePump}
+        disabled={tankEmpty || !controlsEnabled}
+        aria-label={selectedZone.pump ? "Dừng tưới ô đang chọn" : "Tưới tay ô đang chọn"}
+        title={
+          tankEmpty
+            ? "Bồn nước đã cạn nên bơm bị chặn"
+            : !controlsEnabled
+              ? offlineReason
+              : mode === "auto"
+                ? selectedZone.pump
+                  ? "Dừng bơm và chuyển cả vườn sang Thủ công"
+                  : "Bật bơm ô này (hệ thống sẽ tự chuyển sang Thủ công)"
+                : undefined
+        }
+      >
+        <DropletIcon size={16} />
+        {selectedZone.pump ? "Dừng tưới" : "Tưới tay ngay"}
+      </button>
+
+      <p className="pump-hint">
+        {!controlsEnabled
+          ? "Mất kết nối thiết bị — nút tưới tạm khoá."
+          : tankEmpty
+            ? "Bồn đã cạn — bơm bị chặn để tránh chạy khô."
+            : mode === "auto"
+              ? "Đang Tự động: tưới tay sẽ chuyển cả vườn sang Thủ công."
+              : "Đang Thủ công: hệ thống không tự tưới cho tới khi bạn bật lại Tự động."}
+      </p>
 
       {mode === "manual" && selectedZone.overTarget && (
-        <div className="mode-warning overwater" role="status">
+        <div className="mode-warning overwater pump-warning" role="status">
           <span>
-            {selectedZone.id} đã đủ {selectedZone.targetLiters} L cho lần tưới này — bơm đã tự dừng. Sau 10 phút hệ thống tự về Tự động.
+            {selectedZone.id} đã đủ {selectedZone.targetLiters} L — bơm tự dừng, sau 10 phút
+            hệ thống tự về Tự động.
           </span>
         </div>
       )}
 
-      <div className="control-row">
-        <div>
-          <strong>
-            {!controlsEnabled
-              ? "Mất kết nối thiết bị"
-              : mode === "auto"
-                ? "Tưới tự động theo độ ẩm"
-                : "Điều khiển tưới bằng tay"}
-          </strong>
-          <small>
-            {!controlsEnabled
-              ? "Dữ liệu bên dưới là lần đo cuối; bơm tạm thời không nhận lệnh mới."
-              : tankEmpty
-                ? "Bồn nước đã cạn — bơm bị chặn để tránh chạy khô"
-                : mode === "auto"
-                  ? `Tự tưới khi đất < ${selectedZone.threshold}%. Bấm công tắc để tưới tay ngay.`
-                  : "Công tắc bật/tắt bơm của khu vực đang chọn."}
-          </small>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={selectedZone.pump}
-          aria-label="Bật tắt bơm khu vực đang chọn"
-          className={`big-toggle ${selectedZone.pump ? "on" : ""}`}
-          onClick={onTogglePump}
-          disabled={tankEmpty || !controlsEnabled}
-          title={
-            tankEmpty
-              ? "Bồn nước đã cạn nên bơm bị chặn"
-              : !controlsEnabled
-                ? offlineReason
-                : mode === "auto"
-                  ? selectedZone.pump
-                    ? "Dừng bơm và chuyển cả vườn sang Thủ công"
-                    : "Bật bơm khu vực này (hệ thống sẽ tự chuyển sang Thủ công)"
-                  : undefined
-          }
-        >
-          <i />
-        </button>
-      </div>
-
-      <div className="threshold-control">
+      <div className="threshold-control pump-threshold">
         <label htmlFor="threshold">
-          Tưới khi đất dưới <strong>{selectedZone.threshold}%</strong>
+          Tự tưới khi đất dưới <strong>{selectedZone.threshold}%</strong>
           <Tooltip text="Khi độ ẩm đất trong ô trồng giảm xuống dưới ngưỡng này, hệ thống sẽ tự động bật bơm." />
         </label>
         <input
@@ -151,12 +127,6 @@ export function PumpControlCard({
           <span>90% · ẩm</span>
         </div>
       </div>
-
-      {!controlsEnabled && (
-        <p className="control-note">
-          Thiết bị tưới đang mất kết nối — công tắc bơm, chế độ và ngưỡng tạm khoá.
-        </p>
-      )}
     </article>
   );
 }

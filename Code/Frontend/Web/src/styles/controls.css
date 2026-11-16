@@ -242,6 +242,73 @@
   line-height: 1.5;
 }
 
+/* Thẻ điều khiển tưới gọn, đặt ở đầu cột chính. */
+.pump-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.pump-tile .panel-heading h2 {
+  font-size: 15.5px;
+}
+
+.pump-mode {
+  margin-top: 12px;
+}
+
+.pump-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mode-switch-wide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 2px;
+}
+
+.mode-switch-wide button {
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.mode-switch-wide button.selected {
+  font-weight: 600;
+}
+
+.pump-action {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 12.5px;
+}
+
+.pump-hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.pump-threshold {
+  margin-top: auto;
+}
+
+.pump-warning {
+  margin-top: 8px;
+}
+
 .threshold-control input:disabled {
   cursor: not-allowed;
   opacity: 0.55;

@@ -17,6 +17,7 @@ import { GardenBoard } from "./components/GardenBoard";
 import { GardenDetailPanel } from "./components/GardenDetailPanel";
 import { ZoneAdvicePanel } from "./components/ZoneAdvicePanel";
 import { ZoneConfigCard } from "./components/ZoneConfigCard";
+import { ZoneSpotlightCard } from "./components/ZoneSpotlightCard";
 import { OverviewTabs } from "./components/OverviewTabs";
 import { BackToTop } from "./components/BackToTop";
 import { DeviceStatusBanner } from "./components/DeviceStatusBanner";
@@ -159,10 +160,6 @@ export default function App() {
     togglePump(selectedZone.id);
   };
 
-  const handleToggleIrrigation = () => {
-    void handleTogglePump();
-  };
-
   return (
     <main className="app-shell" id="top">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
@@ -197,7 +194,40 @@ export default function App() {
         <div className="bento-dashboard">
           {/* CỘT CHÍNH (BÊN TRÁI): Giám sát vườn toàn cảnh */}
           <div className="bento-col-main">
-            {/* 1. Môi trường: Thời tiết & Mực nước bồn */}
+            {/* 0. Thao tác nhanh: ô đang chọn & điều khiển bơm */}
+            <div className="bento-action-row">
+              <ZoneSpotlightCard zone={selectedZone} soil={soil} />
+              <PumpControlCard
+                mode={mode}
+                selectedZone={selectedZone}
+                tankEmpty={tankEmpty}
+                controlsEnabled={controlsEnabled}
+                onChangeMode={changeMode}
+                onTogglePump={handleTogglePump}
+                onChangeThreshold={(val) => setZoneThreshold(selectedZone.id, val)}
+              />
+            </div>
+
+            {/* 1. Sơ đồ các ô trồng trong vườn */}
+            <section className="panel bento-garden-card">
+              <div className="panel-heading">
+                <div>
+                  <h2>Sơ đồ các ô trồng</h2>
+                  <p>
+                    {zones.length} ô trồng · Đang xem: {selectedZone.id} ({selectedZone.name})
+                  </p>
+                </div>
+                <Link className="link-button" href={zoneHref("/garden", selectedZone.id)}>
+                  <EditIcon size={14} />
+                  Quản lý khu vườn
+                </Link>
+              </div>
+              <div className="bento-garden-wrap">
+                <GardenBoard zones={zones} activeZone={selectedZone.id} onSelect={handleSelectZone} />
+              </div>
+            </section>
+
+            {/* 2. Môi trường: Thời tiết & Mực nước bồn */}
             <div className="bento-env-row">
               <WeatherCard
                 temperature={temperature}
@@ -221,25 +251,6 @@ export default function App() {
                 deviceOnline={deviceOnline}
               />
             </div>
-
-            {/* 2. Sơ đồ các ô trồng trong vườn */}
-            <section className="panel bento-garden-card">
-              <div className="panel-heading">
-                <div>
-                  <h2>Sơ đồ các ô trồng</h2>
-                  <p>
-                    {zones.length} ô trồng · Đang xem: {selectedZone.id} ({selectedZone.name})
-                  </p>
-                </div>
-                <Link className="link-button" href={zoneHref("/garden", selectedZone.id)}>
-                  <EditIcon size={14} />
-                  Quản lý khu vườn
-                </Link>
-              </div>
-              <div className="bento-garden-wrap">
-                <GardenBoard zones={zones} activeZone={selectedZone.id} onSelect={handleSelectZone} />
-              </div>
-            </section>
 
             {/* 3. Diễn biến độ ẩm 6 giờ & Hoạt động gần đây */}
             <OverviewTabs
@@ -271,32 +282,17 @@ export default function App() {
             />
           </div>
 
-          {/* CỘT PHỤ (BÊN PHẢI): Chi tiết ô, bảng điều khiển & thông số nước */}
+          {/* CỘT PHỤ (BÊN PHẢI): Hồ sơ ô đang chọn & thông số nước */}
           <aside className="bento-col-side">
             {/* 1. Chi tiết cây & đất của ô đang chọn */}
             <GardenDetailPanel
               key={`detail-${selectedZone.id}`}
               zone={selectedZone}
-              mode={mode}
               soil={soil}
               deviceId={deviceId}
-              controlsEnabled={controlsEnabled}
-              tankEmpty={tankEmpty}
-              onToggleIrrigation={handleToggleIrrigation}
             />
 
-            {/* 2. Bảng điều khiển bơm & Chế độ */}
-            <PumpControlCard
-              mode={mode}
-              selectedZone={selectedZone}
-              tankEmpty={tankEmpty}
-              controlsEnabled={controlsEnabled}
-              onChangeMode={changeMode}
-              onTogglePump={handleTogglePump}
-              onChangeThreshold={(val) => setZoneThreshold(selectedZone.id, val)}
-            />
-
-            {/* 3. Thông số nước tưới chung của vùng */}
+            {/* 2. Thông số nước tưới chung của vùng */}
             <ZoneConfigCard
               key={`config-${selectedZone.id}`}
               zone={selectedZone}

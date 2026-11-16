@@ -321,6 +321,10 @@
   flex: 1;
 }
 
+.garden-detail-actions .ghost-button {
+  flex: 1;
+}
+
 .advice-panel {
   margin-top: 16px;
   padding-top: 16px;

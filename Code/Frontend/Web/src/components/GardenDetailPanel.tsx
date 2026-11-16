@@ -8,37 +8,20 @@ import { formatSpan } from "../lib/time";
 import { useMoistureForecast } from "../hooks/useMoistureForecast";
 import { zoneStatus } from "../lib/zone-status";
 import { formatDate, harvestDate } from "../lib/zone-date";
-import { DropletIcon, EditIcon } from "./icons";
+import { EditIcon } from "./icons";
 import { ZonePhoto } from "./ZonePhoto";
 
 export function GardenDetailPanel({
   zone,
-  mode,
   soil,
   deviceId,
-  controlsEnabled,
-  tankEmpty,
-  onToggleIrrigation,
 }: {
   zone: Zone;
-  mode: "auto" | "manual";
   soil: SoilType;
   deviceId: string;
-  controlsEnabled: boolean;
-  tankEmpty: boolean;
-  onToggleIrrigation: () => void;
 }) {
   const status = zoneStatus(zone);
   const expectedHarvest = harvestDate(zone.plantedAt, zone.harvestDays);
-  const blocked = !controlsEnabled || tankEmpty;
-  const blockedReason = tankEmpty
-    ? "Bồn nước đã cạn nên bơm bị chặn"
-    : "Thiết bị tưới đang mất kết nối nên chưa gửi được lệnh";
-  const actionLabel = zone.pump
-    ? "Dừng tưới"
-    : mode === "auto"
-      ? "Tưới tay (chuyển Thủ công)"
-      : "Tưới khu vực này";
 
   const forecast = useMoistureForecast({ backendUrl: BACKEND_URL, deviceId, zone });
   const [now, setNow] = useState(() => Date.now());
@@ -139,45 +122,10 @@ export function GardenDetailPanel({
 
       {zone.notes && <p className="garden-detail-note">{zone.notes}</p>}
 
-      {tankEmpty && (
-        <p className="garden-detail-note">
-          Bồn nước đã cạn — châm thêm nước trước khi tưới.
-        </p>
-      )}
-
-      {!controlsEnabled && (
-        <p className="garden-detail-note">
-          Thiết bị tưới đang mất kết nối — nút tưới tạm khoá. Vẫn sửa được hồ sơ cây.
-        </p>
-      )}
-
-      {controlsEnabled && mode === "auto" && !zone.pump && (
-        <p className="garden-detail-note">
-          Đang Tự động — tưới tay sẽ chuyển cả vườn sang Thủ công.
-        </p>
-      )}
-
       <div className="garden-detail-actions">
-        <button
-          className={`water-button ${zone.pump ? "watering" : ""}`}
-          onClick={onToggleIrrigation}
-          disabled={blocked}
-          title={
-            blocked
-              ? blockedReason
-              : mode === "auto"
-                ? zone.pump
-                  ? "Dừng bơm và chuyển cả vườn sang Thủ công"
-                  : "Chuyển cả vườn sang Thủ công rồi bật bơm khu vực này"
-                : "Bật hoặc tắt bơm của khu vực đang chọn"
-          }
-        >
-          <DropletIcon size={15} />
-          {zone.pump ? "Đang tưới..." : actionLabel}
-        </button>
         <Link className="ghost-button" href={`/garden?zone=${zone.id}`}>
           <EditIcon size={14} />
-          Sửa
+          Sửa hồ sơ ô
         </Link>
       </div>
     </aside>

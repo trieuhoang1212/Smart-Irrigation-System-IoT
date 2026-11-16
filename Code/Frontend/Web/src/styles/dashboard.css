@@ -35,13 +35,6 @@
   text-wrap: balance;
 }
 
-.page-heading-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
 .panel-toggle {
   display: inline-flex;
   flex: none;
@@ -244,6 +237,235 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+}
+
+/* Cặp thẻ thao tác đầu cột chính: ô đang chọn + điều khiển bơm. */
+.bento-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.zone-spotlight {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.spot-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spot-photo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+}
+
+.spot-id {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.spot-eyebrow {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spot-id h2 {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spot-id .zone-chip {
+  padding: 1px 7px;
+  font-size: 10px;
+}
+
+.spot-edit {
+  display: grid;
+  margin-left: auto;
+  align-self: flex-start;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+
+.spot-edit:hover {
+  border-color: #cdd9cd;
+  color: var(--green-strong);
+}
+
+.spot-reading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.spot-value {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.spot-value strong {
+  color: var(--ink);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.spot-value small {
+  margin-right: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spot-threshold {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  color: var(--faint);
+  font-size: 10.5px;
+}
+
+.spot-threshold strong {
+  color: var(--green-strong);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.spot-bar {
+  position: relative;
+  height: 8px;
+  margin-top: 9px;
+  border-radius: 99px;
+  background: #edf1ea;
+}
+
+.spot-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8db79a, #3f8f63);
+  transition: width 0.45s ease;
+}
+
+.spot-bar.dry .spot-bar-fill {
+  background: linear-gradient(90deg, #dcb970, #a5762c);
+}
+
+.spot-bar-tick {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  border: 2px solid var(--surface);
+  border-radius: 2px;
+  background: var(--green-strong);
+  box-shadow: 0 1px 3px rgba(23, 54, 42, 0.2);
+  transform: translate(-50%, -50%);
+}
+
+.spot-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.spot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.spot-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: #f4f7f2;
+  white-space: nowrap;
+}
+
+.spot-meta svg {
+  color: var(--faint);
+}
+
+.spot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.spot-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+}
+
+.spot-links a svg {
+  color: var(--faint);
+  transition: color 0.16s ease, transform 0.18s ease;
+}
+
+.spot-links a:hover {
+  border-color: #b9cdbd;
+  background: #fbfdf9;
+  color: var(--green-strong);
+}
+
+.spot-links a:hover svg {
+  color: var(--green);
+  transform: translateX(2px);
 }
 
 .bento-garden-card {
@@ -644,10 +866,6 @@
     order: 2;
   }
 
-  .pump-control-card {
-    order: 3;
-  }
-
   .zone-config-card {
     order: 4;
   }
@@ -670,6 +888,7 @@
 }
 
 @container page (max-width: 620px) {
+  .bento-action-row,
   .bento-env-row {
     grid-template-columns: 1fr;
   }
