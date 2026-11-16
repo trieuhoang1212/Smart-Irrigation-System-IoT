@@ -1,3 +1,3 @@
-export { colors } from "./colors";
+export { darkPalette, lightPalette, type Palette } from "./palette";
 export { radius, spacing } from "./spacing";
-export { text } from "./typography";
+export { font, typo } from "./typography";

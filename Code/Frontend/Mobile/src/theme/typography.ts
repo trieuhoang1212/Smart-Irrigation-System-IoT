@@ -1,31 +1,81 @@
-import { TextStyle } from "react-native";
+import type { TextStyle } from "react-native";
 
-import { colors } from "./colors";
+// Lexend nạp trong app/_layout.tsx; tên family do @expo-google-fonts đặt sẵn.
+export const font = {
+  regular: "Lexend_400Regular",
+  medium: "Lexend_500Medium",
+  semibold: "Lexend_600SemiBold",
+  bold: "Lexend_700Bold",
+  extrabold: "Lexend_800ExtraBold",
+} as const;
 
-export const text = {
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.ink,
+export const typo = {
+  display: {
+    fontFamily: font.extrabold,
+    fontSize: 27,
+    lineHeight: 32,
+    letterSpacing: -0.9,
   },
-  heading: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: colors.ink,
+  title: {
+    fontFamily: font.bold,
+    fontSize: 21,
+    lineHeight: 26,
+    letterSpacing: -0.6,
+  },
+  section: {
+    fontFamily: font.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
   },
   body: {
-    fontSize: 14,
-    color: colors.inkSoft,
+    fontFamily: font.regular,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  bodyStrong: {
+    fontFamily: font.semibold,
+    fontSize: 13,
+    lineHeight: 19,
   },
   small: {
-    fontSize: 12,
-    color: colors.muted,
+    fontFamily: font.regular,
+    fontSize: 11.5,
+    lineHeight: 16,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.6,
+  smallStrong: {
+    fontFamily: font.semibold,
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  caption: {
+    fontFamily: font.medium,
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  micro: {
+    fontFamily: font.semibold,
+    fontSize: 9.5,
+    lineHeight: 12,
+    letterSpacing: 0.9,
     textTransform: "uppercase",
-    color: colors.faint,
+  },
+  metric: {
+    fontFamily: font.bold,
+    fontSize: 23,
+    lineHeight: 27,
+    letterSpacing: -0.8,
+  },
+  zoneValue: {
+    fontFamily: font.bold,
+    fontSize: 20,
+    lineHeight: 23,
+    letterSpacing: -0.6,
+  },
+  modeLabel: {
+    fontFamily: font.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
   },
 } satisfies Record<string, TextStyle>;
