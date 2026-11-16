@@ -36,7 +36,10 @@ const app = express();
 const server = http.createServer(app);
 const webSockets = new WebSocketServer({ server, path: "/realtime" });
 
-app.use(cors({ origin: config.webOrigin }));
+// Web chạy cổng 3000 còn Expo web của Mobile chạy cổng khác khi dev,
+// nên cho phép mọi cổng localhost bên cạnh origin đã cấu hình.
+const localOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
+app.use(cors({ origin: [config.webOrigin, localOrigin] }));
 app.use(express.json({ limit: "16kb" }));
 app.use("/uploads", express.static(uploadDir, { maxAge: "7d", immutable: true }));
 
