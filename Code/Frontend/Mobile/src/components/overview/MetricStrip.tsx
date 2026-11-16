@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
@@ -6,6 +5,7 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { radius, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
+import { AppIcon, type AppIconName } from "../ui/AppIcon";
 
 const NO_DATA = "Không có dữ liệu";
 
@@ -31,21 +31,21 @@ export function MetricStrip() {
     <View style={styles.row}>
       <MetricTile
         label="Nhiệt độ"
-        icon="thermometer-outline"
+        icon="temperature"
         accent={colors.amber}
         value={temperature}
       />
 
       <MetricTile
         label="Độ ẩm khí"
-        icon="water-outline"
+        icon="humidity"
         accent={colors.blue}
         value={humidity}
       />
 
       <MetricTile
         label="Mưa"
-        icon="rainy-outline"
+        icon="rain"
         accent={colors.blue}
         value={rain}
         hint={deviceOnline && telemetry ? (telemetry.raining ? "Đang mưa" : "Khô ráo") : undefined}
@@ -62,7 +62,7 @@ function MetricTile({
   hint,
 }: {
   label: string;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
+  icon: AppIconName;
   accent: string;
   value: string | null;
   hint?: string;
@@ -72,7 +72,7 @@ function MetricTile({
   return (
     <View style={styles.tile}>
       <View style={styles.head}>
-        <Ionicons name={icon} size={13} color={accent} />
+        <AppIcon name={icon} size={14} color={accent} />
         <Text style={styles.label} numberOfLines={1}>
           {label}
         </Text>

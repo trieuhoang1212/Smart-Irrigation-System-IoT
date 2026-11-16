@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/overview/DashboardHeader";
 import { EnvRow } from "@/components/overview/EnvRow";
 import { MetricStrip } from "@/components/overview/MetricStrip";
 import { ModeDock } from "@/components/overview/ModeDock";
+import { MoistureTrend } from "@/components/overview/MoistureTrend";
 import { StatusLine } from "@/components/overview/StatusLine";
 import { Screen } from "@/components/layout/Screen";
 import { SearchSheet } from "@/components/search/SearchSheet";
@@ -39,10 +40,14 @@ export default function OverviewScreen() {
       </Reveal>
 
       <Reveal index={3}>
-        <ZoneGrid onSelect={setZoneId} />
+        <MoistureTrend onOpenHistory={() => router.navigate("/history")} />
       </Reveal>
 
       <Reveal index={4}>
+        <ZoneGrid onSelect={setZoneId} />
+      </Reveal>
+
+      <Reveal index={5}>
         <StatusLine />
       </Reveal>
 

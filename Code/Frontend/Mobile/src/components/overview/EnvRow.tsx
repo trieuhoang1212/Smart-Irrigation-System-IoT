@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
@@ -6,6 +5,7 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { radius, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { clamp } from "../../utils/format";
+import { AppIcon } from "../ui/AppIcon";
 import { Toggle } from "../ui/Toggle";
 
 export function EnvRow() {
@@ -46,7 +46,7 @@ export function EnvRow() {
     <View style={styles.row}>
       <View style={styles.tile}>
         <View style={styles.head}>
-          <Ionicons name="water-outline" size={13} color={tankTone} />
+          <AppIcon name="water" size={14} color={tankTone} />
           <Text style={styles.label}>Bồn nước</Text>
         </View>
 
@@ -73,7 +73,7 @@ export function EnvRow() {
 
       <View style={styles.tile}>
         <View style={styles.head}>
-          <Ionicons name="rainy-outline" size={13} color={colors.blue} />
+          <AppIcon name="rain" size={14} color={colors.blue} />
           <Text style={styles.label}>Chặn mưa</Text>
 
           <View style={styles.headSpacer} />

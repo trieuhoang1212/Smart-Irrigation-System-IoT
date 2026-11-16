@@ -1,17 +1,32 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
 import { radius, spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatClock } from "../../utils/format";
+import { AppIcon } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
 export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) {
   const styles = useThemedStyles(createStyles);
   const { colors, isDark, toggle } = useTheme();
   const { deviceOnline, lastTelemetryAt } = useGarden();
+  const spin = useSharedValue(0);
+
+  const themeIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value}deg` }],
+  }));
+
+  const rotate = () => {
+    spin.set(withTiming(spin.get() + 180, { duration: 420 }));
+    toggle();
+  };
 
   return (
     <View style={styles.header}>
@@ -19,10 +34,10 @@ export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) 
         <View style={styles.titleBlock}>
           <View style={styles.brandRow}>
             <View style={styles.logo}>
-              <Ionicons name="leaf" size={15} color={colors.white} />
+              <AppIcon name="leaf" size={16} color={colors.white} />
             </View>
 
-            <Text style={styles.title}>Vườn nhà</Text>
+            <Text style={styles.title}>Khu vườn</Text>
           </View>
 
           <View style={styles.metaRow}>
@@ -34,10 +49,7 @@ export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) 
             />
 
             <Text
-              style={[
-                styles.meta,
-                !deviceOnline && { color: colors.red },
-              ]}
+              style={[styles.meta, !deviceOnline && { color: colors.red }]}
               numberOfLines={1}
             >
               {deviceOnline
@@ -49,16 +61,21 @@ export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) 
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isDark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
-          onPress={toggle}
+          accessibilityLabel={
+            isDark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"
+          }
+          onPress={rotate}
           hitSlop={6}
           style={({ pressed }) => [styles.themeButton, pressed && styles.pressed]}
         >
-          <Ionicons
-            name={isDark ? "sunny-outline" : "moon-outline"}
-            size={18}
-            color={colors.inkSoft}
-          />
+          <Animated.View style={themeIconStyle}>
+            <AppIcon
+              name={isDark ? "sun" : "moon"}
+              variant="outline"
+              size={18}
+              color={colors.inkSoft}
+            />
+          </Animated.View>
         </Pressable>
       </View>
 
@@ -67,7 +84,7 @@ export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) 
         accessibilityLabel="Tìm kiếm khu vườn và trang"
         innerStyle={styles.search}
       >
-        <Ionicons name="search" size={16} color={colors.faint} />
+        <AppIcon name="search" variant="outline" size={17} color={colors.faint} />
 
         <Text style={styles.searchText} numberOfLines={1}>
           Tìm khu vườn, thông số...
@@ -103,12 +120,17 @@ const createStyles = (colors: Palette) =>
       gap: spacing.sm,
     },
     logo: {
-      width: 28,
-      height: 28,
-      borderRadius: 10,
+      width: 30,
+      height: 30,
+      borderRadius: 11,
       backgroundColor: colors.green,
       alignItems: "center",
       justifyContent: "center",
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.22,
+      shadowRadius: 8,
+      elevation: 4,
     },
     title: {
       ...typo.title,
@@ -130,8 +152,8 @@ const createStyles = (colors: Palette) =>
       color: colors.muted,
     },
     themeButton: {
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       borderRadius: radius.pill,
       borderWidth: 1,
       borderColor: colors.line,
@@ -143,7 +165,7 @@ const createStyles = (colors: Palette) =>
       opacity: 0.7,
     },
     search: {
-      height: 42,
+      height: 44,
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,

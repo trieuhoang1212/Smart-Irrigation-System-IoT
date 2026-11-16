@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -14,6 +13,7 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
+import { AppIcon } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
 const COLUMNS = 3;
@@ -110,7 +110,7 @@ function ZoneTile({
         </Text>
 
         {zone.pump ? (
-          <Ionicons name="water" size={11} color={colors.blue} />
+          <AppIcon name="water" size={12} color={colors.blue} />
         ) : (
           <View
             style={[
