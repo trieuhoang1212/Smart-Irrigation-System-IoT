@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -24,10 +25,12 @@ export function ZoneGrid({ onSelect }: { onSelect: (zoneId: string) => void }) {
   const { colors } = useTheme();
   const { zones, loading, configError, reloadConfig } = useGarden();
   const { width } = useWindowDimensions();
+  const [gridWidth, setGridWidth] = useState(0);
 
-  // Bề rộng khả dụng = màn hình - lề trang - lề trong khung Panel - viền khung.
-  const available = width - 58;
-  const tileWidth = (available - GAP * (COLUMNS - 1)) / COLUMNS;
+  // Đo bề rộng thật của lưới thay vì trừ hằng số: lề trong khung Panel
+  // làm tròn khác nhau trên từng máy, đoán lệch một chút là ô thứ 3 rớt hàng.
+  const inner = gridWidth || width - 58;
+  const tileWidth = Math.floor((inner - GAP * (COLUMNS - 1)) / COLUMNS);
 
   return (
     <View style={styles.section}>
@@ -48,7 +51,10 @@ export function ZoneGrid({ onSelect }: { onSelect: (zoneId: string) => void }) {
           <Text style={styles.stateText}>Chưa có khu vườn nào được cấu hình.</Text>
         </View>
       ) : (
-        <View style={styles.grid}>
+        <View
+          style={styles.grid}
+          onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
+        >
           {zones.map((zone) => (
             <ZoneTile
               key={zone.id}
@@ -149,6 +155,7 @@ const createStyles = (colors: Palette) =>
     grid: {
       flexDirection: "row",
       flexWrap: "wrap",
+      justifyContent: "center",
       gap: GAP,
     },
     tile: {
