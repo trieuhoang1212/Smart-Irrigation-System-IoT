@@ -33,6 +33,7 @@ import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
+import { Reveal } from "../ui/Reveal";
 import { Sheet } from "../ui/Sheet";
 
 const CHART_HEIGHT = 64;
@@ -91,11 +92,11 @@ const METRICS: Metric[] = [
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 function formatValue(value: number | null, metric: Metric): string {
-  if (value === null) return "--";
+  if (value === null) return "—";
   return `${formatNumber(value, metric.digits)}${metric.unit}`;
 }
 
-/** Nút gọn trên Tổng quan để mở drawer biểu đồ. */
+/** Nút gọn trên Tổng quan để mở bảng biểu đồ. */
 export function ChartEntry({ onPress }: { onPress: () => void }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -211,15 +212,16 @@ export function ChartSheet({
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
       >
-        {METRICS.map((metric) => (
-          <MetricCard
-            key={metric.key}
-            metric={metric}
-            samples={samples}
-            range={range}
-            loading={loading}
-            error={error}
-          />
+        {METRICS.map((metric, index) => (
+          <Reveal key={metric.key} index={index}>
+            <MetricCard
+              metric={metric}
+              samples={samples}
+              range={range}
+              loading={loading}
+              error={error}
+            />
+          </Reveal>
         ))}
 
         <Pressable
@@ -352,7 +354,7 @@ function MetricCard({
 
   const emptyText = loading
     ? "Đang tải..."
-    : (error ?? `Không có dữ liệu trong ${HISTORY_RANGES[range].label}.`);
+    : (error ?? `Chưa có dữ liệu trong ${HISTORY_RANGES[range].label}.`);
 
   return (
     <View style={styles.card}>
