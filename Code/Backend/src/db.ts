@@ -140,6 +140,17 @@ db.exec(`
     ON watering_runs(device_id, zone_id, started_at);
   CREATE INDEX IF NOT EXISTS idx_watering_runs_device_end
     ON watering_runs(device_id, ended_at);
+
+  CREATE TABLE IF NOT EXISTS push_tokens (
+    token      TEXT PRIMARY KEY,
+    device_id  TEXT NOT NULL,
+    platform   TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_push_tokens_device
+    ON push_tokens(device_id);
 `);
 
 function tableColumns(table: string): Set<string> {
