@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import "../src/App.css";
+import { RouteMotion } from "../src/components/RouteMotion";
 
 const lexend = Lexend({
   subsets: ["latin", "vietnamese"],
@@ -26,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={lexend.variable}>{children}</body>
+      <body className={lexend.variable}>
+        <RouteMotion />
+        {children}
+      </body>
     </html>
   );
 }

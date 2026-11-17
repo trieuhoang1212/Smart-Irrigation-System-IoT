@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState, type CSSProperties } from "react";
+
 import type { Zone } from "../garden-data";
 import { zoneStatus } from "../lib/zone-status";
 import { ZonePhoto } from "./ZonePhoto";
@@ -13,9 +15,16 @@ export function GardenBoard({
   activeZone: string;
   onSelect: (zoneId: string) => void;
 }) {
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
-    <div className="garden-board">
-      {zones.map((zone) => {
+    <div className={`garden-board ${entered ? "entered" : ""}`}>
+      {zones.map((zone, index) => {
         const status = zoneStatus(zone);
         const isActive = zone.id === activeZone;
         const moisture = zone.online ? zone.moisture : null;
@@ -26,6 +35,7 @@ export function GardenBoard({
             type="button"
             className={`garden-cell ${isActive ? "active" : ""}`}
             aria-pressed={isActive}
+            style={{ "--i": index } as CSSProperties}
             onClick={() => onSelect(zone.id)}
           >
             <ZonePhoto zone={zone} className="garden-cell-photo" />

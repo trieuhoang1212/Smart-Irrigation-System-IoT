@@ -1,0 +1,57 @@
+/*
+  Chuyển tab trong app: chỉ một nhịp mờ nhẹ (~240ms) cho nội dung.
+  Vỏ điều hướng và biểu đồ đứng yên, không diễn lại cảnh nhập trang.
+  Lần tải đầu tiên không có lớp .is-returning nên vẫn giữ hiệu ứng đầy đủ.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .is-returning .content > * {
+    animation: route-fade 0.24s var(--ease-garden) both;
+    animation-delay: 0s;
+  }
+
+  .is-returning .sidebar,
+  .is-returning .sidebar .brand,
+  .is-returning .sidebar .nav-label,
+  .is-returning .sidebar .nav-item,
+  .is-returning .sidebar .sidebar-bottom,
+  .is-returning .content > .topbar,
+  .is-returning .compact-nav a,
+  .is-returning .page-heading::after,
+  .is-returning .eyebrow::before {
+    animation: none;
+  }
+
+  .is-returning .status-card,
+  .is-returning .garden-detail,
+  .is-returning .advice-panel,
+  .is-returning .zone-config-card,
+  .is-returning .zone-spotlight,
+  .is-returning .pump-tile,
+  .is-returning .activity-list .activity-item,
+  .is-returning .spot-bar-fill {
+    animation: none;
+  }
+
+  .is-returning .history-line,
+  .is-returning .analysis-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .is-returning .history-area,
+  .is-returning .analysis-area,
+  .is-returning .score-ring-value,
+  .is-returning .score-bar-track i,
+  .is-returning .garden-meter i,
+  .is-returning .garden-growth .progress i,
+  .is-returning .progress i {
+    animation: none;
+    opacity: 1;
+  }
+
+  .is-returning .garden-board .garden-cell {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+}

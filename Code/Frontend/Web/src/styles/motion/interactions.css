@@ -160,9 +160,29 @@
 .mode-switch button,
 .view-switch button {
   transition:
+    transform 0.16s var(--ease-garden),
     background-color 0.2s ease,
     color 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+/* Chip, phân đoạn và điều hướng: nhấn xuống hơi lún. */
+.zone-pill:active,
+.history-metric:active,
+.mode-switch button:active,
+.view-switch button:active,
+.compact-nav a:active,
+.nav-item:active {
+  transform: scale(0.96);
+}
+
+.compact-nav a,
+.nav-item {
+  transition:
+    transform 0.16s var(--ease-garden),
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 
 .mode-switch button.selected,
