@@ -5,9 +5,8 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
-
-const NO_DATA = "—";
 
 export function MetricStrip() {
   const styles = useThemedStyles(createStyles);
@@ -16,16 +15,13 @@ export function MetricStrip() {
 
   const temperature =
     deviceOnline && telemetry?.temperature != null
-      ? `${formatNumber(telemetry.temperature, 1)}°`
+      ? telemetry.temperature
       : null;
 
   const humidity =
-    deviceOnline && telemetry?.humidity != null
-      ? `${formatNumber(telemetry.humidity, 0)}%`
-      : null;
+    deviceOnline && telemetry?.humidity != null ? telemetry.humidity : null;
 
-  const rain =
-    deviceOnline && telemetry ? `${formatNumber(telemetry.rain, 0)}%` : null;
+  const rain = deviceOnline && telemetry ? telemetry.rain : null;
 
   return (
     <View style={styles.row}>
@@ -34,6 +30,7 @@ export function MetricStrip() {
         icon="temperature"
         accent={colors.amber}
         value={temperature}
+        format={(number) => `${formatNumber(number, 1)}°`}
       />
 
       <MetricTile
@@ -41,6 +38,7 @@ export function MetricStrip() {
         icon="humidity"
         accent={colors.blue}
         value={humidity}
+        format={(number) => `${formatNumber(number, 0)}%`}
         divider
       />
 
@@ -49,6 +47,7 @@ export function MetricStrip() {
         icon="rain"
         accent={colors.blue}
         value={rain}
+        format={(number) => `${formatNumber(number, 0)}%`}
         hint={
           deviceOnline && telemetry
             ? telemetry.raining
@@ -67,13 +66,15 @@ function MetricTile({
   icon,
   accent,
   value,
+  format,
   hint,
   divider = false,
 }: {
   label: string;
   icon: AppIconName;
   accent: string;
-  value: string | null;
+  value: number | null;
+  format: (value: number) => string;
   hint?: string;
   divider?: boolean;
 }) {
@@ -88,12 +89,12 @@ function MetricTile({
         </Text>
       </View>
 
-      <Text
+      <AnimatedNumber
+        value={value}
+        format={format}
         style={[styles.value, value === null && styles.valueEmpty]}
         numberOfLines={2}
-      >
-        {value ?? NO_DATA}
-      </Text>
+      />
 
       {value !== null && hint ? (
         <Text style={styles.hint} numberOfLines={1}>

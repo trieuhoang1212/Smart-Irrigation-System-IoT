@@ -1,4 +1,13 @@
+import { useEffect } from "react";
+import { useIsFocused } from "expo-router";
 import { useWindowDimensions, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import Svg, {
   Circle,
   Defs,
@@ -15,6 +24,7 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatShortTime } from "../../utils/format";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 
 export type HistoryMetric = "moisture" | "temperature" | "humidity" | "rain";
 
@@ -30,6 +40,9 @@ export const HISTORY_METRICS: Record<
 
 const CHART_HEIGHT = 200;
 const PAD = { left: 34, right: 12, top: 14, bottom: 24 };
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+type SeriesPoint = { time: number; value: number };
 
 function metricColor(metric: HistoryMetric, colors: Palette): string {
   switch (metric) {
@@ -70,7 +83,7 @@ export function HistoryChart({
   const series = samples
     .map((sample) => ({ time: sample.recordedAt, value: sample[metric] }))
     .filter(
-      (item): item is { time: number; value: number } =>
+      (item): item is SeriesPoint =>
         item.value !== null && Number.isFinite(item.value),
     );
   const points = series.map((item) => item.value);
@@ -101,6 +114,42 @@ export function HistoryChart({
     );
   }
 
+  return (
+    <ChartPlot
+      samples={samples}
+      series={series}
+      points={points}
+      metric={metric}
+      range={range}
+      chartWidth={chartWidth}
+      lineColor={lineColor}
+    />
+  );
+}
+
+function ChartPlot({
+  samples,
+  series,
+  points,
+  metric,
+  range,
+  chartWidth,
+  lineColor,
+}: {
+  samples: HistoryResponse["samples"];
+  series: SeriesPoint[];
+  points: number[];
+  metric: HistoryMetric;
+  range: RangeKey;
+  chartWidth: number;
+  lineColor: string;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const focused = useIsFocused();
+  const draw = useSharedValue(reduced ? 1 : 0);
+
   const threshold = metric === "moisture" ? samples[0].threshold : null;
   const scaleValues = threshold === null ? points : [...points, threshold];
   let min = Math.min(...scaleValues);
@@ -118,7 +167,8 @@ export function HistoryChart({
   const baseline = CHART_HEIGHT - PAD.bottom;
   const innerWidth = chartWidth - PAD.left - PAD.right;
   const xAt = (index: number) =>
-    PAD.left + (points.length === 1 ? innerWidth / 2 : (index / (points.length - 1)) * innerWidth);
+    PAD.left +
+    (points.length === 1 ? innerWidth / 2 : (index / (points.length - 1)) * innerWidth);
   const yAt = (value: number) =>
     PAD.top + (1 - (value - min) / (max - min)) * (baseline - PAD.top);
 
@@ -129,6 +179,27 @@ export function HistoryChart({
     points.length > 1
       ? `${linePath} L ${xAt(points.length - 1).toFixed(1)} ${baseline} L ${xAt(0).toFixed(1)} ${baseline} Z`
       : "";
+  const lineLength = points
+    .slice(1)
+    .reduce(
+      (total, value, index) =>
+        total + Math.hypot(xAt(index + 1) - xAt(index), yAt(value) - yAt(points[index])),
+      0,
+    );
+
+  const lineProps = useAnimatedProps(() => ({
+    strokeDashoffset: lineLength * (1 - draw.value),
+  }));
+
+  useEffect(() => {
+    if (reduced) {
+      draw.set(1);
+      return;
+    }
+    if (!focused) return;
+    draw.set(0);
+    draw.set(withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
+  }, [draw, focused, linePath, reduced]);
 
   const ticks = [max, (max + min) / 2, min];
   const xLabels = [0, Math.floor((series.length - 1) / 2), series.length - 1]
@@ -186,13 +257,15 @@ export function HistoryChart({
           />
         )}
 
-        <Path
+        <AnimatedPath
           d={linePath}
           fill="none"
           stroke={lineColor}
           strokeWidth={2.2}
           strokeLinejoin="round"
           strokeLinecap="round"
+          strokeDasharray={lineLength > 0 ? `${lineLength}` : undefined}
+          animatedProps={lineProps}
         />
 
         {points.length <= 40 &&
@@ -222,19 +295,33 @@ export function HistoryChart({
 
       <View style={styles.stats}>
         <Text style={styles.stat}>
-          Thấp nhất <Text style={styles.statValue}>{formatValue(Math.min(...points), metric)}</Text>
+          Thấp nhất{" "}
+          <AnimatedNumber
+            value={Math.min(...points)}
+            format={(value) => formatValue(value, metric)}
+            style={styles.statValue}
+          />
         </Text>
         <Text style={styles.stat}>
-          Cao nhất <Text style={styles.statValue}>{formatValue(Math.max(...points), metric)}</Text>
+          Cao nhất{" "}
+          <AnimatedNumber
+            value={Math.max(...points)}
+            format={(value) => formatValue(value, metric)}
+            style={styles.statValue}
+          />
         </Text>
         <Text style={styles.stat}>
-          Trung bình <Text style={styles.statValue}>{formatValue(average, metric)}</Text>
+          Trung bình{" "}
+          <AnimatedNumber
+            value={average}
+            format={(value) => formatValue(value, metric)}
+            style={styles.statValue}
+          />
         </Text>
       </View>
     </View>
   );
 }
-
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({

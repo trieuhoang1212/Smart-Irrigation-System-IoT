@@ -15,6 +15,7 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { AppIcon } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
@@ -146,12 +147,11 @@ function ZoneTile({
         )}
       </View>
 
-      <Text
+      <AnimatedNumber
+        value={moisture}
+        format={(value) => `${formatNumber(value, 0)}%`}
         style={[styles.zoneValue, moisture === null && styles.zoneValueEmpty]}
-        numberOfLines={1}
-      >
-        {moisture === null ? "—" : `${formatNumber(moisture, 0)}%`}
-      </Text>
+      />
 
       <View style={styles.tileBar}>
         <View

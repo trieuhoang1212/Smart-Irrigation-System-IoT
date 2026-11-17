@@ -5,6 +5,7 @@ import { useTheme } from "../../providers/ThemeProvider";
 import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { clamp } from "../../utils/format";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { AppIcon } from "../ui/AppIcon";
 import { Toggle } from "../ui/Toggle";
 
@@ -50,12 +51,11 @@ export function EnvRow() {
           <Text style={styles.label}>Bồn nước</Text>
         </View>
 
-        <Text
+        <AnimatedNumber
+          value={percent}
+          format={(value) => `${Math.round(value)}%`}
           style={[styles.value, percent === null && styles.valueEmpty]}
-          numberOfLines={1}
-        >
-          {percent === null ? "—" : `${percent}%`}
-        </Text>
+        />
 
         <View style={styles.bar}>
           <View

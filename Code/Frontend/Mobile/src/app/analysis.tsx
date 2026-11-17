@@ -5,8 +5,10 @@ import { ZONE_IDS } from "@/api/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
 import { Panel } from "@/components/ui/Panel";
+import { Reveal } from "@/components/ui/Reveal";
 import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
@@ -88,12 +90,18 @@ export default function AnalysisScreen() {
         status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
-      <Panel index="01" title="Khu vực" hint={zone ? zone.crop : undefined}>
-        <ZoneGrid selectedId={activeZoneId} onSelect={setZoneId} />
-      </Panel>
+      <Reveal index={0}>
+        <Panel index="01" title="Khu vực" hint={zone ? zone.crop : undefined}>
+          <ZoneGrid selectedId={activeZoneId} onSelect={setZoneId} />
+        </Panel>
+      </Reveal>
 
-      {analysis && zone && toneColors ? (
-        <Panel
+      <Reveal
+        index={1}
+        key={analysis && zone && toneColors ? "ready" : "pending"}
+      >
+        {analysis && zone && toneColors ? (
+          <Panel
           index="02"
           title="Chẩn đoán"
           hint={zone.name}
@@ -136,11 +144,12 @@ export default function AnalysisScreen() {
           <View style={styles.bandBlock}>
             <View style={styles.bandHead}>
               <Text style={styles.bandLabel}>Độ ẩm hiện tại</Text>
-              <Text style={styles.bandValue}>
-                {analysis.current === null
-                  ? "Chưa có dữ liệu"
-                  : `${formatNumber(analysis.current, 0)}%`}
-              </Text>
+              <AnimatedNumber
+                value={analysis.current}
+                format={(value) => `${formatNumber(value, 0)}%`}
+                empty="Chưa có dữ liệu"
+                style={styles.bandValue}
+              />
             </View>
 
             <View style={styles.band}>
@@ -173,39 +182,13 @@ export default function AnalysisScreen() {
           </View>
 
           <View style={styles.statRow}>
-            <Stat
-              label="Trong ngưỡng"
-              value={
-                analysis.inSafePct === null
-                  ? "—"
-                  : `${formatNumber(analysis.inSafePct, 0)}%`
-              }
-            />
-            <Stat
-              label="Trung bình"
-              value={
-                analysis.average === null
-                  ? "—"
-                  : `${formatNumber(analysis.average, 0)}%`
-              }
-              divider
-            />
+            <Stat label="Trong ngưỡng" value={analysis.inSafePct} />
+            <Stat label="Trung bình" value={analysis.average} divider />
           </View>
 
           <View style={styles.statRow}>
-            <Stat
-              label="Thấp nhất"
-              value={
-                analysis.min === null ? "—" : `${formatNumber(analysis.min, 0)}%`
-              }
-            />
-            <Stat
-              label="Cao nhất"
-              value={
-                analysis.max === null ? "—" : `${formatNumber(analysis.max, 0)}%`
-              }
-              divider
-            />
+            <Stat label="Thấp nhất" value={analysis.min} />
+            <Stat label="Cao nhất" value={analysis.max} divider />
           </View>
 
           <View style={styles.advice}>
@@ -218,7 +201,8 @@ export default function AnalysisScreen() {
             ))}
           </View>
         </Panel>
-      ) : null}
+        ) : null}
+      </Reveal>
     </Screen>
   );
 }
@@ -229,7 +213,7 @@ function Stat({
   divider = false,
 }: {
   label: string;
-  value: string;
+  value: number | null;
   divider?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -237,7 +221,11 @@ function Stat({
   return (
     <View style={[styles.stat, divider && styles.statDivider]}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+      <AnimatedNumber
+        value={value}
+        format={(item) => `${formatNumber(item, 0)}%`}
+        style={styles.statValue}
+      />
     </View>
   );
 }
