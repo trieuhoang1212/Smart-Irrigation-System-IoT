@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "../../providers/ThemeProvider";
 import { font, typo, type Palette } from "../../theme";
@@ -10,10 +10,14 @@ export function PageHeader({
   title,
   subtitle,
   showSettings = true,
+  status,
+  onSearch,
 }: {
   title: string;
   subtitle?: string;
   showSettings?: boolean;
+  status?: { online: boolean; text: string };
+  onSearch?: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -28,11 +32,48 @@ export function PageHeader({
           <Text style={styles.kicker}>Greenflow</Text>
         </View>
 
-        <HeaderActions showSettings={showSettings} />
+        <View style={styles.actions}>
+          {onSearch ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tìm kiếm khu vườn và trang"
+              onPress={onSearch}
+              hitSlop={4}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            >
+              <AppIcon
+                name="search"
+                variant="outline"
+                size={16}
+                color={colors.inkSoft}
+              />
+            </Pressable>
+          ) : null}
+
+          <HeaderActions showSettings={showSettings} />
+        </View>
       </View>
 
       <Text style={styles.title}>{title}</Text>
+
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+
+      {status ? (
+        <View style={styles.statusRow}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: status.online ? colors.green : colors.red },
+            ]}
+          />
+          <Text
+            style={[styles.statusText, !status.online && styles.statusTextOff]}
+            numberOfLines={1}
+          >
+            {status.text}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -54,6 +95,42 @@ const createStyles = (colors: Palette) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 7,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    iconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    pressed: {
+      opacity: 0.65,
+    },
+    statusRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 1,
+    },
+    statusDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+    },
+    statusText: {
+      ...typo.caption,
+      color: colors.muted,
+    },
+    statusTextOff: {
+      color: colors.red,
     },
     logo: {
       width: 22,
