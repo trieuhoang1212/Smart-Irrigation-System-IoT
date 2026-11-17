@@ -3,12 +3,14 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
-import { spacing, typo, type Palette } from "../../theme";
+import { font, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
@@ -21,53 +23,38 @@ export function ModeDock() {
   const { colors } = useTheme();
   const { mode, setMode, pending, deviceOnline, pump, togglePump } = useGarden();
 
-  const disabled = Boolean(pending) || !deviceOnline;
-  const canPump = !disabled && mode === "manual";
+  const offline = !deviceOnline;
+  const disabled = Boolean(pending) || offline;
+  const auto = mode === "auto";
+  const pumpOn = pump && !auto && !offline;
+  const canPump = !disabled && !auto;
+
+  const label = pending
+    ? pending
+    : offline
+      ? "Mất kết nối — không điều khiển được"
+      : auto
+        ? "Bơm chạy tự động theo ngưỡng"
+        : pump
+          ? "Bơm đang chạy — chạm để tắt"
+          : "Bật bơm tổng";
 
   return (
     <View style={styles.card}>
       <View style={styles.ringLarge} />
       <View style={styles.ringSmall} />
 
-      <View style={styles.topRow}>
-        <View style={styles.heading}>
-          <Text style={styles.kicker}>Chế độ tưới</Text>
-          <Text style={styles.headingValue}>
-            {mode === "auto" ? "Tự động theo ngưỡng" : "Thủ công từng khu"}
-          </Text>
-        </View>
-
-        <PressableScale
-          onPress={() => void togglePump()}
-          disabled={!canPump}
-          accessibilityLabel={pump ? "Tắt bơm tổng" : "Bật bơm tổng"}
-          innerStyle={[
-            styles.pumpPill,
-            pump && styles.pumpPillOn,
-            !canPump && !pump && styles.pumpPillIdle,
-          ]}
-        >
-          <AppIcon
-            name="power"
-            size={13}
-            color={pump ? colors.white : colors.onDeepSoft}
-          />
-
-          <Text style={[styles.pumpText, pump && styles.pumpTextOn]}>
-            {pump ? "Bơm đang chạy" : "Bơm tổng tắt"}
-          </Text>
-        </PressableScale>
-      </View>
+      <Text style={styles.kicker}>Chế độ tưới</Text>
 
       <View style={styles.options}>
         <ModeOrb
           label="Tự động"
           hint="Theo ngưỡng"
           icon="auto"
-          active={mode === "auto"}
+          active={auto}
           disabled={disabled}
           onPress={() => {
-            if (mode !== "auto") void setMode("auto");
+            if (!auto) void setMode("auto");
           }}
         />
 
@@ -81,32 +68,76 @@ export function ModeDock() {
           label="Thủ công"
           hint="Tự bật bơm"
           icon="manual"
-          active={mode === "manual"}
+          active={!auto}
           disabled={disabled}
           onPress={() => {
-            if (mode !== "manual") void setMode("manual");
+            if (auto) void setMode("manual");
           }}
         />
       </View>
 
-      <View style={styles.captionRow}>
+      <PressableScale
+        onPress={() => void togglePump()}
+        disabled={!canPump}
+        accessibilityLabel={
+          auto
+            ? "Bơm chạy tự động theo ngưỡng"
+            : pump
+              ? "Tắt bơm tổng"
+              : "Bật bơm tổng"
+        }
+        innerStyle={[
+          styles.pumpBar,
+          pumpOn && styles.pumpBarOn,
+          auto && styles.pumpBarAuto,
+          offline && styles.pumpBarOffline,
+        ]}
+      >
         {pending ? (
-          <>
-            <ActivityIndicator size="small" color={colors.onDeep} />
-            <Text style={styles.caption} numberOfLines={1}>
-              {pending}
-            </Text>
-          </>
+          <ActivityIndicator size="small" color={colors.onDeep} />
+        ) : offline ? (
+          <AppIcon name="error" variant="outline" size={15} color={colors.amber} />
+        ) : auto ? (
+          <AppIcon name="auto" variant="outline" size={15} color={colors.onDeepSoft} />
+        ) : pump ? (
+          <PumpDot />
         ) : (
-          <Text style={styles.caption} numberOfLines={2}>
-            {mode === "auto"
-              ? "Tự tưới khi độ ẩm đất xuống dưới ngưỡng đã đặt."
-              : "Bạn tự bật tắt bơm cho từng khu vườn."}
-          </Text>
+          <AppIcon name="power" variant="outline" size={15} color={colors.onDeep} />
         )}
-      </View>
+
+        <Text
+          style={[
+            styles.pumpLabel,
+            pumpOn && styles.pumpLabelOn,
+            (auto || offline) && styles.pumpLabelIdle,
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </PressableScale>
     </View>
   );
+}
+
+function PumpDot() {
+  const styles = useThemedStyles(createStyles);
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.set(
+      withRepeat(withTiming(1, { duration: 900 }), -1, true),
+    );
+    return () => {
+      pulse.set(0);
+    };
+  }, [pulse]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: 0.35 + pulse.value * 0.65,
+  }));
+
+  return <Animated.View style={[styles.liveDot, animatedStyle]} />;
 }
 
 function ModeOrb({
@@ -181,8 +212,10 @@ const createStyles = (colors: Palette) =>
       overflow: "hidden",
       padding: 16,
       borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.line,
       backgroundColor: colors.deep,
-      gap: spacing.sm,
+      gap: 12,
     },
     ringLarge: {
       position: "absolute",
@@ -203,53 +236,15 @@ const createStyles = (colors: Palette) =>
       borderRadius: 999,
       backgroundColor: "rgba(255,255,255,0.035)",
     },
-    topRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: spacing.sm,
-    },
-    heading: {
-      flex: 1,
-      gap: 1,
-    },
     kicker: {
       ...typo.micro,
       color: colors.onDeepSoft,
-      marginLeft: 1,
-    },
-    headingValue: {
-      ...typo.smallStrong,
-      color: colors.onDeep,
-    },
-    pumpPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: 9,
-      paddingVertical: 5,
-      borderRadius: 4,
-      backgroundColor: "rgba(255,255,255,0.1)",
-    },
-    pumpPillOn: {
-      backgroundColor: colors.green,
-    },
-    pumpPillIdle: {
-      opacity: 0.6,
-    },
-    pumpText: {
-      ...typo.caption,
-      color: colors.onDeepSoft,
-    },
-    pumpTextOn: {
-      color: colors.white,
     },
     options: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
-      paddingVertical: 4,
     },
     orbSlot: {
       width: ORB,
@@ -310,12 +305,12 @@ const createStyles = (colors: Palette) =>
     },
     orbHint: {
       ...typo.caption,
-      fontSize: 9.5,
+      fontSize: 10,
       color: colors.onDeepSoft,
     },
     orbHintActive: {
       color: colors.white,
-      opacity: 0.75,
+      opacity: 0.78,
     },
     connector: {
       flex: 1,
@@ -335,15 +330,48 @@ const createStyles = (colors: Palette) =>
       borderRadius: 2,
       backgroundColor: "rgba(255,255,255,0.32)",
     },
-    captionRow: {
-      minHeight: 18,
+    pumpBar: {
+      minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 2,
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.16)",
+      backgroundColor: "rgba(255,255,255,0.07)",
     },
-    caption: {
-      ...typo.caption,
+    pumpBarOn: {
+      backgroundColor: colors.green,
+      borderColor: "transparent",
+    },
+    pumpBarAuto: {
+      backgroundColor: "rgba(255,255,255,0.035)",
+      borderColor: "rgba(255,255,255,0.1)",
+    },
+    pumpBarOffline: {
+      backgroundColor: "rgba(255,255,255,0.035)",
+      borderColor: "rgba(255,255,255,0.1)",
+    },
+    pumpLabel: {
+      flexShrink: 1,
+      fontFamily: font.semibold,
+      fontSize: 12.5,
+      lineHeight: 17,
+      letterSpacing: -0.1,
+      color: colors.onDeep,
+    },
+    pumpLabelOn: {
+      color: colors.white,
+    },
+    pumpLabelIdle: {
       color: colors.onDeepSoft,
+    },
+    liveDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.white,
     },
   });
