@@ -48,17 +48,62 @@ const STATUS_LABEL = {
   timeout: "Không phản hồi",
 } as const;
 
+// Nhật ký mở đầu bằng một đoạn ngắn; phần còn lại mở dần để trang không dài.
+const INITIAL_VISIBLE = 10;
+
+type DayGroup = {
+  key: string;
+  label: string;
+  events: ActivityEvent[];
+};
+
+function startOfDay(timestamp: number): number {
+  const date = new Date(timestamp);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function dayLabel(timestamp: number): string {
+  const diff = Math.round(
+    (startOfDay(Date.now()) - startOfDay(timestamp)) / 86_400_000,
+  );
+  if (diff === 0) return "Hôm nay";
+  if (diff === 1) return "Hôm qua";
+  return new Date(timestamp).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 export default function ActivityScreen() {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const { deviceId, zones } = useGarden();
   const { events, loading, error, reload } = useActivity(deviceId);
   const [kind, setKind] = useState<KindFilter>("all");
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
 
   const filtered = useMemo(
     () => (kind === "all" ? events : events.filter((event) => event.kind === kind)),
     [events, kind],
   );
+
+  const groups = useMemo<DayGroup[]>(() => {
+    const result: DayGroup[] = [];
+
+    for (const event of filtered.slice(0, visibleCount)) {
+      const key = String(startOfDay(event.at));
+      const current = result[result.length - 1];
+
+      if (current && current.key === key) {
+        current.events.push(event);
+      } else {
+        result.push({ key, label: dayLabel(event.at), events: [event] });
+      }
+    }
+
+    return result;
+  }, [filtered, visibleCount]);
 
   const kindColors = (event: ActivityEvent) => {
     switch (event.kind) {
@@ -91,7 +136,14 @@ export default function ActivityScreen() {
           hint={`${filtered.length} SỰ KIỆN · TỰ LÀM MỚI 15 GIÂY`}
         />
 
-        <ChipRow options={KIND_OPTIONS} value={kind} onChange={setKind} />
+        <ChipRow
+          options={KIND_OPTIONS}
+          value={kind}
+          onChange={(next) => {
+            setKind(next);
+            setVisibleCount(INITIAL_VISIBLE);
+          }}
+        />
 
         {loading && events.length === 0 ? (
           <View style={styles.state}>
@@ -115,46 +167,84 @@ export default function ActivityScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {filtered.map((event) => {
-              const tone = kindColors(event);
-              const status = event.status
-                ? {
-                    label: STATUS_LABEL[event.status],
-                    color:
-                      event.status === "confirmed"
-                        ? colors.greenStrong
-                        : event.status === "timeout"
-                          ? colors.red
-                          : colors.amber,
-                  }
-                : null;
-              const zone = zoneName(event.zoneId);
-
-              return (
-                <View key={event.id} style={styles.event}>
-                  <View style={[styles.iconBox, { backgroundColor: tone.bg }]}>
-                    <AppIcon
-                      name={KIND_ICON[event.kind]}
-                      size={14}
-                      color={tone.fg}
-                    />
-                  </View>
-
-                  <View style={styles.eventBody}>
-                    <Text style={styles.eventText}>{event.text}</Text>
-                    <Text style={styles.eventMeta} numberOfLines={1}>
-                      {zone ? `${zone} · ` : ""}
-                      {formatShortTime(event.at, true)} ·{" "}
-                      {formatShortTime(event.at)}
-                      {status ? " · " : ""}
-                      {status ? (
-                        <Text style={{ color: status.color }}>{status.label}</Text>
-                      ) : null}
-                    </Text>
-                  </View>
+            {groups.map((group) => (
+              <View key={group.key} style={styles.group}>
+                <View style={styles.dayHead}>
+                  <Text style={styles.dayLabel}>{group.label}</Text>
+                  <Text style={styles.dayCount}>
+                    {group.events.length} sự kiện
+                  </Text>
                 </View>
-              );
-            })}
+
+                {group.events.map((event) => {
+                  const tone = kindColors(event);
+                  const status = event.status
+                    ? {
+                        label: STATUS_LABEL[event.status],
+                        color:
+                          event.status === "confirmed"
+                            ? colors.greenStrong
+                            : event.status === "timeout"
+                              ? colors.red
+                              : colors.amber,
+                      }
+                    : null;
+                  const zone = zoneName(event.zoneId);
+
+                  return (
+                    <View key={event.id} style={styles.event}>
+                      <View style={[styles.iconBox, { backgroundColor: tone.bg }]}>
+                        <AppIcon
+                          name={KIND_ICON[event.kind]}
+                          size={14}
+                          color={tone.fg}
+                        />
+                      </View>
+
+                      <View style={styles.eventBody}>
+                        <Text style={styles.eventText}>{event.text}</Text>
+                        <Text style={styles.eventMeta} numberOfLines={1}>
+                          {zone ? `${zone} · ` : ""}
+                          {formatShortTime(event.at)}
+                          {status ? " · " : ""}
+                          {status ? (
+                            <Text style={{ color: status.color }}>
+                              {status.label}
+                            </Text>
+                          ) : null}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+
+            {filtered.length > visibleCount ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setVisibleCount(filtered.length)}
+                style={({ pressed }) => [
+                  styles.more,
+                  pressed && styles.morePressed,
+                ]}
+              >
+                <Text style={styles.moreText}>
+                  Xem thêm {filtered.length - visibleCount} sự kiện
+                </Text>
+              </Pressable>
+            ) : visibleCount > INITIAL_VISIBLE ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setVisibleCount(INITIAL_VISIBLE)}
+                style={({ pressed }) => [
+                  styles.more,
+                  pressed && styles.morePressed,
+                ]}
+              >
+                <Text style={styles.moreText}>Thu gọn</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
 
@@ -195,13 +285,32 @@ const createStyles = (colors: Palette) =>
       color: colors.green,
     },
     list: {
-      gap: 2,
+      gap: 4,
+    },
+    group: {
+      gap: 1,
+    },
+    dayHead: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: 8,
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+    dayLabel: {
+      ...typo.micro,
+      color: colors.greenStrong,
+    },
+    dayCount: {
+      ...typo.caption,
+      color: colors.faint,
     },
     event: {
       flexDirection: "row",
       alignItems: "flex-start",
       gap: 10,
-      paddingVertical: 9,
+      paddingVertical: 8,
       borderBottomWidth: 1,
       borderBottomColor: colors.lineSoft,
     },
@@ -223,6 +332,20 @@ const createStyles = (colors: Palette) =>
     eventMeta: {
       ...typo.caption,
       color: colors.faint,
+    },
+    more: {
+      minHeight: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 10,
+      backgroundColor: colors.surfaceSunken,
+    },
+    morePressed: {
+      opacity: 0.8,
+    },
+    moreText: {
+      ...typo.smallStrong,
+      color: colors.greenStrong,
     },
     footer: {
       flexDirection: "row",
