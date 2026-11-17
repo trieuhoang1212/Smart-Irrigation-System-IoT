@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { LiveZone, ZoneConfigInput } from "../../api/types";
 import { useGarden } from "../../providers/GardenProvider";
+import { useTheme } from "../../providers/ThemeProvider";
 import { font, spacing, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
@@ -88,44 +89,45 @@ function ThresholdStepper({
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.stepperRow}>
-      <View style={styles.stepperLabelBlock}>
-        <Text style={styles.stepperLabel}>Ngưỡng tưới</Text>
+    <View style={styles.threshold}>
+      <View style={styles.thresholdRow}>
+        <Text style={styles.thresholdLabel}>Bắt đầu tưới dưới</Text>
 
-        <Text style={styles.stepperHint}>
-          Tưới dưới {value}% · dừng ở {Math.min(100, value + STOP_OFFSET)}%
-        </Text>
+        <View style={styles.stepper}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Giảm ngưỡng tưới"
+            hitSlop={6}
+            onPress={() => onChange(Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP))}
+            style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.stepSymbol}>−</Text>
+          </Pressable>
+
+          <Text style={styles.stepValue}>{value}%</Text>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Tăng ngưỡng tưới"
+            hitSlop={6}
+            onPress={() => onChange(Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP))}
+            style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.stepSymbol}>+</Text>
+          </Pressable>
+        </View>
       </View>
 
-      <View style={styles.stepper}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Giảm ngưỡng tưới"
-          hitSlop={6}
-          onPress={() => onChange(Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP))}
-          style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.stepSymbol}>−</Text>
-        </Pressable>
-
-        <Text style={styles.stepValue}>{value}%</Text>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Tăng ngưỡng tưới"
-          hitSlop={6}
-          onPress={() => onChange(Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP))}
-          style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.stepSymbol}>+</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.thresholdHint}>
+        Dừng khi độ ẩm đạt {Math.min(100, value + STOP_OFFSET)}%.
+      </Text>
     </View>
   );
 }
 
 export function ZoneSettingsForm({ zone }: Props) {
   const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const { saveZone } = useGarden();
 
   const [draft, setDraft] = useState<Draft>(() => toDraft(zone));
@@ -151,6 +153,23 @@ export function ZoneSettingsForm({ zone }: Props) {
         : estimateMinutes * 60 < MIN_RUNTIME_SECONDS
           ? `Ngắn hơn ${MIN_RUNTIME_SECONDS} giây tối thiểu của thiết bị.`
           : null;
+
+  const estimateLabel =
+    estimateMinutes === null
+      ? "—"
+      : estimateMinutes < 1
+        ? `≈ ${formatNumber(estimateMinutes * 60, 0)} giây`
+        : `≈ ${formatNumber(estimateMinutes, 1)} phút`;
+
+  const runtimeRatio =
+    estimateMinutes === null ? 0 : estimateMinutes / MAX_RUNTIME_MINUTES;
+  const runtimePercent = Math.min(100, Math.round(runtimeRatio * 100));
+  const runtimeColor =
+    runtimeRatio > 1
+      ? colors.red
+      : runtimeRatio > 0.75
+        ? colors.amber
+        : colors.greenStrong;
 
   const update = (field: keyof Draft, value: string) => {
     setDraft((current) => ({
@@ -184,53 +203,76 @@ export function ZoneSettingsForm({ zone }: Props) {
 
   return (
     <View style={styles.form}>
-      <ThresholdStepper
-        value={draft.threshold}
-        onChange={(threshold) => {
-          setDraft((current) => ({
-            ...current,
-            threshold,
-          }));
-        }}
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Ngưỡng tưới</Text>
 
-      <NumberField
-        label="Lưu lượng bơm"
-        hint="1 - 200 L/giờ"
-        unit="L/giờ"
-        value={draft.flowLitersPerHour}
-        onChangeText={(value) => update("flowLitersPerHour", value)}
-        keyboardType="number-pad"
-      />
+        <ThresholdStepper
+          value={draft.threshold}
+          onChange={(threshold) => {
+            setDraft((current) => ({
+              ...current,
+              threshold,
+            }));
+          }}
+        />
+      </View>
 
-      <NumberField
-        label="Lượng nước mục tiêu"
-        hint="0.1 - 20 L"
-        unit="L"
-        value={draft.targetLiters}
-        onChangeText={(value) => update("targetLiters", value)}
-        keyboardType="decimal-pad"
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Lượng nước mỗi lần</Text>
 
-      <View style={styles.estimate}>
-        <View style={styles.estimateHead}>
-          <Text style={styles.estimateLabel}>Ước tính thời gian cấp nước</Text>
+        <View style={styles.amounts}>
+          <View style={styles.amountCell}>
+            <NumberField
+              label="Lưu lượng bơm"
+              hint="1 – 200"
+              unit="L/giờ"
+              value={draft.flowLitersPerHour}
+              onChangeText={(value) => update("flowLitersPerHour", value)}
+              keyboardType="number-pad"
+            />
+          </View>
 
-          <Text style={styles.estimateValue}>
-            {estimateMinutes === null
-              ? "—"
-              : `${formatNumber(estimateMinutes, 1)} phút`}
+          <View style={styles.amountRule} />
+
+          <View style={styles.amountCell}>
+            <NumberField
+              label="Nước mục tiêu"
+              hint="0.1 – 20"
+              unit="L"
+              value={draft.targetLiters}
+              onChangeText={(value) => update("targetLiters", value)}
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.summary}>
+        <View style={styles.summaryHead}>
+          <Text style={styles.summaryLabel}>Thời gian mỗi lần tưới</Text>
+
+          <Text style={[styles.summaryValue, { color: runtimeColor }]}>
+            {estimateLabel}
           </Text>
         </View>
 
-        <Text style={styles.estimateNote}>
+        <View style={styles.track}>
+          <View
+            style={[
+              styles.trackFill,
+              { width: `${runtimePercent}%`, backgroundColor: runtimeColor },
+            ]}
+          />
+        </View>
+
+        <Text style={styles.summaryNote}>
           {estimateMinutes === null
             ? "Nhập lưu lượng và lượng nước để xem thời gian."
-            : `Cho ${formatNumber(target, 1)} L nước mỗi lần.`}
+            : `Bơm ${formatNumber(target, 1)} L mỗi lần · tối đa ${MAX_RUNTIME_MINUTES} phút.`}
         </Text>
 
         {runtimeWarning ? (
-          <Text style={styles.estimateWarning}>{runtimeWarning}</Text>
+          <Text style={styles.warning}>{runtimeWarning}</Text>
         ) : null}
       </View>
 
@@ -250,28 +292,45 @@ export function ZoneSettingsForm({ zone }: Props) {
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
     form: {
-      gap: 18,
+      gap: 16,
     },
-    stepperRow: {
+    section: {
+      gap: 7,
+    },
+    sectionLabel: {
+      fontFamily: font.semibold,
+      fontSize: 9.5,
+      lineHeight: 12,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      color: colors.faint,
+    },
+    threshold: {
+      gap: 3,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.lineSoft,
+      backgroundColor: colors.greenSoft,
+    },
+    thresholdRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.md,
     },
-    stepperLabelBlock: {
-      flex: 1,
-      gap: 2,
-    },
-    stepperLabel: {
+    thresholdLabel: {
+      flexShrink: 1,
       fontFamily: font.medium,
-      fontSize: 11.5,
-      lineHeight: 16,
-      color: colors.muted,
-    },
-    stepperHint: {
-      fontFamily: font.regular,
-      fontSize: 11.5,
+      fontSize: 12,
       lineHeight: 17,
+      color: colors.inkSoft,
+    },
+    thresholdHint: {
+      fontFamily: font.regular,
+      fontSize: 11,
+      lineHeight: 16,
       color: colors.muted,
     },
     stepper: {
@@ -280,11 +339,12 @@ const createStyles = (colors: Palette) =>
       gap: 4,
     },
     stepButton: {
-      width: 30,
-      height: 30,
+      width: 32,
+      height: 32,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: colors.line,
+      backgroundColor: colors.surface,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -295,51 +355,73 @@ const createStyles = (colors: Palette) =>
       color: colors.greenStrong,
     },
     stepValue: {
-      minWidth: 48,
+      minWidth: 46,
       textAlign: "center",
       fontFamily: font.semibold,
-      fontSize: 15,
-      lineHeight: 20,
+      fontSize: 16,
+      lineHeight: 21,
       fontVariant: ["tabular-nums"],
       color: colors.ink,
     },
     pressed: {
       opacity: 0.55,
     },
-    estimate: {
+    amounts: {
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: 12,
+    },
+    amountCell: {
+      flex: 1,
+      minWidth: 0,
+    },
+    amountRule: {
+      width: 1,
+      backgroundColor: colors.lineSoft,
+    },
+    summary: {
+      gap: 7,
       paddingTop: 12,
       borderTopWidth: 1,
       borderTopColor: colors.lineSoft,
-      gap: 3,
     },
-    estimateHead: {
+    summaryHead: {
       flexDirection: "row",
       alignItems: "baseline",
       justifyContent: "space-between",
       gap: spacing.sm,
     },
-    estimateLabel: {
+    summaryLabel: {
       fontFamily: font.regular,
       fontSize: 11.5,
       lineHeight: 16,
       color: colors.muted,
     },
-    estimateValue: {
+    summaryValue: {
       fontFamily: font.semibold,
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: 15,
+      lineHeight: 20,
       fontVariant: ["tabular-nums"],
-      color: colors.greenStrong,
     },
-    estimateNote: {
+    track: {
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceSunken,
+      overflow: "hidden",
+    },
+    trackFill: {
+      height: "100%",
+      borderRadius: 999,
+    },
+    summaryNote: {
       fontFamily: font.regular,
-      fontSize: 11.5,
-      lineHeight: 17,
+      fontSize: 11,
+      lineHeight: 16,
       color: colors.faint,
     },
-    estimateWarning: {
+    warning: {
       fontFamily: font.regular,
-      fontSize: 11.5,
+      fontSize: 11,
       lineHeight: 16,
       color: colors.red,
     },
