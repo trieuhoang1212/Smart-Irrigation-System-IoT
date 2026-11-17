@@ -1,4 +1,3 @@
-import { Fraunces_600SemiBold } from "@expo-google-fonts/fraunces";
 import {
   Lexend_400Regular,
   Lexend_500Medium,
@@ -27,7 +26,6 @@ export default function RootLayout() {
     Lexend_600SemiBold,
     Lexend_700Bold,
     Lexend_800ExtraBold,
-    Fraunces_600SemiBold,
   });
 
   useEffect(() => {
@@ -66,6 +64,7 @@ function AppTabs() {
             <Tabs.Screen name="analysis" options={{ title: "Phân tích" }} />
             <Tabs.Screen name="history" options={{ title: "Lịch sử" }} />
             <Tabs.Screen name="activity" options={{ title: "Nhật ký" }} />
+            <Tabs.Screen name="garden" options={{ title: "Khu vườn" }} />
             <Tabs.Screen name="settings" options={{ title: "Cài đặt" }} />
           </Tabs>
         </GardenProvider>

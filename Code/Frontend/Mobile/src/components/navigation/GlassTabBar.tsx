@@ -25,7 +25,7 @@ const TAB_META: Record<string, TabMeta> = {
   analysis: { icon: "activity" },
   history: { icon: "chart" },
   activity: { icon: "clock" },
-  settings: { icon: "settings" },
+  garden: { icon: "edit" },
 };
 
 function TabItem({
@@ -113,42 +113,45 @@ export function GlassTabBar({
           tint={isDark ? "dark" : "light"}
           style={styles.bar}
         >
-          {state.routes.map((route, index) => {
-            const focused = state.index === index;
-            const options = descriptors[route.key].options;
-            const label =
-              typeof options.title === "string" ? options.title : route.name;
-            const meta = TAB_META[route.name] ?? TAB_META.index;
+          {state.routes
+            // Cài đặt mở từ nút bánh răng ở đầu trang, không chiếm chỗ trên thanh tab.
+            .filter((route) => Boolean(TAB_META[route.name]))
+            .map((route) => {
+              const focused = state.routes[state.index]?.key === route.key;
+              const options = descriptors[route.key].options;
+              const label =
+                typeof options.title === "string" ? options.title : route.name;
+              const meta = TAB_META[route.name] ?? TAB_META.index;
 
-            const onPress = () => {
-              const event = emitter.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigateToTab(route.key);
-              }
-            };
+              const onPress = () => {
+                const event = emitter.emit({
+                  type: "tabPress",
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  navigateToTab(route.key);
+                }
+              };
 
-            const onLongPress = () => {
-              emitter.emit({
-                type: "tabLongPress",
-                target: route.key,
-              });
-            };
+              const onLongPress = () => {
+                emitter.emit({
+                  type: "tabLongPress",
+                  target: route.key,
+                });
+              };
 
-            return (
-              <TabItem
-                key={route.key}
-                label={label}
-                meta={meta}
-                focused={focused}
-                onPress={onPress}
-                onLongPress={onLongPress}
-              />
-            );
-          })}
+              return (
+                <TabItem
+                  key={route.key}
+                  label={label}
+                  meta={meta}
+                  focused={focused}
+                  onPress={onPress}
+                  onLongPress={onLongPress}
+                />
+              );
+            })}
         </BlurView>
       </View>
     </View>

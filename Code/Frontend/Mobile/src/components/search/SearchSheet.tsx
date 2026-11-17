@@ -16,7 +16,7 @@ import { radius, spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 
-type PageTarget = "/analysis" | "/history" | "/activity" | "/settings";
+type PageTarget = "/analysis" | "/history" | "/activity" | "/garden" | "/settings";
 
 type SearchEntry = {
   id: string;
@@ -106,12 +106,39 @@ export function SearchSheet({
         target: { kind: "page", path: "/activity" },
       },
       {
+        id: "page-garden",
+        group: "Trang",
+        title: "Khu vườn",
+        subtitle: "Hồ sơ cây trồng và thông số tưới",
+        icon: "edit",
+        keywords: [
+          "khu vườn",
+          "hồ sơ",
+          "cây trồng",
+          "ảnh",
+          "nhóm cây",
+          "ngày trồng",
+          "ngưỡng",
+          "lưu lượng",
+        ],
+        target: { kind: "page", path: "/garden" },
+      },
+      {
         id: "page-settings",
         group: "Trang",
         title: "Cài đặt",
-        subtitle: "Giao diện, chặn mưa và thông số tưới",
+        subtitle: "Giao diện, an toàn khi mưa và thiết bị",
         icon: "settings",
-        keywords: ["cài đặt", "cấu hình", "ngưỡng", "lưu lượng", "giao diện"],
+        keywords: [
+          "cài đặt",
+          "giao diện",
+          "sáng",
+          "tối",
+          "chặn mưa",
+          "thiết bị",
+          "websocket",
+          "mqtt",
+        ],
         target: { kind: "page", path: "/settings" },
       },
     ];

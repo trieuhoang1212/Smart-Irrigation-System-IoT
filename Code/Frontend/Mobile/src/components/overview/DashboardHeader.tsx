@@ -13,7 +13,13 @@ import { formatClock } from "../../utils/format";
 import { AppIcon } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
-export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) {
+export function DashboardHeader({
+  onOpenSearch,
+  onOpenSettings,
+}: {
+  onOpenSearch: () => void;
+  onOpenSettings: () => void;
+}) {
   const styles = useThemedStyles(createStyles);
   const { colors, isDark, toggle } = useTheme();
   const { deviceOnline, lastTelemetryAt } = useGarden();
@@ -37,7 +43,7 @@ export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) 
               <AppIcon name="leaf" size={16} color={colors.white} />
             </View>
 
-            <Text style={styles.title}>Khu vườn</Text>
+            <Text style={styles.title}>Greenflow</Text>
           </View>
 
           <View style={styles.metaRow}>
@@ -59,24 +65,47 @@ export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) 
           </View>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            isDark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"
-          }
-          onPress={rotate}
-          hitSlop={6}
-          style={({ pressed }) => [styles.themeButton, pressed && styles.pressed]}
-        >
-          <Animated.View style={themeIconStyle}>
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Mở Cài đặt"
+            onPress={onOpenSettings}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+          >
             <AppIcon
-              name={isDark ? "sun" : "moon"}
+              name="settings"
               variant="outline"
-              size={18}
+              size={17}
               color={colors.inkSoft}
             />
-          </Animated.View>
-        </Pressable>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              isDark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"
+            }
+            onPress={rotate}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Animated.View style={themeIconStyle}>
+              <AppIcon
+                name={isDark ? "sun" : "moon"}
+                variant="outline"
+                size={18}
+                color={colors.inkSoft}
+              />
+            </Animated.View>
+          </Pressable>
+        </View>
       </View>
 
       <PressableScale
@@ -151,7 +180,12 @@ const createStyles = (colors: Palette) =>
       ...typo.caption,
       color: colors.muted,
     },
-    themeButton: {
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    iconButton: {
       width: 40,
       height: 40,
       borderRadius: radius.pill,

@@ -2,10 +2,10 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 
 import { DashboardHeader } from "@/components/overview/DashboardHeader";
+import { ChartEntry, ChartSheet } from "@/components/overview/ChartSheet";
 import { EnvRow } from "@/components/overview/EnvRow";
 import { MetricStrip } from "@/components/overview/MetricStrip";
 import { ModeDock } from "@/components/overview/ModeDock";
-import { MoistureTrend } from "@/components/overview/MoistureTrend";
 import { StatusLine } from "@/components/overview/StatusLine";
 import { Screen } from "@/components/layout/Screen";
 import { SearchSheet } from "@/components/search/SearchSheet";
@@ -19,13 +19,17 @@ export default function OverviewScreen() {
   const { zones } = useGarden();
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const [chartsOpen, setChartsOpen] = useState(false);
   const [zoneId, setZoneId] = useState<string | null>(null);
 
   const zone = zoneId ? (zones.find((item) => item.id === zoneId) ?? null) : null;
 
   return (
     <Screen>
-      <DashboardHeader onOpenSearch={() => setSearchOpen(true)} />
+      <DashboardHeader
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenSettings={() => router.navigate("/settings")}
+      />
 
       <Reveal index={0}>
         <ModeDock />
@@ -40,11 +44,11 @@ export default function OverviewScreen() {
       </Reveal>
 
       <Reveal index={3}>
-        <MoistureTrend onOpenHistory={() => router.navigate("/history")} />
+        <ZoneGrid onSelect={setZoneId} />
       </Reveal>
 
       <Reveal index={4}>
-        <ZoneGrid onSelect={setZoneId} />
+        <ChartEntry onPress={() => setChartsOpen(true)} />
       </Reveal>
 
       <Reveal index={5}>
@@ -57,9 +61,9 @@ export default function OverviewScreen() {
         onEdit={(id) => {
           setZoneId(null);
           router.navigate({
-          pathname: "/settings",
-          params: { zone: id, at: String(Date.now()) },
-        });
+            pathname: "/garden",
+            params: { zone: id, at: String(Date.now()), view: "irrigation" },
+          });
         }}
       />
 
@@ -68,6 +72,15 @@ export default function OverviewScreen() {
         onClose={() => setSearchOpen(false)}
         onSelectZone={setZoneId}
         onNavigate={(path) => router.navigate(path)}
+      />
+
+      <ChartSheet
+        visible={chartsOpen}
+        onClose={() => setChartsOpen(false)}
+        onOpenHistory={() => {
+          setChartsOpen(false);
+          router.navigate("/history");
+        }}
       />
     </Screen>
   );
