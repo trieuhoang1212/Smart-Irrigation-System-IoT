@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -99,11 +98,7 @@ export default function GardenScreen() {
           </View>
         ) : (
           <View style={styles.rail}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.railContent}
-            >
+            <View style={styles.railContent}>
               {zones.map((item) => {
                 const active = zone?.id === item.id;
                 return (
@@ -128,7 +123,7 @@ export default function GardenScreen() {
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
           </View>
         )}
       </Panel>
@@ -224,7 +219,11 @@ const createStyles = (colors: Palette) =>
       borderBottomColor: colors.lineSoft,
     },
     railContent: {
-      gap: 22,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      columnGap: 22,
+      rowGap: 8,
       paddingRight: 4,
     },
     railItem: {
