@@ -1,11 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ZONE_IDS } from "@/api/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -13,7 +7,7 @@ import { Screen } from "@/components/layout/Screen";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
 import { Panel } from "@/components/ui/Panel";
-import { ZonePicker } from "@/components/zones/ZonePicker";
+import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -39,10 +33,8 @@ export default function AnalysisScreen() {
   const {
     deviceId,
     zones,
-    loading,
-    configError,
-    reloadConfig,
     deviceOnline,
+    lastTelemetryAt,
     telemetry,
     mode,
   } = useGarden();
@@ -93,32 +85,18 @@ export default function AnalysisScreen() {
     <Screen>
       <PageHeader
         title="Phân tích"
-        subtitle="Chẩn đoán độ ẩm đất theo ngưỡng tưới của từng khu vườn."
+        status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
-      <Panel index="01" title="Khu vườn" hint={zone ? zone.crop : undefined}>
-        {loading && zones.length === 0 ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator size="small" color={colors.green} />
-            <Text style={styles.loadingText}>Đang tải danh sách khu vườn...</Text>
-          </View>
-        ) : configError && zones.length === 0 ? (
-          <View style={styles.state}>
-            <Text style={styles.errorText}>{configError}</Text>
-            <Pressable accessibilityRole="button" onPress={reloadConfig} hitSlop={8}>
-              <Text style={styles.retry}>Thử lại</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <ZonePicker zones={zones} value={activeZoneId} onChange={setZoneId} />
-        )}
+      <Panel index="01" title="Khu vực" hint={zone ? zone.crop : undefined}>
+        <ZoneGrid selectedId={activeZoneId} onSelect={setZoneId} />
       </Panel>
 
       {analysis && zone && toneColors ? (
         <Panel
           index="02"
-          title={zone.name}
-          hint={HISTORY_RANGES[range].label}
+          title="Chẩn đoán"
+          hint={zone.name}
           footer={
             <View style={styles.footer}>
               <Text style={styles.footerText}>
@@ -199,7 +177,7 @@ export default function AnalysisScreen() {
               label="Trong ngưỡng"
               value={
                 analysis.inSafePct === null
-                  ? "--"
+                  ? "—"
                   : `${formatNumber(analysis.inSafePct, 0)}%`
               }
             />
@@ -207,7 +185,7 @@ export default function AnalysisScreen() {
               label="Trung bình"
               value={
                 analysis.average === null
-                  ? "--"
+                  ? "—"
                   : `${formatNumber(analysis.average, 0)}%`
               }
               divider
@@ -218,13 +196,13 @@ export default function AnalysisScreen() {
             <Stat
               label="Thấp nhất"
               value={
-                analysis.min === null ? "--" : `${formatNumber(analysis.min, 0)}%`
+                analysis.min === null ? "—" : `${formatNumber(analysis.min, 0)}%`
               }
             />
             <Stat
               label="Cao nhất"
               value={
-                analysis.max === null ? "--" : `${formatNumber(analysis.max, 0)}%`
+                analysis.max === null ? "—" : `${formatNumber(analysis.max, 0)}%`
               }
               divider
             />
@@ -266,30 +244,6 @@ function Stat({
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    loadingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingVertical: 8,
-    },
-    loadingText: {
-      ...typo.caption,
-      color: colors.faint,
-    },
-    state: {
-      alignItems: "center",
-      gap: 8,
-      paddingVertical: 12,
-    },
-    errorText: {
-      ...typo.small,
-      color: colors.red,
-      textAlign: "center",
-    },
-    retry: {
-      ...typo.smallStrong,
-      color: colors.green,
-    },
     verdict: {
       gap: 4,
       paddingVertical: 2,

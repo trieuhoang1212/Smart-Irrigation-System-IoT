@@ -77,7 +77,7 @@ function dayLabel(timestamp: number): string {
 export default function ActivityScreen() {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
-  const { deviceId, zones } = useGarden();
+  const { deviceId, zones, deviceOnline, lastTelemetryAt } = useGarden();
   const { events, loading, error, reload } = useActivity(deviceId);
   const [kind, setKind] = useState<KindFilter>("all");
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
@@ -128,7 +128,7 @@ export default function ActivityScreen() {
     <Screen>
       <PageHeader
         title="Nhật ký"
-        subtitle="Lệnh điều khiển và thay đổi ngưỡng gần đây."
+        status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
       <Panel

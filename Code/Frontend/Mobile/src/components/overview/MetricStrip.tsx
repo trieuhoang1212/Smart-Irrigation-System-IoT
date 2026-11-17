@@ -7,7 +7,7 @@ import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 
-const NO_DATA = "Không có dữ liệu";
+const NO_DATA = "—";
 
 export function MetricStrip() {
   const styles = useThemedStyles(createStyles);

@@ -17,19 +17,30 @@ export function StatusLine() {
   } = useGarden();
 
   const brokerLabel =
-    brokerConnected === null ? "--" : brokerConnected ? "OK" : "lỗi";
+    brokerConnected === null
+      ? "—"
+      : brokerConnected
+        ? "đã kết nối"
+        : "mất kết nối";
 
   return (
     <View style={styles.row}>
       <Text style={styles.text} numberOfLines={1}>
         MQTT{" "}
         <Text
-          style={{ color: brokerConnected === false ? colors.red : colors.greenStrong }}
+          style={{
+            color:
+              brokerConnected === null
+                ? colors.faint
+                : brokerConnected
+                  ? colors.greenStrong
+                  : colors.red,
+          }}
         >
           {brokerLabel}
         </Text>
         {" · "}
-        {wsConnected ? "Realtime" : "Đang kết nối lại"}
+        {wsConnected ? "trực tiếp" : "đang kết nối lại"}
       </Text>
 
       <Text style={styles.text} numberOfLines={1}>

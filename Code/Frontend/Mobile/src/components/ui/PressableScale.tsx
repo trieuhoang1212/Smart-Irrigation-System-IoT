@@ -16,6 +16,7 @@ export function PressableScale({
   children,
   onPress,
   disabled = false,
+  selected,
   accessibilityLabel,
   accessibilityHint,
   style,
@@ -24,6 +25,7 @@ export function PressableScale({
   children: ReactNode;
   onPress: () => void;
   disabled?: boolean;
+  selected?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
@@ -40,7 +42,7 @@ export function PressableScale({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, selected }}
       disabled={disabled}
       onPress={onPress}
       onPressIn={() => {

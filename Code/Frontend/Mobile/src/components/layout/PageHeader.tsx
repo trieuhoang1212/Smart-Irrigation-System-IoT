@@ -3,24 +3,31 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../providers/ThemeProvider";
 import { font, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { formatClock } from "../../utils/format";
 import { AppIcon } from "../ui/AppIcon";
 import { HeaderActions } from "./HeaderActions";
 
 export function PageHeader({
   title,
-  subtitle,
   showSettings = true,
   status,
   onSearch,
 }: {
   title: string;
-  subtitle?: string;
   showSettings?: boolean;
-  status?: { online: boolean; text: string };
+  status?: { online: boolean; at: number | null };
   onSearch?: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+
+  const statusText = status
+    ? !status.online
+      ? "Thiết bị mất kết nối"
+      : status.at
+        ? `Cập nhật ${formatClock(status.at)}`
+        : "Đang chờ dữ liệu"
+    : null;
 
   return (
     <View style={styles.wrap}>
@@ -56,9 +63,7 @@ export function PageHeader({
 
       <Text style={styles.title}>{title}</Text>
 
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-
-      {status ? (
+      {status && statusText ? (
         <View style={styles.statusRow}>
           <View
             style={[
@@ -70,7 +75,7 @@ export function PageHeader({
             style={[styles.statusText, !status.online && styles.statusTextOff]}
             numberOfLines={1}
           >
-            {status.text}
+            {statusText}
           </Text>
         </View>
       ) : null}
@@ -151,11 +156,5 @@ const createStyles = (colors: Palette) =>
       lineHeight: 35,
       letterSpacing: -0.8,
       color: colors.ink,
-    },
-    subtitle: {
-      fontFamily: font.medium,
-      fontSize: 12,
-      lineHeight: 17,
-      color: colors.muted,
     },
   });

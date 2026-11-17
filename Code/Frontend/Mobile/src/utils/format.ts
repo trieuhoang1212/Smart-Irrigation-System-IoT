@@ -7,7 +7,7 @@ export function clamp(value: number, min: number, max: number): number {
 }
 
 export function formatNumber(value: number | null | undefined, digits = 1): string {
-  if (value === null || value === undefined) return "--";
+  if (value === null || value === undefined) return "—";
   return value.toFixed(digits);
 }
 

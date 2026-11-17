@@ -14,7 +14,6 @@ import { Reveal } from "@/components/ui/Reveal";
 import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { ZoneSheet } from "@/components/zones/ZoneSheet";
 import { useGarden } from "@/providers/GardenProvider";
-import { formatClock } from "@/utils/format";
 
 export default function OverviewScreen() {
   const router = useRouter();
@@ -29,15 +28,10 @@ export default function OverviewScreen() {
     : null;
 
   return (
-    <Screen>
+    <Screen onPullUp={() => setChartsOpen(true)}>
       <PageHeader
         title="Tổng quan"
-        status={{
-          online: deviceOnline,
-          text: deviceOnline
-            ? `Cập nhật ${formatClock(lastTelemetryAt)}`
-            : "Thiết bị mất kết nối",
-        }}
+        status={{ online: deviceOnline, at: lastTelemetryAt }}
         onSearch={() => setSearchOpen(true)}
       />
 

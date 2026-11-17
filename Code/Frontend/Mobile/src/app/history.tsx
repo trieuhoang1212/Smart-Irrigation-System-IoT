@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ZONE_IDS } from "@/api/types";
 import {
@@ -11,10 +11,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
 import { Panel } from "@/components/ui/Panel";
-import { ZonePicker } from "@/components/zones/ZonePicker";
+import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
-import { useTheme } from "@/providers/ThemeProvider";
 import { typo, type Palette } from "@/theme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import { formatNumber } from "@/utils/format";
@@ -32,8 +31,7 @@ const METRIC_OPTIONS: { value: HistoryMetric; label: string }[] = [
 
 export default function HistoryScreen() {
   const styles = useThemedStyles(createStyles);
-  const { colors } = useTheme();
-  const { deviceId, zones, loading } = useGarden();
+  const { deviceId, zones, deviceOnline, lastTelemetryAt } = useGarden();
 
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("24h");
@@ -51,20 +49,11 @@ export default function HistoryScreen() {
     <Screen>
       <PageHeader
         title="Lịch sử"
-        subtitle="Độ ẩm đất, nhiệt độ và thời tiết theo thời gian."
+        status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
-      <Panel index="01" title="Khu vườn" hint={zone ? zone.crop : undefined}>
-        {loading && zones.length === 0 ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator size="small" color={colors.green} />
-            <Text style={styles.loadingText}>
-              Đang tải danh sách khu vườn...
-            </Text>
-          </View>
-        ) : (
-          <ZonePicker zones={zones} value={activeZoneId} onChange={setZoneId} />
-        )}
+      <Panel index="01" title="Khu vực" hint={zone ? zone.crop : undefined}>
+        <ZoneGrid selectedId={activeZoneId} onSelect={setZoneId} />
 
         {zone ? (
           <Text style={styles.zoneMeta}>
@@ -77,9 +66,7 @@ export default function HistoryScreen() {
       <Panel
         index="02"
         title={HISTORY_METRICS[metric].label}
-        hint={`${HISTORY_RANGES[range].label} · ${
-          zone ? zone.name : activeZoneId
-        }`}
+        hint={zone ? zone.name : undefined}
         footer={
           <View style={styles.footer}>
             <Text style={styles.footerText}>
@@ -113,16 +100,6 @@ export default function HistoryScreen() {
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    loadingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingVertical: 8,
-    },
-    loadingText: {
-      ...typo.small,
-      color: colors.faint,
-    },
     zoneMeta: {
       ...typo.caption,
       color: colors.faint,

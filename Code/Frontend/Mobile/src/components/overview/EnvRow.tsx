@@ -54,7 +54,7 @@ export function EnvRow() {
           style={[styles.value, percent === null && styles.valueEmpty]}
           numberOfLines={1}
         >
-          {percent === null ? "Không có dữ liệu" : `${percent}%`}
+          {percent === null ? "—" : `${percent}%`}
         </Text>
 
         <View style={styles.bar}>

@@ -158,7 +158,11 @@ export function GardenSettings() {
           <SpecRow
             label="MQTT"
             value={
-              brokerConnected === null ? "--" : brokerConnected ? "OK" : "Lỗi"
+              brokerConnected === null
+                ? "—"
+                : brokerConnected
+                  ? "Đã kết nối"
+                  : "Mất kết nối"
             }
             tone={
               brokerConnected === null
@@ -219,7 +223,7 @@ export function GardenSettings() {
           />
           <SpecRow
             label="Máy đã đăng ký"
-            value={registeredCount === null ? "--" : `${registeredCount} máy`}
+            value={registeredCount === null ? "—" : `${registeredCount} máy`}
           />
         </View>
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -22,8 +23,10 @@ const GAP = 10;
 
 export function ZoneGrid({
   onSelect,
+  selectedId,
 }: {
   onSelect: (zoneId: string) => void;
+  selectedId?: string | null;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -46,9 +49,13 @@ export function ZoneGrid({
       ) : configError ? (
         <View style={styles.state}>
           <Text style={styles.errorText}>{configError}</Text>
-          <Text style={styles.retry} onPress={reloadConfig}>
-            Thử lại
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={reloadConfig}
+            hitSlop={8}
+          >
+            <Text style={styles.retry}>Thử lại</Text>
+          </Pressable>
         </View>
       ) : zones.length === 0 ? (
         <View style={styles.state}>
@@ -64,6 +71,7 @@ export function ZoneGrid({
               key={zone.id}
               zone={zone}
               width={tileWidth}
+              selected={selectedId === zone.id}
               onPress={() => onSelect(zone.id)}
             />
           ))}
@@ -76,10 +84,12 @@ export function ZoneGrid({
 function ZoneTile({
   zone,
   width,
+  selected,
   onPress,
 }: {
   zone: LiveZone;
   width: number;
+  selected: boolean;
   onPress: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -104,12 +114,16 @@ function ZoneTile({
   return (
     <PressableScale
       onPress={onPress}
+      selected={selected}
       accessibilityLabel={`${zone.name}, ${status}`}
       style={{ width }}
-      innerStyle={styles.tile}
+      innerStyle={[styles.tile, selected && styles.tileSelected]}
     >
       <View style={styles.tileHead}>
-        <Text style={styles.zoneName} numberOfLines={1}>
+        <Text
+          style={[styles.zoneName, selected && styles.zoneNameSelected]}
+          numberOfLines={1}
+        >
           {zone.name}
         </Text>
 
@@ -172,6 +186,10 @@ const createStyles = (colors: Palette) =>
       backgroundColor: colors.surfaceSunken,
       justifyContent: "space-between",
     },
+    tileSelected: {
+      borderColor: colors.green,
+      backgroundColor: colors.greenSoft,
+    },
     tileHead: {
       flexDirection: "row",
       alignItems: "center",
@@ -182,6 +200,9 @@ const createStyles = (colors: Palette) =>
       flex: 1,
       ...typo.smallStrong,
       color: colors.inkSoft,
+    },
+    zoneNameSelected: {
+      color: colors.greenStrong,
     },
     zoneDot: {
       width: 6,

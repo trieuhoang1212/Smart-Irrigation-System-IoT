@@ -218,7 +218,7 @@ export function ZoneSettingsForm({ zone }: Props) {
 
           <Text style={styles.estimateValue}>
             {estimateMinutes === null
-              ? "--"
+              ? "—"
               : `${formatNumber(estimateMinutes, 1)} phút`}
           </Text>
         </View>

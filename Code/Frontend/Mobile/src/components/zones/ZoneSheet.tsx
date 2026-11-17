@@ -32,22 +32,17 @@ export function ZoneSheet({
   if (!displayed) return null;
 
   const moisture = displayed.moisture;
-  const needsWater = moisture !== null && moisture < displayed.threshold;
+  const hasMoisture = moisture !== null;
+  const needsWater = hasMoisture && moisture < displayed.threshold;
 
   const status = displayed.pump
     ? "Đang tưới"
-    : moisture === null
-      ? "Không có dữ liệu"
-      : needsWater
-        ? "Cần tưới"
-        : "Đủ ẩm";
+    : needsWater
+      ? "Cần tưới"
+      : "Đủ ẩm";
 
   const tone: BadgeTone =
-    displayed.pump || (moisture !== null && !needsWater)
-      ? "success"
-      : moisture === null
-        ? "neutral"
-        : "warning";
+    displayed.pump || !needsWater ? "success" : "warning";
 
   const fillWidth = `${Math.max(0, Math.min(100, moisture ?? 0))}%` as DimensionValue;
   const markerLeft = `${Math.max(0, Math.min(100, displayed.threshold))}%` as DimensionValue;
@@ -78,13 +73,11 @@ export function ZoneSheet({
           numberOfLines={1}
         >
           {moisture === null
-            ? "Không có dữ liệu"
+            ? "Chưa có dữ liệu"
             : `${formatNumber(moisture, 0)}%`}
         </Text>
 
-        {status === "Không có dữ liệu" ? null : (
-          <Badge label={status} tone={tone} />
-        )}
+        {hasMoisture ? <Badge label={status} tone={tone} /> : null}
       </View>
 
       <View>
