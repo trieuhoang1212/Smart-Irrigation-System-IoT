@@ -1,11 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
-import Svg, {
-  Defs,
-  Image as SvgImage,
-  RadialGradient,
-  Rect,
-  Stop,
-} from "react-native-svg";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { useTheme } from "../../providers/ThemeProvider";
 
@@ -41,17 +36,20 @@ export function AmbientBackground() {
 
         <Rect width="100%" height="100%" fill="url(#ambientGreen)" />
         <Rect width="100%" height="100%" fill="url(#ambientAmber)" />
-
-        <SvgImage
-          x={width - leafSize * 0.62}
-          y={height * 0.2}
-          width={leafSize}
-          height={leafSize}
-          href={require("../../../assets/icons8/leaf-fill.png")}
-          opacity={isDark ? 0.035 : 0.045}
-          preserveAspectRatio="xMidYMid meet"
-        />
       </Svg>
+
+      <Ionicons
+        name="leaf"
+        size={leafSize}
+        color={colors.green}
+        allowFontScaling={false}
+        style={{
+          position: "absolute",
+          left: width - leafSize * 0.62,
+          top: height * 0.2,
+          opacity: isDark ? 0.04 : 0.05,
+        }}
+      />
     </View>
   );
 }
