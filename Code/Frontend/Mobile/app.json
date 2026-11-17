@@ -15,6 +15,7 @@
     },
     "android": {
       "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.trieuhoang1212.Smartirrigation_IoT"
     },
     "plugins": [

@@ -35,6 +35,7 @@ import {
   toDateInput,
   type CropGroup,
 } from "../../utils/crops";
+import { useKeepInputVisible } from "../layout/Screen";
 import { AppIcon } from "../ui/AppIcon";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
@@ -574,6 +575,7 @@ function Field({
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const keepInputVisible = useKeepInputVisible();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -593,7 +595,10 @@ function Field({
         multiline={multiline}
         autoCapitalize={autoCapitalize}
         selectionColor={colors.green}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true);
+          keepInputVisible();
+        }}
         onBlur={() => setFocused(false)}
         style={[
           styles.input,
@@ -620,6 +625,7 @@ function DateInput({
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const keepInputVisible = useKeepInputVisible();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -632,7 +638,10 @@ function DateInput({
       maxLength={wide ? 4 : 2}
       accessibilityLabel={accessibilityLabel}
       selectionColor={colors.green}
-      onFocus={() => setFocused(true)}
+      onFocus={() => {
+        setFocused(true);
+        keepInputVisible();
+      }}
       onBlur={() => setFocused(false)}
       style={[
         styles.dateInput,

@@ -10,6 +10,7 @@ import {
 import { useTheme } from "../../providers/ThemeProvider";
 import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { useKeepInputVisible } from "../layout/Screen";
 
 export function NumberField({
   label,
@@ -28,6 +29,7 @@ export function NumberField({
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const keepInputVisible = useKeepInputVisible();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -46,7 +48,10 @@ export function NumberField({
           placeholder="--"
           placeholderTextColor={colors.faint}
           selectTextOnFocus
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            keepInputVisible();
+          }}
           onBlur={() => setFocused(false)}
         />
         <Text style={styles.unit}>{unit}</Text>
@@ -92,6 +97,7 @@ const createStyles = (colors: Palette) =>
     },
     input: {
       flex: 1,
+      minWidth: 0,
       minHeight: 40,
       paddingHorizontal: 0,
       paddingVertical: 8,
