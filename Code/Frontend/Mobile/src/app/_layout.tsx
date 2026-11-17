@@ -14,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { GlassTabBar } from "@/components/navigation/GlassTabBar";
 import { GardenProvider } from "@/providers/GardenProvider";
+import { NotificationsProvider } from "@/providers/NotificationsProvider";
 import { ThemeProvider, useTheme } from "@/providers/ThemeProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
 
@@ -51,23 +52,25 @@ function AppTabs() {
       <StatusBar style={isDark ? "light" : "dark"} />
 
       <ToastProvider>
-        <GardenProvider>
-          <Tabs
-            tabBar={(props) => <GlassTabBar {...props} />}
-            screenOptions={{
-              headerShown: false,
-              animation: "fade",
-              sceneStyle: { backgroundColor: colors.canvas },
-            }}
-          >
-            <Tabs.Screen name="index" options={{ title: "Tổng quan" }} />
-            <Tabs.Screen name="analysis" options={{ title: "Phân tích" }} />
-            <Tabs.Screen name="history" options={{ title: "Lịch sử" }} />
-            <Tabs.Screen name="activity" options={{ title: "Nhật ký" }} />
-            <Tabs.Screen name="garden" options={{ title: "Khu vườn" }} />
-            <Tabs.Screen name="settings" options={{ title: "Cài đặt" }} />
-          </Tabs>
-        </GardenProvider>
+        <NotificationsProvider>
+          <GardenProvider>
+            <Tabs
+              tabBar={(props) => <GlassTabBar {...props} />}
+              screenOptions={{
+                headerShown: false,
+                animation: "fade",
+                sceneStyle: { backgroundColor: colors.canvas },
+              }}
+            >
+              <Tabs.Screen name="index" options={{ title: "Tổng quan" }} />
+              <Tabs.Screen name="analysis" options={{ title: "Phân tích" }} />
+              <Tabs.Screen name="history" options={{ title: "Lịch sử" }} />
+              <Tabs.Screen name="activity" options={{ title: "Nhật ký" }} />
+              <Tabs.Screen name="garden" options={{ title: "Khu vườn" }} />
+              <Tabs.Screen name="settings" options={{ title: "Cài đặt" }} />
+            </Tabs>
+          </GardenProvider>
+        </NotificationsProvider>
       </ToastProvider>
     </>
   );

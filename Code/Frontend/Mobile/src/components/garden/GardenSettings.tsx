@@ -7,19 +7,28 @@ import {
 } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
+import { useNotifications } from "../../providers/NotificationsProvider";
+import { useToast } from "../../providers/ToastProvider";
 import { useTheme, type ThemeMode } from "../../providers/ThemeProvider";
 import { font, spacing, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatClock } from "../../utils/format";
 import { AppIcon } from "../ui/AppIcon";
+import { Panel } from "../ui/Panel";
 import { Toggle } from "../ui/Toggle";
-import { GardenSectionHeader } from "./GardenSectionHeader";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: "system", label: "Theo máy" },
   { value: "light", label: "Sáng" },
   { value: "dark", label: "Tối" },
 ];
+
+const PERMISSION_LABEL = {
+  granted: "Đã cho phép",
+  undetermined: "Chưa hỏi",
+  denied: "Bị từ chối",
+  unsupported: "Chỉ trên điện thoại",
+} as const;
 
 function ThemePreview({ mode }: { mode: ThemeMode }) {
   const styles = useThemedStyles(createStyles);
@@ -40,6 +49,16 @@ function ThemePreview({ mode }: { mode: ThemeMode }) {
 export function GardenSettings() {
   const styles = useThemedStyles(createStyles);
   const { mode, setMode, colors } = useTheme();
+  const { notify } = useToast();
+  const {
+    supported: notificationsSupported,
+    permission,
+    registeredCount,
+    projectReady,
+    busy: notificationsBusy,
+    enable: enableNotifications,
+    sendTest: sendTestNotification,
+  } = useNotifications();
   const {
     deviceId,
     wsConnected,
@@ -52,11 +71,19 @@ export function GardenSettings() {
     reloadConfig,
   } = useGarden();
 
+  const handleEnableNotifications = async () => {
+    const result = await enableNotifications();
+    notify(result.message, result.ok ? "success" : "error");
+  };
+
+  const handleTestNotification = async () => {
+    const result = await sendTestNotification();
+    notify(result.message, result.ok ? "success" : "error");
+  };
+
   return (
     <View style={styles.page}>
-      <View>
-        <GardenSectionHeader index="01" title="Giao diện" />
-
+      <Panel index="01" title="Giao diện">
         <View style={styles.themeList}>
           {THEME_OPTIONS.map((option) => {
             const active = mode === option.value;
@@ -95,15 +122,9 @@ export function GardenSettings() {
         <Text style={styles.note}>
           “Theo máy” tự đổi theo cài đặt hiển thị của điện thoại.
         </Text>
-      </View>
+      </Panel>
 
-      <View>
-        <GardenSectionHeader
-          index="02"
-          title="An toàn khi mưa"
-          hint="Tự động"
-        />
-
+      <Panel index="02" title="An toàn khi mưa" hint="Tự động">
         <View style={styles.row}>
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>Chặn tưới khi mưa</Text>
@@ -119,16 +140,14 @@ export function GardenSettings() {
             onChange={() => void toggleWeatherGate()}
           />
         </View>
-      </View>
+      </Panel>
 
-      <View>
-        <GardenSectionHeader
-          index="03"
-          title="Thiết bị"
-          hint={deviceOnline ? "Đang kết nối" : "Mất kết nối"}
-          tone={deviceOnline ? undefined : "error"}
-        />
-
+      <Panel
+        index="03"
+        title="Thiết bị"
+        hint={deviceOnline ? "Đang kết nối" : "Mất kết nối"}
+        tone={deviceOnline ? undefined : "error"}
+      >
         <View style={styles.specs}>
           <SpecRow label="Mã thiết bị" value={deviceId} />
           <SpecRow
@@ -170,15 +189,87 @@ export function GardenSettings() {
           />
           <Text style={styles.reloadText}>Tải lại cấu hình</Text>
         </Pressable>
-      </View>
+      </Panel>
+
+      <Panel
+        index="04"
+        title="Thông báo"
+        hint={
+          !notificationsSupported
+            ? "Trên điện thoại"
+            : permission === "granted"
+              ? registeredCount && registeredCount > 0
+                ? "Đã bật"
+                : "Chờ đăng ký"
+              : "Chưa bật"
+        }
+        tone={permission === "denied" ? "error" : undefined}
+      >
+        <View style={styles.specs}>
+          <SpecRow
+            label="Quyền"
+            value={PERMISSION_LABEL[permission]}
+            tone={
+              permission === "granted"
+                ? "ok"
+                : permission === "denied"
+                  ? "error"
+                  : undefined
+            }
+          />
+          <SpecRow
+            label="Máy đã đăng ký"
+            value={registeredCount === null ? "--" : `${registeredCount} máy`}
+          />
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Bật thông báo"
+            disabled={notificationsBusy}
+            onPress={() => void handleEnableNotifications()}
+            style={({ pressed }) => [
+              styles.actionLink,
+              (pressed || notificationsBusy) && styles.pressed,
+            ]}
+          >
+            <Text style={styles.actionText}>Bật thông báo</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Gửi thông báo thử"
+            disabled={notificationsBusy}
+            onPress={() => void handleTestNotification()}
+            style={({ pressed }) => [
+              styles.actionLink,
+              (pressed || notificationsBusy) && styles.pressed,
+            ]}
+          >
+            <Text style={styles.actionText}>Gửi thử</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.note}>
+          Cảnh báo khi vườn mất kết nối, trời bắt đầu mưa hoặc bồn nước cạn.
+          Thông báo thử chạy ngay trên máy; nhận từ xa cần bản dev build.
+        </Text>
+
+        {notificationsSupported && !projectReady ? (
+          <Text style={[styles.note, styles.noteWarn]}>
+            Chưa có EAS projectId nên chưa thể nhận thông báo từ xa.
+          </Text>
+        ) : null}
+      </Panel>
 
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="Mở trang Icons8"
-        onPress={() => void Linking.openURL("https://icons8.com")}
+        accessibilityLabel="Mở trang Ionicons"
+        onPress={() => void Linking.openURL("https://ionic.io/ionicons")}
         style={styles.credit}
       >
-        <Text style={styles.creditText}>Biểu tượng · Icons8</Text>
+        <Text style={styles.creditText}>Biểu tượng · Ionicons</Text>
       </Pressable>
     </View>
   );
@@ -215,12 +306,9 @@ function SpecRow({
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
     page: {
-      gap: 26,
+      gap: 10,
     },
-    themeList: {
-      borderTopWidth: 1,
-      borderTopColor: colors.lineSoft,
-    },
+    themeList: {},
     themeRow: {
       minHeight: 46,
       flexDirection: "row",
@@ -287,9 +375,6 @@ const createStyles = (colors: Palette) =>
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
-      paddingTop: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.lineSoft,
     },
     rowText: {
       flex: 1,
@@ -307,10 +392,7 @@ const createStyles = (colors: Palette) =>
       lineHeight: 17,
       color: colors.muted,
     },
-    specs: {
-      borderTopWidth: 1,
-      borderTopColor: colors.lineSoft,
-    },
+    specs: {},
     specRow: {
       minHeight: 38,
       flexDirection: "row",
@@ -353,6 +435,24 @@ const createStyles = (colors: Palette) =>
       fontSize: 12,
       lineHeight: 17,
       color: colors.greenStrong,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 18,
+      paddingVertical: 10,
+    },
+    actionLink: {
+      paddingVertical: 2,
+    },
+    actionText: {
+      fontFamily: font.semibold,
+      fontSize: 12,
+      lineHeight: 17,
+      color: colors.greenStrong,
+    },
+    noteWarn: {
+      color: colors.amber,
     },
     pressed: {
       opacity: 0.6,
