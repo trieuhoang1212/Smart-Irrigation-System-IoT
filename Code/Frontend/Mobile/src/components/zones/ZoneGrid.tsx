@@ -20,7 +20,11 @@ import { PressableScale } from "../ui/PressableScale";
 const COLUMNS = 3;
 const GAP = 10;
 
-export function ZoneGrid({ onSelect }: { onSelect: (zoneId: string) => void }) {
+export function ZoneGrid({
+  onSelect,
+}: {
+  onSelect: (zoneId: string) => void;
+}) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const { zones, loading, configError, reloadConfig } = useGarden();
@@ -130,9 +134,9 @@ function ZoneTile({
 
       <Text
         style={[styles.zoneValue, moisture === null && styles.zoneValueEmpty]}
-        numberOfLines={2}
+        numberOfLines={1}
       >
-        {moisture === null ? "Không có dữ liệu" : `${formatNumber(moisture, 0)}%`}
+        {moisture === null ? "—" : `${formatNumber(moisture, 0)}%`}
       </Text>
 
       <View style={styles.tileBar}>
@@ -159,9 +163,9 @@ const createStyles = (colors: Palette) =>
       gap: GAP,
     },
     tile: {
-      minHeight: 78,
+      minHeight: 62,
       padding: 8,
-      gap: 3,
+      gap: 2,
       borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.lineSoft,
@@ -186,15 +190,18 @@ const createStyles = (colors: Palette) =>
     },
     zoneValue: {
       ...typo.zoneValue,
+      fontSize: 19,
+      lineHeight: 22,
       color: colors.ink,
     },
     zoneValueEmpty: {
       ...typo.caption,
-      lineHeight: 12,
+      lineHeight: 14,
       color: colors.faint,
     },
     tileBar: {
-      height: 2,
+      height: 3,
+      borderRadius: 2,
       backgroundColor: colors.lineSoft,
       overflow: "hidden",
     },
