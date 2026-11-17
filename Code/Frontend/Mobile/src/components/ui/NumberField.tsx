@@ -1,7 +1,14 @@
-import { StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from "react-native";
+import { useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type KeyboardTypeOptions,
+} from "react-native";
 
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, typo, type Palette } from "../../theme";
+import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 
 export function NumberField({
@@ -21,14 +28,16 @@ export function NumberField({
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
 
   return (
-    <View style={styles.row}>
-      <View style={styles.labelBlock}>
+    <View style={styles.field}>
+      <View style={styles.head}>
         <Text style={styles.label}>{label}</Text>
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
-      <View style={styles.inputWrap}>
+
+      <View style={[styles.inputRow, focused && styles.inputRowFocused]}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -37,6 +46,8 @@ export function NumberField({
           placeholder="--"
           placeholderTextColor={colors.faint}
           selectTextOnFocus
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
         <Text style={styles.unit}>{unit}</Text>
       </View>
@@ -46,47 +57,55 @@ export function NumberField({
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-      paddingVertical: 8,
-      borderTopWidth: 1,
-      borderTopColor: colors.lineSoft,
+    field: {
+      gap: 5,
     },
-    labelBlock: {
-      flex: 1,
-      gap: 2,
+    head: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: 8,
     },
     label: {
-      ...typo.smallStrong,
-      color: colors.inkSoft,
+      fontFamily: font.medium,
+      fontSize: 11.5,
+      lineHeight: 16,
+      color: colors.muted,
     },
     hint: {
-      ...typo.caption,
+      fontFamily: font.semibold,
+      fontSize: 9.5,
+      lineHeight: 12,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
       color: colors.faint,
     },
-    inputWrap: {
+    inputRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+    },
+    inputRowFocused: {
+      borderBottomColor: colors.green,
     },
     input: {
-      minWidth: 64,
-      paddingHorizontal: 10,
+      flex: 1,
+      minHeight: 40,
+      paddingHorizontal: 0,
       paddingVertical: 8,
-      borderRadius: radius.sm,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.canvas,
-      ...typo.bodyStrong,
+      fontFamily: font.regular,
+      fontSize: 15,
+      lineHeight: 21,
       color: colors.ink,
-      textAlign: "right",
+      outlineWidth: 0,
+      outlineColor: "transparent",
     },
     unit: {
-      minWidth: 34,
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.faint,
     },
   });

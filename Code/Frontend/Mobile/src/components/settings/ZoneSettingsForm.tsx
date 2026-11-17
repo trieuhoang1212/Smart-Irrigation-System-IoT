@@ -3,13 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { LiveZone, ZoneConfigInput } from "../../api/types";
 import { useGarden } from "../../providers/GardenProvider";
-import { radius, spacing, typo, type Palette } from "../../theme";
+import { font, spacing, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
 import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
 import { NumberField } from "../ui/NumberField";
-import { SectionHeader } from "../ui/SectionHeader";
 
 type Draft = {
   threshold: number;
@@ -19,7 +17,6 @@ type Draft = {
 
 type Props = {
   zone: LiveZone;
-  embedded?: boolean;
 };
 
 const THRESHOLD_MIN = 10;
@@ -96,8 +93,7 @@ function ThresholdStepper({
         <Text style={styles.stepperLabel}>Ngưỡng tưới</Text>
 
         <Text style={styles.stepperHint}>
-          Tưới khi độ ẩm dưới {value}%, dừng khi đạt{" "}
-          {Math.min(100, value + STOP_OFFSET)}%.
+          Tưới dưới {value}% · dừng ở {Math.min(100, value + STOP_OFFSET)}%
         </Text>
       </View>
 
@@ -106,14 +102,10 @@ function ThresholdStepper({
           accessibilityRole="button"
           accessibilityLabel="Giảm ngưỡng tưới"
           hitSlop={6}
-          onPress={() =>
-            onChange(
-              Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP)
-            )
-          }
-          style={styles.stepButton}
+          onPress={() => onChange(Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP))}
+          style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
         >
-          <Text style={styles.stepSymbol}>-</Text>
+          <Text style={styles.stepSymbol}>−</Text>
         </Pressable>
 
         <Text style={styles.stepValue}>{value}%</Text>
@@ -122,12 +114,8 @@ function ThresholdStepper({
           accessibilityRole="button"
           accessibilityLabel="Tăng ngưỡng tưới"
           hitSlop={6}
-          onPress={() =>
-            onChange(
-              Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP)
-            )
-          }
-          style={styles.stepButton}
+          onPress={() => onChange(Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP))}
+          style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
         >
           <Text style={styles.stepSymbol}>+</Text>
         </Pressable>
@@ -136,10 +124,7 @@ function ThresholdStepper({
   );
 }
 
-export function ZoneSettingsForm({
-  zone,
-  embedded = false,
-}: Props) {
+export function ZoneSettingsForm({ zone }: Props) {
   const styles = useThemedStyles(createStyles);
   const { saveZone } = useGarden();
 
@@ -197,19 +182,8 @@ export function ZoneSettingsForm({
     }
   };
 
-  const content = (
-    <>
-      {embedded ? null : (
-        <SectionHeader
-          title="Thông số tưới"
-          hint={
-            zone.moisture === null
-              ? "CHƯA CÓ DỮ LIỆU"
-              : `ĐỘ ẨM ${formatNumber(zone.moisture, 0)}%`
-          }
-        />
-      )}
-
+  return (
+    <View style={styles.form}>
       <ThresholdStepper
         value={draft.threshold}
         onChange={(threshold) => {
@@ -222,12 +196,10 @@ export function ZoneSettingsForm({
 
       <NumberField
         label="Lưu lượng bơm"
-        hint="Số nguyên 1 - 200 L/giờ"
+        hint="1 - 200 L/giờ"
         unit="L/giờ"
         value={draft.flowLitersPerHour}
-        onChangeText={(value) =>
-          update("flowLitersPerHour", value)
-        }
+        onChangeText={(value) => update("flowLitersPerHour", value)}
         keyboardType="number-pad"
       />
 
@@ -236,24 +208,25 @@ export function ZoneSettingsForm({
         hint="0.1 - 20 L"
         unit="L"
         value={draft.targetLiters}
-        onChangeText={(value) =>
-          update("targetLiters", value)
-        }
+        onChangeText={(value) => update("targetLiters", value)}
         keyboardType="decimal-pad"
       />
 
       <View style={styles.estimate}>
-        <Text style={styles.estimateLabel}>
-          Ước tính thời gian cấp nước
-        </Text>
+        <View style={styles.estimateHead}>
+          <Text style={styles.estimateLabel}>Ước tính thời gian cấp nước</Text>
 
-        <Text style={styles.estimateValue}>
+          <Text style={styles.estimateValue}>
+            {estimateMinutes === null
+              ? "--"
+              : `${formatNumber(estimateMinutes, 1)} phút`}
+          </Text>
+        </View>
+
+        <Text style={styles.estimateNote}>
           {estimateMinutes === null
-            ? "--"
-            : `Khoảng ${formatNumber(
-                estimateMinutes,
-                1
-              )} phút cho ${formatNumber(target, 1)} L`}
+            ? "Nhập lưu lượng và lượng nước để xem thời gian."
+            : `Cho ${formatNumber(target, 1)} L nước mỗi lần.`}
         </Text>
 
         {runtimeWarning ? (
@@ -261,9 +234,7 @@ export function ZoneSettingsForm({
         ) : null}
       </View>
 
-      {error ? (
-        <Text style={styles.error}>{error}</Text>
-      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Button
         label="Lưu cấu hình"
@@ -272,94 +243,114 @@ export function ZoneSettingsForm({
         onPress={() => void submit()}
         style={styles.save}
       />
-    </>
-  );
-
-  return embedded ? (
-    <View style={styles.embedded}>{content}</View>
-  ) : (
-    <Card>{content}</Card>
+    </View>
   );
 }
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    embedded: {
-      gap: spacing.md,
-      paddingTop: spacing.sm,
+    form: {
+      gap: 18,
     },
     stepperRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.md,
-      paddingBottom: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.lineSoft,
     },
     stepperLabelBlock: {
       flex: 1,
       gap: 2,
     },
     stepperLabel: {
-      ...typo.smallStrong,
-      color: colors.inkSoft,
+      fontFamily: font.medium,
+      fontSize: 11.5,
+      lineHeight: 16,
+      color: colors.muted,
     },
     stepperHint: {
-      ...typo.caption,
-      color: colors.faint,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 17,
+      color: colors.muted,
     },
     stepper: {
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.sm,
+      gap: 4,
     },
     stepButton: {
-      width: 32,
-      height: 32,
-      borderRadius: radius.sm,
+      width: 30,
+      height: 30,
+      borderRadius: 999,
       borderWidth: 1,
       borderColor: colors.line,
-      backgroundColor: colors.canvas,
       alignItems: "center",
       justifyContent: "center",
     },
     stepSymbol: {
-      ...typo.section,
+      fontFamily: font.medium,
+      fontSize: 16,
+      lineHeight: 19,
       color: colors.greenStrong,
     },
     stepValue: {
-      minWidth: 42,
+      minWidth: 48,
       textAlign: "center",
-      ...typo.bodyStrong,
+      fontFamily: font.semibold,
+      fontSize: 15,
+      lineHeight: 20,
+      fontVariant: ["tabular-nums"],
       color: colors.ink,
     },
+    pressed: {
+      opacity: 0.55,
+    },
     estimate: {
-      marginTop: spacing.sm,
-      padding: spacing.md,
-      borderRadius: radius.md,
-      backgroundColor: colors.greenSoft,
-      gap: 2,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.lineSoft,
+      gap: 3,
+    },
+    estimateHead: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: spacing.sm,
     },
     estimateLabel: {
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.muted,
     },
     estimateValue: {
-      ...typo.smallStrong,
+      fontFamily: font.semibold,
+      fontSize: 13,
+      lineHeight: 18,
+      fontVariant: ["tabular-nums"],
       color: colors.greenStrong,
     },
+    estimateNote: {
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 17,
+      color: colors.faint,
+    },
     estimateWarning: {
-      ...typo.caption,
-      lineHeight: 15,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.red,
     },
     error: {
-      marginTop: spacing.sm,
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.red,
     },
     save: {
-      marginTop: spacing.sm,
+      marginTop: 2,
+      borderRadius: 10,
     },
   });
