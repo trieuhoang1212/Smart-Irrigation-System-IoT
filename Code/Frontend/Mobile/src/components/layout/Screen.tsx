@@ -28,6 +28,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { tickHaptic } from "../../utils/haptics";
 import { AmbientBackground } from "./AmbientBackground";
 
 // Chừa chỗ cho thanh tab nổi ở đáy để nội dung cuối không bị khuất.
@@ -38,10 +39,9 @@ const KEYBOARD_CLEARANCE = 112;
 const PULL_LIMIT = 54;
 const PULL_SPRING = { damping: 22, stiffness: 260, mass: 0.8 };
 
-const SWIPE_LIMIT = 26;
+// Vuốt ngang chỉ để đổi tab, không dịch chuyển nội dung theo ngón tay.
 const SWIPE_DISTANCE = 54;
 const SWIPE_VELOCITY = 520;
-const SWIPE_SPRING = { damping: 24, stiffness: 280, mass: 0.7 };
 
 const TAB_ORDER = ["/", "/analysis", "/history", "/activity", "/garden"] as const;
 
@@ -83,7 +83,6 @@ export function Screen({
   const scrollRef = useRef<React.ComponentRef<typeof Animated.ScrollView>>(null);
   const atEnd = useSharedValue(false);
   const pull = useSharedValue(0);
-  const swipeX = useSharedValue(0);
   const offsetY = useSharedValue(0);
   const touchStartX = useSharedValue(0);
   const touchStartY = useSharedValue(0);
@@ -95,6 +94,7 @@ export function Screen({
   const [keyboardInset, setKeyboardInset] = useState(0);
 
   const shiftTab = (step: 1 | -1) => {
+    tickHaptic();
     const handled = onSwipe?.(step === 1 ? "left" : "right") ?? false;
     if (handled) return;
 
@@ -260,14 +260,11 @@ export function Screen({
       }
     });
 
+  // Vuốt ngang không dịch nội dung để các khung đứng yên khi tay chạm nhẹ;
+  // chỉ khi đủ xa hoặc đủ nhanh mới đổi tab (chuyển cảnh fade).
   const swipe = Gesture.Pan()
-    .activeOffsetX([-18, 18])
+    .activeOffsetX([-24, 24])
     .failOffsetY([-20, 20])
-    .onUpdate((event) => {
-      swipeX.set(
-        Math.max(-SWIPE_LIMIT, Math.min(SWIPE_LIMIT, event.translationX * 0.24)),
-      );
-    })
     .onEnd((event) => {
       if (
         event.translationX < -SWIPE_DISTANCE ||
@@ -280,15 +277,12 @@ export function Screen({
       ) {
         runOnJS(shiftTab)(-1);
       }
-    })
-    .onFinalize(() => {
-      swipeX.set(withSpring(0, SWIPE_SPRING));
     });
 
   const scrollAndGestures = Gesture.Simultaneous(scrollNative, pullUp, swipe);
 
   const pullStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: pull.value }, { translateX: swipeX.value }],
+    transform: [{ translateY: pull.value }],
   }));
 
   return (

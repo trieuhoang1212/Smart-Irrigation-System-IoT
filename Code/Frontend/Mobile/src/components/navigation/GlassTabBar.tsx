@@ -3,15 +3,19 @@ import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../providers/ThemeProvider";
 import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { tickHaptic } from "../../utils/haptics";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 
 type TabMeta = {
@@ -19,6 +23,8 @@ type TabMeta = {
 };
 
 const TAB_SPRING = { damping: 18, stiffness: 230, mass: 0.7 };
+// Icon nhích lên rồi nảy về; giữ biên độ nhỏ để không phá nhịp thanh tab.
+const BOUNCE_SPRING = { damping: 9, stiffness: 300, mass: 0.5 };
 
 const TAB_META: Record<string, TabMeta> = {
   index: { icon: "grid" },
@@ -44,10 +50,19 @@ function TabItem({
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const progress = useSharedValue(focused ? 1 : 0);
+  const bounce = useSharedValue(0);
 
   useEffect(() => {
     progress.set(withSpring(focused ? 1 : 0, TAB_SPRING));
-  }, [focused, progress]);
+    if (!focused) return;
+
+    bounce.set(
+      withSequence(
+        withTiming(1, { duration: 70, easing: Easing.out(Easing.quad) }),
+        withSpring(0, BOUNCE_SPRING),
+      ),
+    );
+  }, [bounce, focused, progress]);
 
   const pillStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
@@ -55,7 +70,10 @@ function TabItem({
   }));
 
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 0.94 + progress.value * 0.1 }],
+    transform: [
+      { scale: 0.94 + progress.value * 0.1 + bounce.value * 0.12 },
+      { translateY: bounce.value * -1.5 },
+    ],
   }));
 
   return (
@@ -130,6 +148,7 @@ export function GlassTabBar({
                   canPreventDefault: true,
                 });
                 if (!focused && !event.defaultPrevented) {
+                  tickHaptic();
                   navigateToTab(route.key);
                 }
               };

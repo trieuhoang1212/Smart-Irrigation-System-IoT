@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
 import { Panel } from "@/components/ui/Panel";
+import { Reveal } from "@/components/ui/Reveal";
 import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
@@ -52,48 +53,52 @@ export default function HistoryScreen() {
         status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
-      <Panel index="01" title="Khu vực" hint={zone ? zone.crop : undefined}>
-        <ZoneGrid selectedId={activeZoneId} onSelect={setZoneId} />
+      <Reveal index={0}>
+        <Panel index="01" title="Khu vực" hint={zone ? zone.crop : undefined}>
+          <ZoneGrid selectedId={activeZoneId} onSelect={setZoneId} />
 
-        {zone ? (
-          <Text style={styles.zoneMeta}>
-            {zone.id} · Ngưỡng tưới {formatNumber(zone.threshold, 0)}% · Dừng{" "}
-            {formatNumber(zone.stopThreshold, 0)}%
-          </Text>
-        ) : null}
-      </Panel>
-
-      <Panel
-        index="02"
-        title={HISTORY_METRICS[metric].label}
-        hint={zone ? zone.name : undefined}
-        footer={
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              {metric === "moisture"
-                ? "Đường nét đứt là ngưỡng tưới. Tự làm mới mỗi 30 giây."
-                : "Chỉ số lấy trung bình theo khoảng. Tự làm mới mỗi 30 giây."}
+          {zone ? (
+            <Text style={styles.zoneMeta}>
+              {zone.id} · Ngưỡng tưới {formatNumber(zone.threshold, 0)}% · Dừng{" "}
+              {formatNumber(zone.stopThreshold, 0)}%
             </Text>
+          ) : null}
+        </Panel>
+      </Reveal>
 
-            <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
-              <Text style={styles.reload}>Tải lại</Text>
-            </Pressable>
+      <Reveal index={1}>
+        <Panel
+          index="02"
+          title={HISTORY_METRICS[metric].label}
+          hint={zone ? zone.name : undefined}
+          footer={
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                {metric === "moisture"
+                  ? "Đường nét đứt là ngưỡng tưới. Tự làm mới mỗi 30 giây."
+                  : "Chỉ số lấy trung bình theo khoảng. Tự làm mới mỗi 30 giây."}
+              </Text>
+
+              <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+                <Text style={styles.reload}>Tải lại</Text>
+              </Pressable>
+            </View>
+          }
+        >
+          <LedgerTabs options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
+          <LedgerTabs options={RANGE_OPTIONS} value={range} onChange={setRange} />
+
+          <View style={styles.chartBlock}>
+            <HistoryChart
+              response={{ samples, bucketMs: HISTORY_RANGES[range].bucketMs }}
+              metric={metric}
+              range={range}
+              loading={chartLoading}
+              error={error}
+            />
           </View>
-        }
-      >
-        <LedgerTabs options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
-        <LedgerTabs options={RANGE_OPTIONS} value={range} onChange={setRange} />
-
-        <View style={styles.chartBlock}>
-          <HistoryChart
-            response={{ samples, bucketMs: HISTORY_RANGES[range].bucketMs }}
-            metric={metric}
-            range={range}
-            loading={chartLoading}
-            error={error}
-          />
-        </View>
-      </Panel>
+        </Panel>
+      </Reveal>
     </Screen>
   );
 }

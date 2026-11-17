@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { Tabs } from "expo-router/js-tabs";
 import { useEffect } from "react";
+import { Easing } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -61,7 +62,28 @@ function AppTabs() {
               tabBar={(props) => <GlassTabBar {...props} />}
               screenOptions={{
                 headerShown: false,
-                animation: "shift",
+                animation: "fade",
+                // Chuyển tab chỉ mờ dần và nhích lên rất nhẹ, không lướt ngang.
+                transitionSpec: {
+                  animation: "timing",
+                  config: { duration: 120, easing: Easing.linear },
+                },
+                sceneStyleInterpolator: ({ current }) => ({
+                  sceneStyle: {
+                    opacity: current.progress.interpolate({
+                      inputRange: [-1, 0, 1],
+                      outputRange: [0, 1, 0],
+                    }),
+                    transform: [
+                      {
+                        translateY: current.progress.interpolate({
+                          inputRange: [-1, 0, 1],
+                          outputRange: [4, 0, 4],
+                        }),
+                      },
+                    ],
+                  },
+                }),
                 sceneStyle: { backgroundColor: colors.canvas },
               }}
             >

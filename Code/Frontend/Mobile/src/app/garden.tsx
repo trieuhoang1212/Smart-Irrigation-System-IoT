@@ -79,18 +79,20 @@ export default function GardenScreen() {
         status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
-      <Panel
-        index="01"
-        title="Khu vực"
-        hint={zones.length > 0 ? `${zones.length} khu` : undefined}
-      >
-        <ZoneGrid
-          selectedId={zone?.id ?? null}
-          onSelect={(zoneId) =>
-            setSelection((current) => ({ ...current, zoneId }))
-          }
-        />
-      </Panel>
+      <Reveal index={0}>
+        <Panel
+          index="01"
+          title="Khu vực"
+          hint={zones.length > 0 ? `${zones.length} khu` : undefined}
+        >
+          <ZoneGrid
+            selectedId={zone?.id ?? null}
+            onSelect={(zoneId) =>
+              setSelection((current) => ({ ...current, zoneId }))
+            }
+          />
+        </Panel>
+      </Reveal>
 
       <LedgerTabs
         options={VIEW_OPTIONS}
@@ -98,7 +100,7 @@ export default function GardenScreen() {
         onChange={changeView}
       />
 
-      <Reveal key={view}>
+      <Reveal index={1} key={view}>
         {view === "crop" && zone ? (
           <ZoneProfileEditor
             key={zone.id}

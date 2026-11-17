@@ -12,6 +12,7 @@ import { Screen } from "@/components/layout/Screen";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
 import { Panel } from "@/components/ui/Panel";
+import { Reveal } from "@/components/ui/Reveal";
 import {
   useActivity,
   type ActivityEvent,
@@ -131,136 +132,140 @@ export default function ActivityScreen() {
         status={{ online: deviceOnline, at: lastTelemetryAt }}
       />
 
-      <Panel
-        index="01"
-        title="Hoạt động"
-        hint={`${filtered.length} sự kiện`}
-        footer={
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              {error && events.length > 0
-                ? error
-                : `Hiển thị ${shown}/${filtered.length} · Lệnh và thay đổi ngưỡng do Backend ghi lại.`}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
-              <Text style={styles.reload}>Tải lại</Text>
-            </Pressable>
-          </View>
-        }
-      >
-        <LedgerTabs
-          options={KIND_OPTIONS}
-          value={kind}
-          onChange={(next) => {
-            setKind(next);
-            setVisibleCount(INITIAL_VISIBLE);
-          }}
-        />
+      <Reveal index={0}>
+        <Panel
+          index="01"
+          title="Hoạt động"
+          hint={`${filtered.length} sự kiện`}
+          footer={
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                {error && events.length > 0
+                  ? error
+                  : `Hiển thị ${shown}/${filtered.length} · Lệnh và thay đổi ngưỡng do Backend ghi lại.`}
+              </Text>
+              <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+                <Text style={styles.reload}>Tải lại</Text>
+              </Pressable>
+            </View>
+          }
+        >
+          <LedgerTabs
+            options={KIND_OPTIONS}
+            value={kind}
+            onChange={(next) => {
+              setKind(next);
+              setVisibleCount(INITIAL_VISIBLE);
+            }}
+          />
 
-        {loading && events.length === 0 ? (
-          <View style={styles.state}>
-            <ActivityIndicator size="small" color={colors.green} />
-            <Text style={styles.stateText}>Đang tải nhật ký...</Text>
-          </View>
-        ) : error && events.length === 0 ? (
-          <View style={styles.state}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
-              <Text style={styles.retry}>Thử lại</Text>
-            </Pressable>
-          </View>
-        ) : filtered.length === 0 ? (
-          <View style={styles.state}>
-            <Text style={styles.stateText}>
-              {events.length === 0
-                ? "Chưa có lệnh hoặc thay đổi ngưỡng nào."
-                : "Không có sự kiện thuộc loại này."}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {groups.map((group) => (
-              <View key={group.key} style={styles.group}>
-                <View style={styles.dayHead}>
-                  <Text style={styles.dayLabel}>{group.label}</Text>
-                  <View style={styles.dayRule} />
-                  <Text style={styles.dayCount}>
-                    {group.events.length} sự kiện
-                  </Text>
+          {loading && events.length === 0 ? (
+            <View style={styles.state}>
+              <ActivityIndicator size="small" color={colors.green} />
+              <Text style={styles.stateText}>Đang tải nhật ký...</Text>
+            </View>
+          ) : error && events.length === 0 ? (
+            <View style={styles.state}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+                <Text style={styles.retry}>Thử lại</Text>
+              </Pressable>
+            </View>
+          ) : filtered.length === 0 ? (
+            <View style={styles.state}>
+              <Text style={styles.stateText}>
+                {events.length === 0
+                  ? "Chưa có lệnh hoặc thay đổi ngưỡng nào."
+                  : "Không có sự kiện thuộc loại này."}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.list}>
+              {groups.map((group) => (
+                <View key={group.key} style={styles.group}>
+                  <View style={styles.dayHead}>
+                    <Text style={styles.dayLabel}>{group.label}</Text>
+                    <View style={styles.dayRule} />
+                    <Text style={styles.dayCount}>
+                      {group.events.length} sự kiện
+                    </Text>
+                  </View>
+
+                  {group.events.map((event) => {
+                    const tone = kindColors(event);
+                    const status = event.status
+                      ? {
+                          label: STATUS_LABEL[event.status],
+                          color:
+                            event.status === "confirmed"
+                              ? colors.greenStrong
+                              : event.status === "timeout"
+                                ? colors.red
+                                : colors.amber,
+                        }
+                      : null;
+                    const zone = zoneName(event.zoneId);
+
+                    return (
+                      <View key={event.id} style={styles.event}>
+                        <View
+                          style={[styles.iconBox, { backgroundColor: tone.bg }]}
+                        >
+                          <AppIcon
+                            name={KIND_ICON[event.kind]}
+                            size={13}
+                            color={tone.fg}
+                          />
+                        </View>
+
+                        <View style={styles.eventBody}>
+                          <Text style={styles.eventText}>{event.text}</Text>
+                          <Text style={styles.eventMeta} numberOfLines={1}>
+                            {zone ? `${zone} · ` : ""}
+                            {formatShortTime(event.at)}
+                            {status ? " · " : ""}
+                            {status ? (
+                              <Text style={{ color: status.color }}>
+                                {status.label}
+                              </Text>
+                            ) : null}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
+              ))}
 
-                {group.events.map((event) => {
-                  const tone = kindColors(event);
-                  const status = event.status
-                    ? {
-                        label: STATUS_LABEL[event.status],
-                        color:
-                          event.status === "confirmed"
-                            ? colors.greenStrong
-                            : event.status === "timeout"
-                              ? colors.red
-                              : colors.amber,
-                      }
-                    : null;
-                  const zone = zoneName(event.zoneId);
-
-                  return (
-                    <View key={event.id} style={styles.event}>
-                      <View style={[styles.iconBox, { backgroundColor: tone.bg }]}>
-                        <AppIcon
-                          name={KIND_ICON[event.kind]}
-                          size={13}
-                          color={tone.fg}
-                        />
-                      </View>
-
-                      <View style={styles.eventBody}>
-                        <Text style={styles.eventText}>{event.text}</Text>
-                        <Text style={styles.eventMeta} numberOfLines={1}>
-                          {zone ? `${zone} · ` : ""}
-                          {formatShortTime(event.at)}
-                          {status ? " · " : ""}
-                          {status ? (
-                            <Text style={{ color: status.color }}>
-                              {status.label}
-                            </Text>
-                          ) : null}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-
-            {filtered.length > visibleCount ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setVisibleCount(filtered.length)}
-                style={({ pressed }) => [
-                  styles.more,
-                  pressed && styles.morePressed,
-                ]}
-              >
-                <Text style={styles.moreText}>
-                  Xem thêm {filtered.length - visibleCount} sự kiện
-                </Text>
-              </Pressable>
-            ) : visibleCount > INITIAL_VISIBLE ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setVisibleCount(INITIAL_VISIBLE)}
-                style={({ pressed }) => [
-                  styles.more,
-                  pressed && styles.morePressed,
-                ]}
-              >
-                <Text style={styles.moreText}>Thu gọn</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        )}
-      </Panel>
+              {filtered.length > visibleCount ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setVisibleCount(filtered.length)}
+                  style={({ pressed }) => [
+                    styles.more,
+                    pressed && styles.morePressed,
+                  ]}
+                >
+                  <Text style={styles.moreText}>
+                    Xem thêm {filtered.length - visibleCount} sự kiện
+                  </Text>
+                </Pressable>
+              ) : visibleCount > INITIAL_VISIBLE ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setVisibleCount(INITIAL_VISIBLE)}
+                  style={({ pressed }) => [
+                    styles.more,
+                    pressed && styles.morePressed,
+                  ]}
+                >
+                  <Text style={styles.moreText}>Thu gọn</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+        </Panel>
+      </Reveal>
     </Screen>
   );
 }

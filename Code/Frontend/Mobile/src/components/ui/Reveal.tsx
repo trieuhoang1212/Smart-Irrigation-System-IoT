@@ -1,3 +1,4 @@
+import { useIsFocused } from "expo-router";
 import { useEffect } from "react";
 import { type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
@@ -8,11 +9,14 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 
-const REVEAL_SPRING = { damping: 18, stiffness: 165, mass: 0.9 };
+const REVEAL_SPRING = { damping: 20, stiffness: 220, mass: 0.8 };
+
+// Giữ nhịp so le ngắn để các khung vào gần như cùng lúc nhưng vẫn có thứ tự.
+const STAGGER_STEP = 40;
 
 /**
- * Vào màn hình theo nhịp so le. Dùng spring thay cho timing để chuyển động
- * có độ "nặng" nhẹ, không bị cứng như một khung hình bật lên.
+ * Vào màn hình theo nhịp so le. Chạy lại mỗi lần tab được chọn nên nội dung
+ * các trang cũng có chuyển động, không chỉ riêng lần mở đầu tiên.
  */
 export function Reveal({
   children,
@@ -24,6 +28,7 @@ export function Reveal({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
+  const focused = useIsFocused();
   const progress = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
@@ -31,14 +36,18 @@ export function Reveal({
       progress.set(1);
       return;
     }
-    progress.set(withDelay(index * 55, withSpring(1, REVEAL_SPRING)));
-  }, [index, progress, reduced]);
+    if (!focused) return;
+
+    // Đặt lại rồi chạy lại: lúc này cảnh đang mờ dần vào nên không thấy giật.
+    progress.set(0);
+    progress.set(withDelay(index * STAGGER_STEP, withSpring(1, REVEAL_SPRING)));
+  }, [focused, index, progress, reduced]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const value = Math.min(progress.value, 1);
     return {
       opacity: value,
-      transform: [{ translateY: (1 - value) * 16 }],
+      transform: [{ translateY: (1 - value) * 10 }],
     };
   });
 
