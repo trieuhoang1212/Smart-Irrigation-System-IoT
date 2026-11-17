@@ -25,7 +25,7 @@ import type { LiveZone, ZoneProfileInput } from "../../api/types";
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
 import { useToast } from "../../providers/ToastProvider";
-import { radius, spacing, typo, type Palette } from "../../theme";
+import { font, spacing, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import {
   CROP_GROUPS,
@@ -37,9 +37,8 @@ import {
 } from "../../utils/crops";
 import { AppIcon } from "../ui/AppIcon";
 import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { SectionHeader } from "../ui/SectionHeader";
 import { Sheet } from "../ui/Sheet";
+import { GardenSectionHeader } from "./GardenSectionHeader";
 
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -288,51 +287,46 @@ export function ZoneProfileEditor({
   const showPhoto = photo !== null && !photoBroken;
 
   return (
-    <Card style={styles.card}>
-      <SectionHeader title="Hồ sơ cây trồng" hint={zone.id} />
+    <View style={styles.section}>
+      <GardenSectionHeader index="02" title="Hồ sơ cây trồng" hint={zone.id} />
 
-      <View style={styles.hero}>
-        {showPhoto ? (
-          <Image
-            source={{ uri: photo }}
-            resizeMode="cover"
-            onError={() => setPhotoBroken(true)}
-            style={styles.heroImage}
-          />
-        ) : (
-          <View style={styles.heroEmpty}>
-            <View style={styles.heroGlow} />
-            <View style={styles.heroIcon}>
-              <AppIcon name="leaf" size={22} color={colors.greenStrong} />
-            </View>
-            <Text style={styles.heroTitle}>Chưa có ảnh khu vườn</Text>
-            <Text style={styles.heroHint}>
-              Thêm ảnh để dễ nhận diện ô trồng trên tổng quan.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.photoRow}>
+      <View style={styles.plateWrap}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={photo ? "Đổi ảnh khu vườn" : "Thêm ảnh khu vườn"}
           disabled={uploading || removing}
           onPress={() => void pickPhoto()}
-          style={({ pressed }) => [
-            styles.photoButton,
-            pressed && styles.pressed,
-            (uploading || removing) && styles.disabled,
-          ]}
+          style={({ pressed }) => [styles.plate, pressed && styles.pressed]}
         >
-          {uploading ? (
-            <ActivityIndicator size="small" color={colors.greenStrong} />
+          {showPhoto ? (
+            <Image
+              source={{ uri: photo }}
+              resizeMode="cover"
+              onError={() => setPhotoBroken(true)}
+              style={styles.plateImage}
+            />
           ) : (
-            <AppIcon name="camera" size={15} color={colors.greenStrong} />
+            <View style={styles.plateEmpty}>
+              <View style={styles.plateLeaf}>
+                <AppIcon name="leaf" size={150} color="rgba(242,247,241,0.06)" />
+              </View>
+
+              <View style={styles.plateCircle}>
+                <AppIcon name="camera" size={18} color={colors.onDeep} />
+              </View>
+
+              <Text style={styles.plateTitle}>Thêm ảnh khu vườn</Text>
+              <Text style={styles.plateMeta}>
+                JPEG · PNG · WebP · tối đa 4 MB
+              </Text>
+            </View>
           )}
-          <Text style={styles.photoButtonText}>
-            {uploading ? "Đang tải ảnh..." : photo ? "Đổi ảnh" : "Thêm ảnh"}
-          </Text>
+
+          {uploading ? (
+            <View style={styles.plateBusy}>
+              <ActivityIndicator size="small" color={colors.onDeep} />
+            </View>
+          ) : null}
         </Pressable>
 
         {photo ? (
@@ -342,30 +336,26 @@ export function ZoneProfileEditor({
             disabled={uploading || removing}
             onPress={() => void removePhoto()}
             style={({ pressed }) => [
-              styles.trashButton,
+              styles.trash,
               pressed && styles.pressed,
               (uploading || removing) && styles.disabled,
             ]}
           >
             {removing ? (
-              <ActivityIndicator size="small" color={colors.red} />
+              <ActivityIndicator size="small" color={colors.onDeep} />
             ) : (
-              <AppIcon name="trash" size={16} color={colors.red} />
+              <AppIcon name="trash" size={15} color={colors.onDeep} />
             )}
           </Pressable>
         ) : null}
       </View>
 
-      <Text style={styles.photoHint}>
-        JPEG, PNG hoặc WebP · tối đa 4 MB. Ảnh được lưu trên Backend.
-      </Text>
-
       {growth && growthNote ? (
         <View style={styles.growth}>
           <View style={styles.growthHead}>
-            <Text style={styles.growthLabel}>Tiến độ hiện tại</Text>
+            <Text style={styles.growthLabel}>Tiến độ</Text>
             <Text style={styles.growthDay}>
-              Ngày {growth.day}/{growth.totalDays}
+              {growth.day} / {growth.totalDays} ngày
             </Text>
           </View>
 
@@ -381,7 +371,14 @@ export function ZoneProfileEditor({
             />
           </View>
 
-          <Text style={styles.growthText}>{growthNote}</Text>
+          <Text
+            style={[
+              styles.growthNote,
+              growth.overdueDays > 0 && { color: colors.amber },
+            ]}
+          >
+            {growthNote}
+          </Text>
         </View>
       ) : null}
 
@@ -396,10 +393,7 @@ export function ZoneProfileEditor({
         />
 
         <View style={styles.field}>
-          <View style={styles.fieldHead}>
-            <Text style={styles.fieldLabel}>Nhóm cây</Text>
-            <Text style={styles.fieldHint}>{`${CROP_GROUPS.length} NHÓM`}</Text>
-          </View>
+          <Text style={styles.fieldLabel}>Nhóm cây</Text>
 
           <Pressable
             accessibilityRole="button"
@@ -414,7 +408,7 @@ export function ZoneProfileEditor({
             <AppIcon
               name="chevronRight"
               variant="outline"
-              size={14}
+              size={13}
               color={colors.faint}
             />
           </Pressable>
@@ -422,7 +416,7 @@ export function ZoneProfileEditor({
 
         <View style={styles.waterHint}>
           <View style={styles.waterHintHead}>
-            <AppIcon name="water" size={13} color={colors.blue} />
+            <AppIcon name="water" size={12} color={colors.blue} />
             <Text style={styles.waterHintTitle}>
               {waterWindow.label} · {waterWindow.start}–{waterWindow.end}
             </Text>
@@ -441,10 +435,7 @@ export function ZoneProfileEditor({
         />
 
         <View style={styles.field}>
-          <View style={styles.fieldHead}>
-            <Text style={styles.fieldLabel}>Ngày trồng</Text>
-            <Text style={styles.fieldHint}>NGÀY / THÁNG / NĂM</Text>
-          </View>
+          <Text style={styles.fieldLabel}>Ngày trồng</Text>
 
           <View style={styles.dateRow}>
             <DateInput
@@ -473,7 +464,7 @@ export function ZoneProfileEditor({
 
         <Field
           label="Số ngày đến thu hoạch"
-          hint="1 - 365"
+          hint="1 – 365"
           value={harvestDays}
           onChangeText={(value) => setHarvestDays(value.replace(/\D/g, "").slice(0, 3))}
           placeholder="Ví dụ: 60"
@@ -489,7 +480,7 @@ export function ZoneProfileEditor({
 
         <Field
           label="Ghi chú"
-          hint="500 KÝ TỰ"
+          hint={`${notes.length}/500`}
           value={notes}
           onChangeText={setNotes}
           placeholder="Chăm sóc, sâu bệnh, phân bón..."
@@ -504,15 +495,16 @@ export function ZoneProfileEditor({
         <Text style={[styles.dirty, dirty && { color: colors.amber }]}>
           {dirty
             ? "Có thay đổi chưa lưu."
-            : "Chỉ cập nhật hồ sơ; ngưỡng tưới đổi ở mục Tưới."}
+            : "Chỉ cập nhật hồ sơ, ngưỡng tưới ở mục Tưới."}
         </Text>
 
         <Button
-          label="Lưu thay đổi"
+          label="Lưu hồ sơ"
           variant="primary"
           loading={saving}
           disabled={!dirty || uploading || removing}
           onPress={() => void save()}
+          style={styles.save}
         />
       </View>
 
@@ -538,7 +530,6 @@ export function ZoneProfileEditor({
                 }}
                 style={({ pressed }) => [
                   styles.groupItem,
-                  active && styles.groupItemActive,
                   pressed && styles.pressed,
                 ]}
               >
@@ -555,7 +546,7 @@ export function ZoneProfileEditor({
           })}
         </ScrollView>
       </Sheet>
-    </Card>
+    </View>
   );
 }
 
@@ -582,6 +573,7 @@ function Field({
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.field}>
@@ -600,7 +592,13 @@ function Field({
         multiline={multiline}
         autoCapitalize={autoCapitalize}
         selectionColor={colors.green}
-        style={[styles.input, multiline && styles.inputMultiline]}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[
+          styles.input,
+          multiline && styles.inputMultiline,
+          focused && styles.inputFocused,
+        ]}
       />
     </View>
   );
@@ -621,6 +619,7 @@ function DateInput({
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
 
   return (
     <TextInput
@@ -632,106 +631,104 @@ function DateInput({
       maxLength={wide ? 4 : 2}
       accessibilityLabel={accessibilityLabel}
       selectionColor={colors.green}
-      style={[styles.dateInput, wide && styles.dateInputWide]}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={[
+        styles.dateInput,
+        wide && styles.dateInputWide,
+        focused && styles.inputFocused,
+      ]}
     />
   );
 }
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    card: {
-      gap: spacing.md,
+    section: {
+      gap: spacing.lg,
     },
-    hero: {
+    plateWrap: {
+      position: "relative",
+    },
+    plate: {
       aspectRatio: 16 / 10,
-      borderRadius: 16,
+      borderRadius: 6,
       overflow: "hidden",
-      backgroundColor: colors.surfaceSunken,
+      backgroundColor: colors.deep,
       borderWidth: 1,
       borderColor: colors.line,
     },
-    heroImage: {
+    plateImage: {
       width: "100%",
       height: "100%",
     },
-    heroEmpty: {
+    plateEmpty: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: 5,
+      gap: 7,
       paddingHorizontal: spacing.lg,
     },
-    heroGlow: {
+    plateLeaf: {
       position: "absolute",
-      width: 190,
-      height: 190,
-      borderRadius: 999,
-      backgroundColor: colors.greenSoft,
-      opacity: 0.75,
+      right: -28,
+      bottom: -34,
     },
-    heroIcon: {
+    plateCircle: {
       width: 44,
       height: 44,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: colors.line,
+      borderColor: "rgba(242,247,241,0.22)",
+      backgroundColor: "rgba(242,247,241,0.06)",
     },
-    heroTitle: {
-      ...typo.bodyStrong,
-      color: colors.inkSoft,
+    plateTitle: {
+      fontFamily: font.medium,
+      fontSize: 12.5,
+      lineHeight: 17,
+      color: colors.onDeep,
     },
-    heroHint: {
-      ...typo.caption,
-      maxWidth: 230,
-      textAlign: "center",
-      color: colors.faint,
+    plateMeta: {
+      fontFamily: font.medium,
+      fontSize: 9,
+      lineHeight: 11,
+      letterSpacing: 0.7,
+      textTransform: "uppercase",
+      color: colors.onDeepSoft,
     },
-    photoRow: {
-      flexDirection: "row",
-      gap: spacing.sm,
-      marginTop: -4,
-    },
-    photoButton: {
-      flex: 1,
-      minHeight: 42,
-      flexDirection: "row",
+    plateBusy: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
       alignItems: "center",
       justifyContent: "center",
-      gap: 7,
-      borderRadius: radius.pill,
-      backgroundColor: colors.greenSoft,
+      backgroundColor: "rgba(11,23,16,0.45)",
     },
-    photoButtonText: {
-      ...typo.smallStrong,
-      color: colors.greenStrong,
-    },
-    trashButton: {
-      width: 42,
-      height: 42,
-      borderRadius: radius.pill,
+    trash: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+      width: 34,
+      height: 34,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.redSoft,
+      backgroundColor: "rgba(11,23,16,0.66)",
+      borderWidth: 1,
+      borderColor: "rgba(242,247,241,0.12)",
     },
     pressed: {
-      opacity: 0.75,
+      opacity: 0.78,
     },
     disabled: {
       opacity: 0.5,
     },
-    photoHint: {
-      ...typo.caption,
-      color: colors.faint,
-      marginTop: -6,
-    },
     growth: {
-      gap: 6,
-      padding: spacing.md,
-      borderRadius: radius.md,
-      backgroundColor: colors.surfaceSunken,
+      gap: 7,
     },
     growthHead: {
       flexDirection: "row",
@@ -740,32 +737,37 @@ const createStyles = (colors: Palette) =>
       gap: spacing.sm,
     },
     growthLabel: {
-      ...typo.smallStrong,
+      fontFamily: font.semibold,
+      fontSize: 12.5,
+      lineHeight: 16,
       color: colors.inkSoft,
     },
     growthDay: {
-      ...typo.caption,
+      fontFamily: font.medium,
+      fontSize: 10.5,
+      lineHeight: 14,
+      fontVariant: ["tabular-nums"],
       color: colors.muted,
     },
     growthTrack: {
-      height: 6,
-      borderRadius: 999,
+      height: 2,
       backgroundColor: colors.line,
       overflow: "hidden",
     },
     growthFill: {
-      height: "100%",
-      borderRadius: 999,
+      height: 2,
     },
-    growthText: {
-      ...typo.caption,
+    growthNote: {
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 17,
       color: colors.muted,
     },
     fields: {
-      gap: spacing.md,
+      gap: 18,
     },
     field: {
-      gap: 5,
+      gap: 2,
     },
     fieldHead: {
       flexDirection: "row",
@@ -774,53 +776,64 @@ const createStyles = (colors: Palette) =>
       gap: spacing.sm,
     },
     fieldLabel: {
-      ...typo.smallStrong,
-      color: colors.inkSoft,
+      fontFamily: font.medium,
+      fontSize: 11.5,
+      lineHeight: 15,
+      letterSpacing: 0.1,
+      color: colors.muted,
     },
     fieldHint: {
-      ...typo.micro,
+      fontFamily: font.semibold,
+      fontSize: 9,
+      lineHeight: 11,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
       color: colors.faint,
     },
     input: {
-      minHeight: 44,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.canvas,
-      ...typo.body,
+      minHeight: 40,
+      paddingHorizontal: 0,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+      backgroundColor: "transparent",
+      fontFamily: font.regular,
+      fontSize: 15,
+      lineHeight: 21,
       color: colors.ink,
       outlineWidth: 0,
       outlineColor: "transparent",
     },
     inputMultiline: {
-      minHeight: 86,
+      minHeight: 76,
+      paddingTop: 8,
       textAlignVertical: "top",
     },
+    inputFocused: {
+      borderBottomColor: colors.green,
+    },
     select: {
-      minHeight: 44,
+      minHeight: 40,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.sm,
-      paddingHorizontal: 12,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.canvas,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
     },
     selectValue: {
-      ...typo.bodyStrong,
+      fontFamily: font.medium,
+      fontSize: 15,
+      lineHeight: 21,
       color: colors.ink,
     },
     waterHint: {
       gap: 3,
-      padding: 11,
-      borderRadius: radius.md,
-      backgroundColor: colors.blueSoft,
-      borderWidth: 1,
-      borderColor: colors.line,
+      marginTop: -4,
+      paddingLeft: 10,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.blue,
     },
     waterHintHead: {
       flexDirection: "row",
@@ -828,38 +841,43 @@ const createStyles = (colors: Palette) =>
       gap: 6,
     },
     waterHintTitle: {
-      ...typo.smallStrong,
+      fontFamily: font.semibold,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.blue,
     },
     waterHintText: {
-      ...typo.caption,
-      lineHeight: 16,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 17,
       color: colors.muted,
     },
     dateRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 10,
     },
     dateInput: {
-      width: 56,
-      minHeight: 44,
+      width: 40,
+      minHeight: 40,
       textAlign: "center",
-      paddingVertical: 10,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.canvas,
-      ...typo.bodyStrong,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+      backgroundColor: "transparent",
+      fontFamily: font.semibold,
+      fontSize: 15,
+      lineHeight: 21,
       color: colors.ink,
       outlineWidth: 0,
       outlineColor: "transparent",
     },
     dateInputWide: {
-      width: 82,
+      width: 62,
     },
     dateSlash: {
-      ...typo.section,
+      fontFamily: font.regular,
+      fontSize: 13,
       color: colors.faint,
     },
     harvest: {
@@ -867,53 +885,64 @@ const createStyles = (colors: Palette) =>
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.sm,
-      padding: 11,
-      borderRadius: radius.md,
-      backgroundColor: colors.greenSoft,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.lineSoft,
     },
     harvestLabel: {
-      ...typo.caption,
+      fontFamily: font.medium,
+      fontSize: 11.5,
+      lineHeight: 15,
       color: colors.muted,
     },
     harvestValue: {
-      ...typo.smallStrong,
+      fontFamily: font.semibold,
+      fontSize: 13,
+      lineHeight: 18,
+      fontVariant: ["tabular-nums"],
       flexShrink: 1,
       textAlign: "right",
       color: colors.greenStrong,
     },
     error: {
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.red,
     },
     footer: {
-      gap: spacing.sm,
-      paddingTop: spacing.xs,
+      gap: 10,
+      paddingTop: 12,
       borderTopWidth: 1,
       borderTopColor: colors.lineSoft,
     },
     dirty: {
-      ...typo.caption,
+      fontFamily: font.medium,
+      fontSize: 10.5,
+      lineHeight: 14,
       color: colors.faint,
     },
+    save: {
+      borderRadius: 10,
+    },
     groupList: {
-      gap: 4,
-      paddingBottom: 6,
+      gap: 0,
+      paddingBottom: 4,
     },
     groupItem: {
-      minHeight: 46,
+      minHeight: 48,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.sm,
-      paddingHorizontal: 14,
-      borderRadius: radius.md,
-      backgroundColor: colors.surfaceSunken,
-    },
-    groupItemActive: {
-      backgroundColor: colors.greenSoft,
+      paddingHorizontal: 2,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.lineSoft,
     },
     groupLabel: {
-      ...typo.bodyStrong,
+      fontFamily: font.medium,
+      fontSize: 14.5,
+      lineHeight: 20,
       color: colors.inkSoft,
     },
     groupLabelActive: {

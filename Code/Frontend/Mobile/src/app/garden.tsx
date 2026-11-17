@@ -3,22 +3,21 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
+import { GardenSectionHeader } from "@/components/garden/GardenSectionHeader";
 import { ZoneProfileEditor } from "@/components/garden/ZoneProfileEditor";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { ZoneSettingsForm } from "@/components/settings/ZoneSettingsForm";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
-import { Card } from "@/components/ui/Card";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { ZonePicker } from "@/components/zones/ZonePicker";
 import { useGarden } from "@/providers/GardenProvider";
 import { useTheme } from "@/providers/ThemeProvider";
-import { radius, typo, type Palette } from "@/theme";
+import { font, typo, type Palette } from "@/theme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import { formatNumber } from "@/utils/format";
 
@@ -75,10 +74,11 @@ export default function GardenScreen() {
         subtitle="Hồ sơ cây trồng và thông số tưới."
       />
 
-      <Card>
-        <SectionHeader
+      <View style={styles.zoneBlock}>
+        <GardenSectionHeader
+          index="01"
           title="Khu vực"
-          hint={zone ? zone.group.toUpperCase() : `${zones.length} KHU`}
+          hint={zones.length > 0 ? `${zones.length} khu` : undefined}
         />
 
         {loading && zones.length === 0 ? (
@@ -100,15 +100,40 @@ export default function GardenScreen() {
             </Text>
           </View>
         ) : (
-          <ZonePicker
-            zones={zones}
-            value={zone?.id ?? ""}
-            onChange={(zoneId) =>
-              setSelection((current) => ({ ...current, zoneId }))
-            }
-          />
+          <View style={styles.rail}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.railContent}
+            >
+              {zones.map((item) => {
+                const active = zone?.id === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() =>
+                      setSelection((current) => ({ ...current, zoneId: item.id }))
+                    }
+                    style={[styles.railItem, active && styles.railItemActive]}
+                  >
+                    <Text style={[styles.railId, active && styles.railIdActive]}>
+                      {item.id}
+                    </Text>
+                    <Text
+                      style={[styles.railName, active && styles.railNameActive]}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
         )}
-      </Card>
+      </View>
 
       <Segmented
         value={view}
@@ -124,34 +149,31 @@ export default function GardenScreen() {
       ) : null}
 
       {view === "crop" && !zone ? (
-        <Card>
-          <Text style={styles.stateText}>
-            Chọn hoặc tạo khu vườn trước khi chỉnh hồ sơ cây trồng.
-          </Text>
-        </Card>
+        <Text style={styles.stateText}>
+          Chọn hoặc tạo khu vườn trước khi chỉnh hồ sơ cây trồng.
+        </Text>
       ) : null}
 
       {view === "irrigation" && zone ? (
-        <Card>
-          <SectionHeader
+        <View style={styles.panel}>
+          <GardenSectionHeader
+            index="02"
             title="Thông số tưới"
             hint={
               zone.moisture === null
-                ? "CHƯA CÓ DỮ LIỆU"
-                : `ĐỘ ẨM ${formatNumber(zone.moisture, 0)}%`
+                ? "Chưa có dữ liệu"
+                : `Độ ẩm ${formatNumber(zone.moisture, 0)}%`
             }
           />
 
-          <ZoneSettingsForm key={zone.id} zone={zone} embedded />
-        </Card>
+          <ZoneSettingsForm key={zone.id} zone={zone} />
+        </View>
       ) : null}
 
       {view === "irrigation" && !zone ? (
-        <Card>
-          <Text style={styles.stateText}>
-            Chọn khu vườn trước khi chỉnh thông số tưới.
-          </Text>
-        </Card>
+        <Text style={styles.stateText}>
+          Chọn khu vườn trước khi chỉnh thông số tưới.
+        </Text>
       ) : null}
     </Screen>
   );
@@ -168,7 +190,7 @@ function Segmented({
   const { colors } = useTheme();
 
   return (
-    <View style={styles.segments}>
+    <View style={styles.tabs}>
       {VIEW_OPTIONS.map((option) => {
         const active = option.value === value;
         return (
@@ -177,17 +199,17 @@ function Segmented({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             onPress={() => onChange(option.value)}
-            style={[styles.segment, active && styles.segmentActive]}
+            style={[styles.tab, active && styles.tabActive]}
           >
             <AppIcon
               name={option.icon}
               variant={active ? "filled" : "outline"}
-              size={14}
+              size={13}
               color={active ? colors.greenStrong : colors.faint}
             />
 
             <Text
-              style={[styles.segmentLabel, active && styles.segmentLabelActive]}
+              style={[styles.tabLabel, active && styles.tabLabelActive]}
               numberOfLines={1}
             >
               {option.label}
@@ -201,15 +223,92 @@ function Segmented({
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
+    zoneBlock: {
+      gap: 2,
+    },
+    rail: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.lineSoft,
+    },
+    railContent: {
+      gap: 22,
+      paddingRight: 4,
+    },
+    railItem: {
+      gap: 2,
+      paddingTop: 2,
+      paddingBottom: 9,
+      marginBottom: -1,
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
+    },
+    railItemActive: {
+      borderBottomColor: colors.green,
+    },
+    railId: {
+      fontFamily: font.medium,
+      fontSize: 9,
+      lineHeight: 11,
+      letterSpacing: 0.7,
+      color: colors.faint,
+    },
+    railIdActive: {
+      color: colors.green,
+    },
+    railName: {
+      fontFamily: font.semibold,
+      fontSize: 14.5,
+      lineHeight: 19,
+      letterSpacing: -0.2,
+      color: colors.inkSoft,
+    },
+    railNameActive: {
+      color: colors.ink,
+    },
+    tabs: {
+      flexDirection: "row",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.lineSoft,
+      marginTop: 2,
+    },
+    tab: {
+      flex: 1,
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 10,
+      marginBottom: -1,
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
+    },
+    tabActive: {
+      borderBottomColor: colors.green,
+    },
+    tabLabel: {
+      fontFamily: font.semibold,
+      fontSize: 12.5,
+      lineHeight: 16,
+      letterSpacing: -0.1,
+      color: colors.muted,
+    },
+    tabLabelActive: {
+      color: colors.greenStrong,
+    },
+    panel: {
+      gap: 4,
+    },
     state: {
       alignItems: "center",
       gap: 8,
-      paddingVertical: 12,
+      paddingVertical: 14,
     },
     stateText: {
       ...typo.small,
       color: colors.faint,
       textAlign: "center",
+      paddingVertical: 6,
     },
     errorText: {
       ...typo.small,
@@ -219,35 +318,5 @@ const createStyles = (colors: Palette) =>
     retry: {
       ...typo.smallStrong,
       color: colors.green,
-    },
-    segments: {
-      flexDirection: "row",
-      gap: 4,
-      padding: 4,
-      borderRadius: radius.pill,
-      backgroundColor: colors.surfaceSunken,
-    },
-    segment: {
-      flex: 1,
-      minHeight: 38,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      paddingHorizontal: 6,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: "transparent",
-    },
-    segmentActive: {
-      backgroundColor: colors.greenSoft,
-      borderColor: colors.green,
-    },
-    segmentLabel: {
-      ...typo.smallStrong,
-      color: colors.muted,
-    },
-    segmentLabelActive: {
-      color: colors.greenStrong,
     },
   });
