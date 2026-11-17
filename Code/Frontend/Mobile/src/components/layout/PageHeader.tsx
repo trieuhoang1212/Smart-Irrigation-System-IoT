@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { typo, type Palette } from "../../theme";
+import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 
 export function PageHeader({
@@ -23,15 +23,21 @@ export function PageHeader({
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
     wrap: {
-      gap: 4,
-      paddingBottom: 2,
+      gap: 5,
+      paddingTop: 2,
+      paddingBottom: 4,
     },
     title: {
-      ...typo.display,
+      fontFamily: font.display,
+      fontSize: 32,
+      lineHeight: 37,
+      letterSpacing: -0.9,
       color: colors.ink,
     },
     subtitle: {
-      ...typo.small,
+      fontFamily: font.medium,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.muted,
     },
   });

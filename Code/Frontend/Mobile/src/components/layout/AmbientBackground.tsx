@@ -1,9 +1,7 @@
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Svg, {
-  Circle,
   Defs,
   Image as SvgImage,
-  Pattern,
   RadialGradient,
   Rect,
   Stop,
@@ -11,57 +9,46 @@ import Svg, {
 
 import { useTheme } from "../../providers/ThemeProvider";
 
-// Nền "vườn lúc sáng sớm": hai quầng màu rất nhẹ, hạt li ti và một chiếc lá
-// chìm ở góc để màn hình không còn là một khối màu phẳng.
+// Nền giấy ẩm của khu vườn: hai quầng màu rất nhẹ và một chiếc lá chìm ở góc.
+// Không dùng hoạ tiết lặp để màn hình giữ được vẻ tĩnh, không bị "dashboard".
 export function AmbientBackground() {
   const { colors, isDark } = useTheme();
   const { width, height } = useWindowDimensions();
-  const leafSize = Math.min(220, width * 0.62);
+  const leafSize = Math.min(240, width * 0.68);
 
   return (
     <View pointerEvents="none" style={styles.layer}>
       <Svg width={width} height={height + 260}>
         <Defs>
-          <RadialGradient id="ambientGreen" cx="82%" cy="0%" r="78%">
+          <RadialGradient id="ambientGreen" cx="86%" cy="-4%" r="82%">
             <Stop
               offset="0%"
               stopColor={colors.green}
-              stopOpacity={isDark ? 0.34 : 0.2}
+              stopOpacity={isDark ? 0.22 : 0.13}
             />
             <Stop offset="100%" stopColor={colors.green} stopOpacity={0} />
           </RadialGradient>
 
-          <RadialGradient id="ambientAmber" cx="8%" cy="46%" r="58%">
+          <RadialGradient id="ambientAmber" cx="4%" cy="48%" r="58%">
             <Stop
               offset="0%"
               stopColor={colors.amber}
-              stopOpacity={isDark ? 0.18 : 0.14}
+              stopOpacity={isDark ? 0.12 : 0.08}
             />
             <Stop offset="100%" stopColor={colors.amber} stopOpacity={0} />
           </RadialGradient>
-
-          <Pattern id="ambientDots" width="22" height="22" patternUnits="userSpaceOnUse">
-            <Circle
-              cx="1.1"
-              cy="1.1"
-              r="1.1"
-              fill={colors.ink}
-              fillOpacity={isDark ? 0.14 : 0.08}
-            />
-          </Pattern>
         </Defs>
 
         <Rect width="100%" height="100%" fill="url(#ambientGreen)" />
         <Rect width="100%" height="100%" fill="url(#ambientAmber)" />
-        <Rect width="100%" height={height} fill="url(#ambientDots)" />
 
         <SvgImage
-          x={width - leafSize * 0.66}
-          y={height * 0.16}
+          x={width - leafSize * 0.62}
+          y={height * 0.2}
           width={leafSize}
           height={leafSize}
           href={require("../../../assets/icons8/leaf-fill.png")}
-          opacity={isDark ? 0.05 : 0.06}
+          opacity={isDark ? 0.035 : 0.045}
           preserveAspectRatio="xMidYMid meet"
         />
       </Svg>
