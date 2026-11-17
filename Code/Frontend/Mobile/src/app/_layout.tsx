@@ -61,7 +61,7 @@ function AppTabs() {
               tabBar={(props) => <GlassTabBar {...props} />}
               screenOptions={{
                 headerShown: false,
-                animation: "fade",
+                animation: "shift",
                 sceneStyle: { backgroundColor: colors.canvas },
               }}
             >

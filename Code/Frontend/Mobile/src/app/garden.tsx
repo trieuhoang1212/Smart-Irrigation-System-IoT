@@ -7,6 +7,7 @@ import { Screen } from "@/components/layout/Screen";
 import { ZoneSettingsForm } from "@/components/settings/ZoneSettingsForm";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
 import { Panel } from "@/components/ui/Panel";
+import { Reveal } from "@/components/ui/Reveal";
 import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { useGarden } from "@/providers/GardenProvider";
 import { formatNumber } from "@/utils/format";
@@ -55,8 +56,24 @@ export default function GardenScreen() {
   const zone = zones.find((item) => item.id === selection.zoneId) ?? zones[0] ?? null;
   const view = selection.view;
 
+  const changeView = (next: GardenView) =>
+    setSelection((current) => ({ ...current, view: next }));
+
+  // Vuốt trái/phải đổi giữa Cây trồng và Tưới; hết mục thì nhường cho tab đáy.
+  const handleSwipe = (direction: "left" | "right") => {
+    if (direction === "left" && view === "crop") {
+      changeView("irrigation");
+      return true;
+    }
+    if (direction === "right" && view === "irrigation") {
+      changeView("crop");
+      return true;
+    }
+    return false;
+  };
+
   return (
-    <Screen>
+    <Screen onSwipe={handleSwipe}>
       <PageHeader
         title="Khu vườn"
         status={{ online: deviceOnline, at: lastTelemetryAt }}
@@ -78,30 +95,32 @@ export default function GardenScreen() {
       <LedgerTabs
         options={VIEW_OPTIONS}
         value={view}
-        onChange={(next) => setSelection((current) => ({ ...current, view: next }))}
+        onChange={changeView}
       />
 
-      {view === "crop" && zone ? (
-        <ZoneProfileEditor
-          key={zone.id}
-          zone={zone}
-          onReload={reloadConfig}
-        />
-      ) : null}
+      <Reveal key={view}>
+        {view === "crop" && zone ? (
+          <ZoneProfileEditor
+            key={zone.id}
+            zone={zone}
+            onReload={reloadConfig}
+          />
+        ) : null}
 
-      {view === "irrigation" && zone ? (
-        <Panel
-          index="02"
-          title="Thông số tưới"
-          hint={
-            zone.moisture === null
-              ? "Chưa có dữ liệu"
-              : `Độ ẩm ${formatNumber(zone.moisture, 0)}%`
-          }
-        >
-          <ZoneSettingsForm key={zone.id} zone={zone} />
-        </Panel>
-      ) : null}
+        {view === "irrigation" && zone ? (
+          <Panel
+            index="02"
+            title="Thông số tưới"
+            hint={
+              zone.moisture === null
+                ? "Chưa có dữ liệu"
+                : `Độ ẩm ${formatNumber(zone.moisture, 0)}%`
+            }
+          >
+            <ZoneSettingsForm key={zone.id} zone={zone} />
+          </Panel>
+        ) : null}
+      </Reveal>
     </Screen>
   );
 }
