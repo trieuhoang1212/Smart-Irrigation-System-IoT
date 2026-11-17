@@ -108,6 +108,10 @@ export function Screen({
   // Đưa ô đang gõ lên trên thanh tab nổi. Ô ghi chú nhiều dòng cao dần khi
   // gõ nên phải đo lại mỗi lần nội dung đổi kích thước.
   const ensureInputVisible = useCallback(() => {
+    // Web không có bàn phím che nên bỏ qua; react-native-web cũng không có
+    // currentlyFocusedInput.
+    if (Platform.OS === "web") return;
+
     const input = TextInput.State.currentlyFocusedInput();
     const node = scrollRef.current;
     if (!input || !node || keyboardTop.current === 0 || scrollHeight.current === 0) {
