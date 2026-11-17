@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+
+# Biến môi trường (chỉ commit file mẫu)
+.env
+.env.*
+!.env.example
+
+# Dữ liệu chạy thật: SQLite và ảnh upload
+data/
