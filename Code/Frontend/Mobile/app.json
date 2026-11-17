@@ -25,6 +25,14 @@
         {
           "backgroundColor": "#F5F8F5"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {
@@ -38,7 +46,7 @@
         }
       },
       "eas": {
-        "projectId": "391c5a0e-41e1-4a7d-8682-b55aae09f0b4"
+        "projectId": "9db29801-a380-48bb-9068-b5fc968cbb34"
       }
     },
     "owner": "trieuhoang1212"
