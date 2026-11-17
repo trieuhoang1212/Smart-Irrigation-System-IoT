@@ -1,15 +1,14 @@
 import type { TextStyle } from "react-native";
 
 // Lexend nạp trong app/_layout.tsx; tên family do @expo-google-fonts đặt sẵn.
+// Cả app dùng duy nhất một font chữ, phân biệt bằng độ đậm.
 export const font = {
   regular: "Lexend_400Regular",
   medium: "Lexend_500Medium",
   semibold: "Lexend_600SemiBold",
   bold: "Lexend_700Bold",
   extrabold: "Lexend_800ExtraBold",
-  // Fraunces chỉ dùng cho tiêu đề và con số lớn: chất serif mềm, có cá tính
-  // "vườn nhà" thay vì thêm một font sans nữa.
-  display: "Fraunces_600SemiBold",
+  display: "Lexend_700Bold",
 } as const;
 
 export const typo = {

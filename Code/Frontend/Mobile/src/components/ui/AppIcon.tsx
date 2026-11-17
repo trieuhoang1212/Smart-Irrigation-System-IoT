@@ -110,6 +110,12 @@ const ICONS = {
     outline: require("../../../assets/icons8/refresh.png"),
     filled: require("../../../assets/icons8/refresh-fill.png"),
   },
+  camera: {
+    outline: require("../../../assets/icons8/camera.png"),
+  },
+  trash: {
+    outline: require("../../../assets/icons8/trash.png"),
+  },
 } as const;
 
 export type AppIconName = keyof typeof ICONS;

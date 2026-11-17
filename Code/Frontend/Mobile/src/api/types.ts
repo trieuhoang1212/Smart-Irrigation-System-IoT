@@ -29,6 +29,16 @@ export type Telemetry = {
   receivedAt: string;
 };
 
+export type GrowthInfo = {
+  stage: string;
+  label: string;
+  day: number;
+  totalDays: number;
+  progress: number;
+  daysLeft: number;
+  overdueDays: number;
+};
+
 export type GardenZone = {
   id: string;
   name: string;
@@ -40,6 +50,11 @@ export type GardenZone = {
   flowLitersPerHour: number;
   targetLiters: number;
   color: string;
+  photoUrl?: string | null;
+  plantedAt?: number | null;
+  harvestDays?: number | null;
+  notes?: string;
+  growth?: GrowthInfo | null;
 };
 
 export type GardenConfig = {
@@ -70,6 +85,15 @@ export type ZoneConfigInput = {
   threshold?: number;
   flowLitersPerHour: number;
   targetLiters: number;
+};
+
+export type ZoneProfileInput = {
+  name: string;
+  crop: string;
+  group: string;
+  plantedAt: number | null;
+  harvestDays: number | null;
+  notes: string;
 };
 
 export type HistorySample = {
