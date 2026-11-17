@@ -8,6 +8,7 @@ import Animated, {
 
 import { type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { tickHaptic } from "../../utils/haptics";
 
 const TRACK_WIDTH = 40;
 const TRACK_HEIGHT = 24;
@@ -42,7 +43,10 @@ export function Toggle({
       accessibilityLabel={label}
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
-      onPress={() => onChange(!value)}
+      onPress={() => {
+        tickHaptic();
+        onChange(!value);
+      }}
       style={[styles.track, value && styles.trackOn, disabled && styles.disabled]}
     >
       <Animated.View style={[styles.knob, knobStyle]} />

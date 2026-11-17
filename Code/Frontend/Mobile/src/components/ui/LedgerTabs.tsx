@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { tickHaptic } from "../../utils/haptics";
 
 type Option<T extends string> = {
   value: T;
@@ -30,7 +31,10 @@ export function LedgerTabs<T extends string>({
             key={option.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              if (!active) tickHaptic();
+              onChange(option.value);
+            }}
             style={[styles.tab, active && styles.tabActive]}
           >
             <Text

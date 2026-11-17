@@ -12,6 +12,7 @@ import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
 import { font, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { pressHaptic, tickHaptic } from "../../utils/haptics";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
@@ -54,7 +55,10 @@ export function ModeDock() {
           active={auto}
           disabled={disabled}
           onPress={() => {
-            if (!auto) void setMode("auto");
+            if (!auto) {
+              tickHaptic();
+              void setMode("auto");
+            }
           }}
         />
 
@@ -71,13 +75,19 @@ export function ModeDock() {
           active={!auto}
           disabled={disabled}
           onPress={() => {
-            if (auto) void setMode("manual");
+            if (auto) {
+              tickHaptic();
+              void setMode("manual");
+            }
           }}
         />
       </View>
 
       <PressableScale
-        onPress={() => void togglePump()}
+        onPress={() => {
+          pressHaptic();
+          void togglePump();
+        }}
         disabled={!canPump}
         accessibilityLabel={
           auto
