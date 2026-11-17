@@ -9,9 +9,8 @@ import {
 } from "@/components/history/HistoryChart";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
-import { Card } from "@/components/ui/Card";
-import { ChipRow } from "@/components/ui/ChipRow";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { LedgerTabs } from "@/components/ui/LedgerTabs";
+import { Panel } from "@/components/ui/Panel";
 import { ZonePicker } from "@/components/zones/ZonePicker";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
@@ -28,7 +27,7 @@ const METRIC_OPTIONS: { value: HistoryMetric; label: string }[] = [
   { value: "moisture", label: "Độ ẩm đất" },
   { value: "temperature", label: "Nhiệt độ" },
   { value: "humidity", label: "Độ ẩm khí" },
-  { value: "rain", label: "Cảm biến mưa" },
+  { value: "rain", label: "Mưa" },
 ];
 
 export default function HistoryScreen() {
@@ -55,9 +54,7 @@ export default function HistoryScreen() {
         subtitle="Độ ẩm đất, nhiệt độ và thời tiết theo thời gian."
       />
 
-      <Card style={styles.zoneCard}>
-        <SectionHeader title="Khu vườn" hint={zone ? zone.crop : undefined} />
-
+      <Panel index="01" title="Khu vườn" hint={zone ? zone.crop : undefined}>
         {loading && zones.length === 0 ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator size="small" color={colors.green} />
@@ -75,51 +72,47 @@ export default function HistoryScreen() {
             {formatNumber(zone.stopThreshold, 0)}%
           </Text>
         ) : null}
-      </Card>
+      </Panel>
 
-      <Card style={styles.chartCard}>
-        <SectionHeader
-          title={HISTORY_METRICS[metric].label}
-          hint={`${HISTORY_RANGES[range].label.toUpperCase()} · ${
-            zone ? zone.name : activeZoneId
-          }`}
-        />
+      <Panel
+        index="02"
+        title={HISTORY_METRICS[metric].label}
+        hint={`${HISTORY_RANGES[range].label} · ${
+          zone ? zone.name : activeZoneId
+        }`}
+        footer={
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {metric === "moisture"
+                ? "Đường nét đứt là ngưỡng tưới. Tự làm mới mỗi 30 giây."
+                : "Chỉ số lấy trung bình theo khoảng. Tự làm mới mỗi 30 giây."}
+            </Text>
 
-        <ChipRow options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
-        <ChipRow options={RANGE_OPTIONS} value={range} onChange={setRange} />
+            <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+              <Text style={styles.reload}>Tải lại</Text>
+            </Pressable>
+          </View>
+        }
+      >
+        <LedgerTabs options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
+        <LedgerTabs options={RANGE_OPTIONS} value={range} onChange={setRange} />
 
-        <HistoryChart
-          response={{ samples, bucketMs: HISTORY_RANGES[range].bucketMs }}
-          metric={metric}
-          range={range}
-          loading={chartLoading}
-          error={error}
-        />
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {metric === "moisture"
-              ? "Đường nét đứt là ngưỡng tưới. Tự làm mới mỗi 30 giây."
-              : "Chỉ số lấy trung bình theo khoảng. Tự làm mới mỗi 30 giây."}
-          </Text>
-
-          <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
-            <Text style={styles.reload}>Tải lại</Text>
-          </Pressable>
+        <View style={styles.chartBlock}>
+          <HistoryChart
+            response={{ samples, bucketMs: HISTORY_RANGES[range].bucketMs }}
+            metric={metric}
+            range={range}
+            loading={chartLoading}
+            error={error}
+          />
         </View>
-      </Card>
+      </Panel>
     </Screen>
   );
 }
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    zoneCard: {
-      gap: 2,
-    },
-    chartCard: {
-      gap: 8,
-    },
     loadingRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -135,15 +128,14 @@ const createStyles = (colors: Palette) =>
       color: colors.faint,
       marginTop: 2,
     },
+    chartBlock: {
+      paddingTop: 2,
+    },
     footer: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
-      marginTop: 4,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.lineSoft,
     },
     footerText: {
       flex: 1,

@@ -7,7 +7,8 @@ export default function SettingsScreen() {
     <Screen>
       <PageHeader
         title="Cài đặt"
-        subtitle="Giao diện, an toàn khi mưa và thiết bị."
+        subtitle="Giao diện, an toàn khi mưa, thiết bị và thông báo."
+        showSettings={false}
       />
 
       <GardenSettings />

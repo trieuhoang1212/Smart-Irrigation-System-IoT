@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 
-import { GardenSectionHeader } from "@/components/garden/GardenSectionHeader";
+import { Panel } from "@/components/ui/Panel";
 import { ZoneProfileEditor } from "@/components/garden/ZoneProfileEditor";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
@@ -74,13 +74,11 @@ export default function GardenScreen() {
         subtitle="Hồ sơ cây trồng và thông số tưới."
       />
 
-      <View style={styles.zoneBlock}>
-        <GardenSectionHeader
-          index="01"
-          title="Khu vực"
-          hint={zones.length > 0 ? `${zones.length} khu` : undefined}
-        />
-
+      <Panel
+        index="01"
+        title="Khu vực"
+        hint={zones.length > 0 ? `${zones.length} khu` : undefined}
+      >
         {loading && zones.length === 0 ? (
           <View style={styles.state}>
             <ActivityIndicator size="small" color={colors.green} />
@@ -133,7 +131,7 @@ export default function GardenScreen() {
             </ScrollView>
           </View>
         )}
-      </View>
+      </Panel>
 
       <Segmented
         value={view}
@@ -155,19 +153,17 @@ export default function GardenScreen() {
       ) : null}
 
       {view === "irrigation" && zone ? (
-        <View style={styles.panel}>
-          <GardenSectionHeader
-            index="02"
-            title="Thông số tưới"
-            hint={
-              zone.moisture === null
-                ? "Chưa có dữ liệu"
-                : `Độ ẩm ${formatNumber(zone.moisture, 0)}%`
-            }
-          />
-
+        <Panel
+          index="02"
+          title="Thông số tưới"
+          hint={
+            zone.moisture === null
+              ? "Chưa có dữ liệu"
+              : `Độ ẩm ${formatNumber(zone.moisture, 0)}%`
+          }
+        >
           <ZoneSettingsForm key={zone.id} zone={zone} />
-        </View>
+        </Panel>
       ) : null}
 
       {view === "irrigation" && !zone ? (
@@ -223,9 +219,6 @@ function Segmented({
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    zoneBlock: {
-      gap: 2,
-    },
     rail: {
       borderBottomWidth: 1,
       borderBottomColor: colors.lineSoft,
@@ -267,24 +260,24 @@ const createStyles = (colors: Palette) =>
     },
     tabs: {
       flexDirection: "row",
-      borderBottomWidth: 1,
-      borderBottomColor: colors.lineSoft,
-      marginTop: 2,
+      gap: 4,
+      padding: 4,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.surface,
     },
     tab: {
       flex: 1,
-      minHeight: 44,
+      minHeight: 40,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
-      paddingVertical: 10,
-      marginBottom: -1,
-      borderBottomWidth: 2,
-      borderBottomColor: "transparent",
+      borderRadius: 9,
     },
     tabActive: {
-      borderBottomColor: colors.green,
+      backgroundColor: colors.greenSoft,
     },
     tabLabel: {
       fontFamily: font.semibold,
@@ -295,9 +288,6 @@ const createStyles = (colors: Palette) =>
     },
     tabLabelActive: {
       color: colors.greenStrong,
-    },
-    panel: {
-      gap: 4,
     },
     state: {
       alignItems: "center",

@@ -17,7 +17,7 @@ import { AppIcon } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
 const COLUMNS = 3;
-const GAP = 8;
+const GAP = 10;
 
 export function ZoneGrid({ onSelect }: { onSelect: (zoneId: string) => void }) {
   const styles = useThemedStyles(createStyles);
@@ -25,18 +25,12 @@ export function ZoneGrid({ onSelect }: { onSelect: (zoneId: string) => void }) {
   const { zones, loading, configError, reloadConfig } = useGarden();
   const { width } = useWindowDimensions();
 
-  const available = width - 32;
+  // Bề rộng khả dụng = màn hình - lề trang - lề trong khung Panel - viền khung.
+  const available = width - 58;
   const tileWidth = (available - GAP * (COLUMNS - 1)) / COLUMNS;
 
   return (
     <View style={styles.section}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Khu vườn</Text>
-        <Text style={styles.hint}>
-          {zones.length || 6} KHU · CHẠM ĐỂ ĐIỀU KHIỂN
-        </Text>
-      </View>
-
       {loading && zones.length === 0 ? (
         <View style={styles.state}>
           <ActivityIndicator size="small" color={colors.green} />
@@ -151,20 +145,6 @@ const createStyles = (colors: Palette) =>
   StyleSheet.create({
     section: {
       gap: spacing.sm,
-      paddingTop: 2,
-    },
-    header: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      justifyContent: "space-between",
-    },
-    title: {
-      ...typo.section,
-      color: colors.ink,
-    },
-    hint: {
-      ...typo.micro,
-      color: colors.faint,
     },
     grid: {
       flexDirection: "row",
@@ -173,11 +153,12 @@ const createStyles = (colors: Palette) =>
     },
     tile: {
       minHeight: 78,
-      padding: 10,
-      borderRadius: 14,
+      padding: 8,
+      gap: 3,
+      borderRadius: 10,
       borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.surface,
+      borderColor: colors.lineSoft,
+      backgroundColor: colors.surfaceSunken,
       justifyContent: "space-between",
     },
     tileHead: {
@@ -206,14 +187,12 @@ const createStyles = (colors: Palette) =>
       color: colors.faint,
     },
     tileBar: {
-      height: 3,
-      borderRadius: 999,
+      height: 2,
       backgroundColor: colors.lineSoft,
       overflow: "hidden",
     },
     tileBarFill: {
       height: "100%",
-      borderRadius: 999,
     },
     state: {
       alignItems: "center",

@@ -9,6 +9,7 @@ import { ModeDock } from "@/components/overview/ModeDock";
 import { StatusLine } from "@/components/overview/StatusLine";
 import { Screen } from "@/components/layout/Screen";
 import { SearchSheet } from "@/components/search/SearchSheet";
+import { Panel } from "@/components/ui/Panel";
 import { Reveal } from "@/components/ui/Reveal";
 import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { ZoneSheet } from "@/components/zones/ZoneSheet";
@@ -16,7 +17,7 @@ import { useGarden } from "@/providers/GardenProvider";
 
 export default function OverviewScreen() {
   const router = useRouter();
-  const { zones } = useGarden();
+  const { zones, deviceOnline } = useGarden();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [chartsOpen, setChartsOpen] = useState(false);
@@ -26,32 +27,35 @@ export default function OverviewScreen() {
 
   return (
     <Screen>
-      <DashboardHeader
-        onOpenSearch={() => setSearchOpen(true)}
-        onOpenSettings={() => router.navigate("/settings")}
-      />
+      <DashboardHeader onOpenSearch={() => setSearchOpen(true)} />
 
       <Reveal index={0}>
         <ModeDock />
       </Reveal>
 
       <Reveal index={1}>
-        <MetricStrip />
+        <Panel
+          index="01"
+          title="Trạng thái"
+          hint={deviceOnline ? "Trực tiếp" : "Chờ kết nối"}
+          tone={deviceOnline ? undefined : "error"}
+        >
+          <MetricStrip />
+          <EnvRow />
+        </Panel>
       </Reveal>
 
       <Reveal index={2}>
-        <EnvRow />
+        <Panel index="02" title="Khu vực" hint={`${zones.length || 6} khu · chạm để mở`}>
+          <ZoneGrid onSelect={setZoneId} />
+        </Panel>
       </Reveal>
 
       <Reveal index={3}>
-        <ZoneGrid onSelect={setZoneId} />
-      </Reveal>
-
-      <Reveal index={4}>
         <ChartEntry onPress={() => setChartsOpen(true)} />
       </Reveal>
 
-      <Reveal index={5}>
+      <Reveal index={4}>
         <StatusLine />
       </Reveal>
 

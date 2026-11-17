@@ -10,10 +10,9 @@ import {
 import { ZONE_IDS } from "@/api/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
-import { Card } from "@/components/ui/Card";
-import { ChipRow } from "@/components/ui/ChipRow";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { LedgerTabs } from "@/components/ui/LedgerTabs";
+import { Panel } from "@/components/ui/Panel";
 import { ZonePicker } from "@/components/zones/ZonePicker";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
 import { useGarden } from "@/providers/GardenProvider";
@@ -78,10 +77,10 @@ export default function AnalysisScreen() {
 
   const toneColors = analysis
     ? {
-        success: { bg: colors.greenSoft, fg: colors.greenStrong },
-        warning: { bg: colors.amberSoft, fg: colors.amber },
-        error: { bg: colors.redSoft, fg: colors.red },
-        neutral: { bg: colors.surfaceSunken, fg: colors.muted },
+        success: colors.greenStrong,
+        warning: colors.amber,
+        error: colors.red,
+        neutral: colors.muted,
       }[analysis.tone]
     : null;
 
@@ -97,8 +96,7 @@ export default function AnalysisScreen() {
         subtitle="Chẩn đoán độ ẩm đất theo ngưỡng tưới của từng khu vườn."
       />
 
-      <Card>
-        <SectionHeader title="Khu vườn" hint={zone ? zone.crop : undefined} />
+      <Panel index="01" title="Khu vườn" hint={zone ? zone.crop : undefined}>
         {loading && zones.length === 0 ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator size="small" color={colors.green} />
@@ -114,25 +112,43 @@ export default function AnalysisScreen() {
         ) : (
           <ZonePicker zones={zones} value={activeZoneId} onChange={setZoneId} />
         )}
-      </Card>
+      </Panel>
 
       {analysis && zone && toneColors ? (
-        <Card>
-          <SectionHeader
-            title={zone.name}
-            hint={HISTORY_RANGES[range].label.toUpperCase()}
-          />
+        <Panel
+          index="02"
+          title={zone.name}
+          hint={HISTORY_RANGES[range].label}
+          footer={
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                {historyLoading && analysis.sampleCount === 0
+                  ? "Đang tải lịch sử..."
+                  : error
+                    ? error
+                    : analysis.lastSampleAt
+                      ? `${analysis.sampleCount} mẫu · ${formatShortTime(
+                          analysis.lastSampleAt,
+                          range === "7d",
+                        )}`
+                      : "Chưa có mẫu nào trong khoảng này."}
+              </Text>
+              <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+                <Text style={styles.reload}>Tải lại</Text>
+              </Pressable>
+            </View>
+          }
+        >
+          <LedgerTabs options={RANGE_OPTIONS} value={range} onChange={setRange} />
 
-          <ChipRow options={RANGE_OPTIONS} value={range} onChange={setRange} />
-
-          <View style={[styles.verdict, { backgroundColor: toneColors.bg }]}>
+          <View style={[styles.verdict, { borderLeftColor: toneColors }]}>
             <View style={styles.verdictHead}>
               <AppIcon
                 name={TONE_ICON[analysis.tone]}
-                size={18}
-                color={toneColors.fg}
+                size={15}
+                color={toneColors}
               />
-              <Text style={[styles.verdictTitle, { color: toneColors.fg }]}>
+              <Text style={[styles.verdictTitle, { color: toneColors }]}>
                 {analysis.headline}
               </Text>
             </View>
@@ -194,6 +210,7 @@ export default function AnalysisScreen() {
                   ? "--"
                   : `${formatNumber(analysis.average, 0)}%`
               }
+              divider
             />
           </View>
 
@@ -209,6 +226,7 @@ export default function AnalysisScreen() {
               value={
                 analysis.max === null ? "--" : `${formatNumber(analysis.max, 0)}%`
               }
+              divider
             />
           </View>
 
@@ -221,35 +239,25 @@ export default function AnalysisScreen() {
               </View>
             ))}
           </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              {historyLoading && analysis.sampleCount === 0
-                ? "Đang tải lịch sử..."
-                : error
-                  ? error
-                  : analysis.lastSampleAt
-                    ? `${analysis.sampleCount} mẫu · ${formatShortTime(
-                        analysis.lastSampleAt,
-                        range === "7d",
-                      )}`
-                    : "Chưa có mẫu nào trong khoảng này."}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
-              <Text style={styles.reload}>Tải lại</Text>
-            </Pressable>
-          </View>
-        </Card>
+        </Panel>
       ) : null}
     </Screen>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  divider = false,
+}: {
+  label: string;
+  value: string;
+  divider?: boolean;
+}) {
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.stat}>
+    <View style={[styles.stat, divider && styles.statDivider]}>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statValue}>{value}</Text>
     </View>
@@ -283,18 +291,18 @@ const createStyles = (colors: Palette) =>
       color: colors.green,
     },
     verdict: {
-      padding: 14,
-      borderRadius: 14,
-      gap: 6,
-      marginTop: 10,
+      gap: 4,
+      paddingVertical: 2,
+      paddingLeft: 10,
+      borderLeftWidth: 2,
     },
     verdictHead: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 7,
     },
     verdictTitle: {
-      ...typo.section,
+      ...typo.bodyStrong,
     },
     summary: {
       ...typo.small,
@@ -302,8 +310,7 @@ const createStyles = (colors: Palette) =>
       lineHeight: 18,
     },
     bandBlock: {
-      gap: 8,
-      paddingTop: 2,
+      gap: 7,
     },
     bandHead: {
       flexDirection: "row",
@@ -320,8 +327,8 @@ const createStyles = (colors: Palette) =>
       color: colors.ink,
     },
     band: {
-      height: 10,
-      borderRadius: 999,
+      height: 8,
+      borderRadius: 2,
       backgroundColor: colors.lineSoft,
       overflow: "hidden",
     },
@@ -340,7 +347,6 @@ const createStyles = (colors: Palette) =>
       bottom: -2,
       width: 3,
       marginLeft: -1,
-      borderRadius: 999,
       backgroundColor: colors.ink,
     },
     bandLegend: {
@@ -353,14 +359,18 @@ const createStyles = (colors: Palette) =>
     },
     statRow: {
       flexDirection: "row",
-      gap: 8,
     },
     stat: {
       flex: 1,
-      padding: 11,
-      borderRadius: 12,
-      backgroundColor: colors.surfaceSunken,
-      gap: 2,
+      gap: 1,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.lineSoft,
+    },
+    statDivider: {
+      paddingLeft: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.lineSoft,
     },
     statLabel: {
       ...typo.caption,
@@ -368,6 +378,7 @@ const createStyles = (colors: Palette) =>
     },
     statValue: {
       ...typo.bodyStrong,
+      fontVariant: ["tabular-nums"],
       color: colors.ink,
     },
     advice: {
@@ -375,10 +386,8 @@ const createStyles = (colors: Palette) =>
       paddingTop: 2,
     },
     adviceTitle: {
-      ...typo.caption,
-      color: colors.muted,
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
+      ...typo.micro,
+      color: colors.faint,
     },
     adviceRow: {
       flexDirection: "row",
@@ -396,9 +405,6 @@ const createStyles = (colors: Palette) =>
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
-      paddingTop: 10,
-      borderTopWidth: 1,
-      borderTopColor: colors.lineSoft,
     },
     footerText: {
       ...typo.caption,

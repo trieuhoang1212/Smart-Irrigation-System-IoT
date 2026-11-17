@@ -189,7 +189,6 @@ const createStyles = (colors: Palette) =>
       justifyContent: "center",
       gap: 3,
       borderRadius: 999,
-      overflow: "hidden",
     },
     itemPill: {
       position: "absolute",
@@ -202,9 +201,11 @@ const createStyles = (colors: Palette) =>
     },
     label: {
       fontFamily: font.semibold,
-      fontSize: 10,
-      lineHeight: 13,
+      fontSize: 9.5,
+      lineHeight: 12,
       letterSpacing: -0.1,
+      paddingHorizontal: 1,
+      textAlign: "center",
       color: colors.muted,
     },
     labelActive: {

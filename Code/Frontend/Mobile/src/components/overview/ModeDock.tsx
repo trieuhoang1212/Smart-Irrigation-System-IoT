@@ -8,7 +8,7 @@ import Animated, {
 
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, spacing, typo, type Palette } from "../../theme";
+import { spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
@@ -180,7 +180,7 @@ const createStyles = (colors: Palette) =>
       position: "relative",
       overflow: "hidden",
       padding: 16,
-      borderRadius: 26,
+      borderRadius: 14,
       backgroundColor: colors.deep,
       gap: spacing.sm,
     },
@@ -226,9 +226,9 @@ const createStyles = (colors: Palette) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 5,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: radius.pill,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 4,
       backgroundColor: "rgba(255,255,255,0.1)",
     },
     pumpPillOn: {

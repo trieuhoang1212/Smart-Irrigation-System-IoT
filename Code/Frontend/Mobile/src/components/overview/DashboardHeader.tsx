@@ -1,38 +1,18 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, spacing, typo, type Palette } from "../../theme";
+import { spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatClock } from "../../utils/format";
+import { HeaderActions } from "../layout/HeaderActions";
 import { AppIcon } from "../ui/AppIcon";
 import { PressableScale } from "../ui/PressableScale";
 
-export function DashboardHeader({
-  onOpenSearch,
-  onOpenSettings,
-}: {
-  onOpenSearch: () => void;
-  onOpenSettings: () => void;
-}) {
+export function DashboardHeader({ onOpenSearch }: { onOpenSearch: () => void }) {
   const styles = useThemedStyles(createStyles);
-  const { colors, isDark, toggle } = useTheme();
+  const { colors } = useTheme();
   const { deviceOnline, lastTelemetryAt } = useGarden();
-  const spin = useSharedValue(0);
-
-  const themeIconStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value}deg` }],
-  }));
-
-  const rotate = () => {
-    spin.set(withTiming(spin.get() + 180, { duration: 420 }));
-    toggle();
-  };
 
   return (
     <View style={styles.header}>
@@ -65,47 +45,7 @@ export function DashboardHeader({
           </View>
         </View>
 
-        <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Mở Cài đặt"
-            onPress={onOpenSettings}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <AppIcon
-              name="settings"
-              variant="outline"
-              size={17}
-              color={colors.inkSoft}
-            />
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              isDark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"
-            }
-            onPress={rotate}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Animated.View style={themeIconStyle}>
-              <AppIcon
-                name={isDark ? "sun" : "moon"}
-                variant="outline"
-                size={18}
-                color={colors.inkSoft}
-              />
-            </Animated.View>
-          </Pressable>
-        </View>
+        <HeaderActions />
       </View>
 
       <PressableScale
@@ -113,7 +53,7 @@ export function DashboardHeader({
         accessibilityLabel="Tìm kiếm khu vườn và trang"
         innerStyle={styles.search}
       >
-        <AppIcon name="search" variant="outline" size={17} color={colors.faint} />
+        <AppIcon name="search" variant="outline" size={16} color={colors.faint} />
 
         <Text style={styles.searchText} numberOfLines={1}>
           Tìm khu vườn, thông số...
@@ -149,17 +89,12 @@ const createStyles = (colors: Palette) =>
       gap: spacing.sm,
     },
     logo: {
-      width: 30,
-      height: 30,
-      borderRadius: 11,
+      width: 28,
+      height: 28,
+      borderRadius: 8,
       backgroundColor: colors.green,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.22,
-      shadowRadius: 8,
-      elevation: 4,
     },
     title: {
       ...typo.title,
@@ -180,31 +115,13 @@ const createStyles = (colors: Palette) =>
       ...typo.caption,
       color: colors.muted,
     },
-    actions: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    iconButton: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    pressed: {
-      opacity: 0.7,
-    },
     search: {
-      height: 44,
+      height: 42,
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      borderRadius: radius.pill,
+      paddingHorizontal: 12,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.line,
       backgroundColor: colors.surface,
@@ -212,16 +129,13 @@ const createStyles = (colors: Palette) =>
     searchText: {
       flex: 1,
       ...typo.small,
-      color: colors.faint,
+      color: colors.muted,
     },
     searchHint: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: radius.pill,
-      backgroundColor: colors.surfaceSunken,
+      paddingHorizontal: 2,
     },
     searchHintText: {
-      ...typo.caption,
-      color: colors.muted,
+      ...typo.micro,
+      color: colors.faint,
     },
   });

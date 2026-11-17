@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, typo, type Palette } from "../../theme";
+import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { clamp } from "../../utils/format";
 import { AppIcon } from "../ui/AppIcon";
@@ -44,9 +44,9 @@ export function EnvRow() {
 
   return (
     <View style={styles.row}>
-      <View style={styles.tile}>
+      <View style={styles.cell}>
         <View style={styles.head}>
-          <AppIcon name="water" size={14} color={tankTone} />
+          <AppIcon name="water" size={13} color={tankTone} />
           <Text style={styles.label}>Bồn nước</Text>
         </View>
 
@@ -66,14 +66,17 @@ export function EnvRow() {
           />
         </View>
 
-        <Text style={[styles.caption, percent !== null && { color: tankTone }]} numberOfLines={1}>
+        <Text
+          style={[styles.caption, percent !== null && { color: tankTone }]}
+          numberOfLines={1}
+        >
           {tankStatus}
         </Text>
       </View>
 
-      <View style={styles.tile}>
+      <View style={[styles.cell, styles.cellDivider]}>
         <View style={styles.head}>
-          <AppIcon name="rain" size={14} color={colors.blue} />
+          <AppIcon name="rain" size={13} color={colors.blue} />
           <Text style={styles.label}>Chặn mưa</Text>
 
           <View style={styles.headSpacer} />
@@ -102,17 +105,20 @@ const createStyles = (colors: Palette) =>
   StyleSheet.create({
     row: {
       flexDirection: "row",
-      gap: 8,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.lineSoft,
     },
-    tile: {
+    cell: {
       flex: 1,
-      minHeight: 92,
-      padding: 11,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.surface,
-      justifyContent: "space-between",
+      gap: 3,
+      paddingRight: 10,
+    },
+    cellDivider: {
+      paddingRight: 0,
+      paddingLeft: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.lineSoft,
     },
     head: {
       flexDirection: "row",
@@ -123,29 +129,37 @@ const createStyles = (colors: Palette) =>
       flex: 1,
     },
     label: {
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.muted,
     },
     value: {
-      ...typo.section,
+      fontFamily: font.semibold,
+      fontSize: 15,
+      lineHeight: 20,
+      letterSpacing: -0.2,
       color: colors.ink,
     },
     valueEmpty: {
-      ...typo.small,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 20,
+      letterSpacing: 0,
       color: colors.faint,
     },
     bar: {
-      height: 4,
-      borderRadius: 999,
+      height: 2,
       backgroundColor: colors.lineSoft,
       overflow: "hidden",
     },
     barFill: {
       height: "100%",
-      borderRadius: 999,
     },
     caption: {
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 10.5,
+      lineHeight: 14,
       color: colors.faint,
     },
   });

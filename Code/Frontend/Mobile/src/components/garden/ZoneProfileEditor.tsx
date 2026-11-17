@@ -37,8 +37,8 @@ import {
 } from "../../utils/crops";
 import { AppIcon } from "../ui/AppIcon";
 import { Button } from "../ui/Button";
+import { Panel } from "../ui/Panel";
 import { Sheet } from "../ui/Sheet";
-import { GardenSectionHeader } from "./GardenSectionHeader";
 
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -288,7 +288,7 @@ export function ZoneProfileEditor({
 
   return (
     <View style={styles.section}>
-      <GardenSectionHeader index="02" title="Hồ sơ cây trồng" hint={zone.id} />
+      <Panel index="02" title="Hồ sơ cây trồng" hint={zone.id}>
 
       <View style={styles.plateWrap}>
         <Pressable
@@ -507,6 +507,7 @@ export function ZoneProfileEditor({
           style={styles.save}
         />
       </View>
+      </Panel>
 
       <Sheet
         visible={groupOpen}

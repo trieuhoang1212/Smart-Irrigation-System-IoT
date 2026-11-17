@@ -28,7 +28,7 @@ import {
 } from "../../hooks/useHistory";
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, spacing, typo, type Palette } from "../../theme";
+import { font, radius, spacing, typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
@@ -461,17 +461,16 @@ const createStyles = (colors: Palette) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      padding: 14,
-      borderRadius: radius.lg,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: colors.line,
       backgroundColor: colors.surface,
     },
     teaserIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 12,
-      backgroundColor: colors.greenSoft,
+      width: 18,
+      height: 18,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -480,7 +479,9 @@ const createStyles = (colors: Palette) =>
       gap: 1,
     },
     teaserTitle: {
-      ...typo.section,
+      fontFamily: font.semibold,
+      fontSize: 13,
+      lineHeight: 18,
       color: colors.ink,
     },
     teaserSub: {
@@ -488,7 +489,7 @@ const createStyles = (colors: Palette) =>
       color: colors.faint,
     },
     teaserLink: {
-      ...typo.caption,
+      ...typo.micro,
       color: colors.greenStrong,
     },
     subtitle: {

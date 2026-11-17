@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, typo, type Palette } from "../../theme";
+import { font, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
 import { AppIcon, type AppIconName } from "../ui/AppIcon";
@@ -41,6 +41,7 @@ export function MetricStrip() {
         icon="humidity"
         accent={colors.blue}
         value={humidity}
+        divider
       />
 
       <MetricTile
@@ -48,7 +49,14 @@ export function MetricStrip() {
         icon="rain"
         accent={colors.blue}
         value={rain}
-        hint={deviceOnline && telemetry ? (telemetry.raining ? "Đang mưa" : "Khô ráo") : undefined}
+        hint={
+          deviceOnline && telemetry
+            ? telemetry.raining
+              ? "Đang mưa"
+              : "Khô ráo"
+            : undefined
+        }
+        divider
       />
     </View>
   );
@@ -60,19 +68,21 @@ function MetricTile({
   accent,
   value,
   hint,
+  divider = false,
 }: {
   label: string;
   icon: AppIconName;
   accent: string;
   value: string | null;
   hint?: string;
+  divider?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.tile}>
+    <View style={[styles.tile, divider && styles.tileDivider]}>
       <View style={styles.head}>
-        <AppIcon name={icon} size={14} color={accent} />
+        <AppIcon name={icon} size={13} color={accent} />
         <Text style={styles.label} numberOfLines={1}>
           {label}
         </Text>
@@ -98,17 +108,18 @@ const createStyles = (colors: Palette) =>
   StyleSheet.create({
     row: {
       flexDirection: "row",
-      gap: 8,
     },
     tile: {
       flex: 1,
-      minHeight: 82,
-      padding: 11,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.surface,
-      justifyContent: "space-between",
+      minHeight: 78,
+      paddingTop: 11,
+      paddingRight: 10,
+      gap: 3,
+    },
+    tileDivider: {
+      paddingLeft: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.lineSoft,
     },
     head: {
       flexDirection: "row",
@@ -117,20 +128,30 @@ const createStyles = (colors: Palette) =>
     },
     label: {
       flex: 1,
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 16,
       color: colors.muted,
     },
     value: {
-      ...typo.metric,
+      fontFamily: font.display,
+      fontSize: 26,
+      lineHeight: 30,
+      letterSpacing: -0.4,
+      fontVariant: ["tabular-nums"],
       color: colors.ink,
     },
     valueEmpty: {
-      ...typo.small,
+      fontFamily: font.regular,
+      fontSize: 11.5,
+      lineHeight: 15,
+      letterSpacing: 0,
       color: colors.faint,
-      lineHeight: 14,
     },
     hint: {
-      ...typo.caption,
+      fontFamily: font.regular,
+      fontSize: 10.5,
+      lineHeight: 14,
       color: colors.faint,
     },
   });

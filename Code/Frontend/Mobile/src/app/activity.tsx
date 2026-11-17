@@ -9,10 +9,9 @@ import {
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
-import { Card } from "@/components/ui/Card";
-import { ChipRow } from "@/components/ui/ChipRow";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { LedgerTabs } from "@/components/ui/LedgerTabs";
+import { Panel } from "@/components/ui/Panel";
 import {
   useActivity,
   type ActivityEvent,
@@ -123,6 +122,8 @@ export default function ActivityScreen() {
   const zoneName = (zoneId: string | null) =>
     zoneId ? (zones.find((zone) => zone.id === zoneId)?.name ?? zoneId) : null;
 
+  const shown = Math.min(visibleCount, filtered.length);
+
   return (
     <Screen>
       <PageHeader
@@ -130,13 +131,24 @@ export default function ActivityScreen() {
         subtitle="Lệnh điều khiển và thay đổi ngưỡng gần đây."
       />
 
-      <Card>
-        <SectionHeader
-          title="Hoạt động"
-          hint={`${filtered.length} SỰ KIỆN · TỰ LÀM MỚI 15 GIÂY`}
-        />
-
-        <ChipRow
+      <Panel
+        index="01"
+        title="Hoạt động"
+        hint={`${filtered.length} sự kiện`}
+        footer={
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {error && events.length > 0
+                ? error
+                : `Hiển thị ${shown}/${filtered.length} · Lệnh và thay đổi ngưỡng do Backend ghi lại.`}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+              <Text style={styles.reload}>Tải lại</Text>
+            </Pressable>
+          </View>
+        }
+      >
+        <LedgerTabs
           options={KIND_OPTIONS}
           value={kind}
           onChange={(next) => {
@@ -171,6 +183,7 @@ export default function ActivityScreen() {
               <View key={group.key} style={styles.group}>
                 <View style={styles.dayHead}>
                   <Text style={styles.dayLabel}>{group.label}</Text>
+                  <View style={styles.dayRule} />
                   <Text style={styles.dayCount}>
                     {group.events.length} sự kiện
                   </Text>
@@ -196,7 +209,7 @@ export default function ActivityScreen() {
                       <View style={[styles.iconBox, { backgroundColor: tone.bg }]}>
                         <AppIcon
                           name={KIND_ICON[event.kind]}
-                          size={14}
+                          size={13}
                           color={tone.fg}
                         />
                       </View>
@@ -247,18 +260,7 @@ export default function ActivityScreen() {
             ) : null}
           </View>
         )}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {error && events.length > 0
-              ? error
-              : "Lệnh do người dùng gửi và các lần đổi ngưỡng được Backend ghi lại."}
-          </Text>
-          <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
-            <Text style={styles.reload}>Tải lại</Text>
-          </Pressable>
-        </View>
-      </Card>
+      </Panel>
     </Screen>
   );
 }
@@ -285,22 +287,26 @@ const createStyles = (colors: Palette) =>
       color: colors.green,
     },
     list: {
-      gap: 4,
+      gap: 6,
     },
     group: {
       gap: 1,
     },
     dayHead: {
       flexDirection: "row",
-      alignItems: "baseline",
-      justifyContent: "space-between",
+      alignItems: "center",
       gap: 8,
-      paddingTop: 8,
-      paddingBottom: 4,
+      paddingTop: 6,
+      paddingBottom: 2,
     },
     dayLabel: {
       ...typo.micro,
       color: colors.greenStrong,
+    },
+    dayRule: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.lineSoft,
     },
     dayCount: {
       ...typo.caption,
@@ -315,8 +321,8 @@ const createStyles = (colors: Palette) =>
       borderBottomColor: colors.lineSoft,
     },
     iconBox: {
-      width: 28,
-      height: 28,
+      width: 26,
+      height: 26,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
@@ -337,11 +343,12 @@ const createStyles = (colors: Palette) =>
       minHeight: 40,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
-      backgroundColor: colors.surfaceSunken,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.lineSoft,
     },
     morePressed: {
-      opacity: 0.8,
+      opacity: 0.7,
     },
     moreText: {
       ...typo.smallStrong,
@@ -352,7 +359,6 @@ const createStyles = (colors: Palette) =>
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
-      paddingTop: 10,
     },
     footerText: {
       ...typo.caption,
