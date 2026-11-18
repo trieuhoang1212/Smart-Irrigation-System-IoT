@@ -312,6 +312,5 @@ pio run -e board     # board thật: tắt mô phỏng, đọc cảm biến tr�
 ## 📚 Tài liệu kỹ thuật
 
 - [Backend README](Code/Backend/README.md)
-- [Kịch bản demo 15 phút](docs/KICH_BAN_DEMO_15_PHUT.md)
 - [PlatformIO configuration](Wokwi/Smart-Irrigation/platformio.ini)
 - [Wokwi circuit diagram](Wokwi/Smart-Irrigation/diagram.json)
