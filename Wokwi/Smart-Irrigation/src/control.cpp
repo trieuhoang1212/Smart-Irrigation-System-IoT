@@ -65,7 +65,6 @@ void startPump(int zone) {
   pumpRunning[zone] = true;
   zoneStartedAt[zone] = millis();
   zoneStartMoisture[zone] = moisturePercent[zone];
-  soilOnPumpStarted(zone);
 
   digitalWrite(RELAY_PINS[zone], LOW);  // Active LOW
   digitalWrite(LED_PIN, HIGH);

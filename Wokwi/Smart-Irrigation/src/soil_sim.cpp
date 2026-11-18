@@ -9,9 +9,6 @@ static bool soilManualChase[ZONE_COUNT] = {false, false, false, false, false, fa
 static bool soilStateRestored[ZONE_COUNT] = {false, false, false, false, false, false};
 static int lastPotValue[ZONE_COUNT] = {-1, -1, -1, -1, -1, -1};
 static float soilPotDrift[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
-// Wokwi xoá NVS mỗi lần chạy lại: vài giây đầu mới có ngưỡng thật từ Backend.
-// Trong cửa sổ này, độ ẩm khởi tạo được đặt lại theo ngưỡng vừa đồng bộ.
-static bool soilSeedPending[ZONE_COUNT] = {true, true, true, true, true, true};
 static unsigned long lastSoilPersistAt = 0;
 static float lastPersistedSoil[ZONE_COUNT] = {0, 0, 0, 0, 0, 0};
 
@@ -47,16 +44,7 @@ void soilSetup() {
     moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
     lastPersistedSoil[zone] = soilMoisture[zone];
     soilStateRestored[zone] = true;
-    soilSeedPending[zone] = false;
   }
-#endif
-}
-
-void soilOnPumpStarted(int zone) {
-#if SIMULATE_SOIL_DYNAMICS
-  if (zone >= 0 && zone < ZONE_COUNT) soilSeedPending[zone] = false;
-#else
-  (void)zone;
 #endif
 }
 
@@ -69,23 +57,6 @@ void soilOnPumpStopped(int zone, bool wasRunning) {
 #endif
 }
 
-void soilOnThresholdSynced(int zone) {
-#if SIMULATE_SOIL_DYNAMICS
-  if (zone < 0 || zone >= ZONE_COUNT) return;
-  // Ngay sau khi khởi động, ngưỡng thật về muộn hơn điểm khởi tạo mặc định:
-  // đặt lại độ ẩm giữa cặp ngưỡng thật để số liệu sau reset ổn định.
-  if (soilSeedPending[zone] && !pumpRunning[zone] && millis() < SOIL_SEED_WINDOW_MS) {
-    soilMoisture[zone] = (moistureOn[zone] + moistureOff[zone]) / 2.0f;
-    soilManualTarget[zone] = soilMoisture[zone];
-    soilPotDrift[zone] = 0.0f;
-    moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
-  }
-  soilSeedPending[zone] = false;
-#else
-  (void)zone;
-#endif
-}
-
 void soilOnSetSoil(int zone, int value) {
 #if SIMULATE_SOIL_DYNAMICS
   if (zone < 0 || zone >= ZONE_COUNT) return;
@@ -94,7 +65,6 @@ void soilOnSetSoil(int zone, int value) {
   soilManualChase[zone] = false;
   soilPotDrift[zone] = 0.0f;
   soilStateRestored[zone] = true;
-  soilSeedPending[zone] = false;
   moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
   persistSoilState(zone);
 #else
@@ -109,16 +79,15 @@ void soilUpdate(unsigned long elapsedMs) {
   const float dtMin = elapsedMs / 60000.0f;
   const float dtSec = elapsedMs / 1000.0f;
   const float dryFactor = soilDryingFactor();
-  const bool seedWindowOpen = millis() < SOIL_SEED_WINDOW_MS;
 
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
-    if (!seedWindowOpen) soilSeedPending[zone] = false;
     const int pot = readZoneMoisture(zone);
     if (lastPotValue[zone] < 0) {
-      // Không ghi đè giá trị đã khôi phục sau reset; chỉ seed vùng chưa có dữ liệu.
+      // Không ghi đè giá trị đã khôi phục sau reset; vùng chưa có dữ liệu thì lấy
+      // chiết áp làm gốc để Wokwi luôn tự có số liệu, kể cả khi Backend tắt.
       if (!soilStateRestored[zone]) {
-        soilMoisture[zone] = (moistureOn[zone] + moistureOff[zone]) / 2.0f;
-        soilManualTarget[zone] = soilMoisture[zone];
+        soilMoisture[zone] = pot;
+        soilManualTarget[zone] = pot;
       }
     } else {
       // Cộng dồn thay đổi thay vì so từng mẫu: kéo chậm 1%/2 giây vẫn phải bám kịp.
@@ -127,8 +96,7 @@ void soilUpdate(unsigned long elapsedMs) {
         soilManualTarget[zone] = pot;
         soilManualChase[zone] = true;
         soilPotDrift[zone] = 0.0f;
-        // Người dùng đã tự vặn chiết áp: giữ đúng số đó, không re-seed theo ngưỡng.
-        soilSeedPending[zone] = false;
+        // Người dùng đã tự vặn chiết áp: giữ đúng số đó làm gốc.
         soilStateRestored[zone] = false;
       }
     }

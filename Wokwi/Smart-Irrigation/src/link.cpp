@@ -126,7 +126,6 @@ static bool handleCommand(const String& message) {
     moistureOff[zone] = constrain(value + STOP_OFFSET, value + 5, 100);
     prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[zone]);
     prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
-    soilOnThresholdSynced(zone);
     Serial.print(zoneId);
     Serial.print(" threshold ");
     Serial.print(value);
