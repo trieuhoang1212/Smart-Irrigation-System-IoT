@@ -43,12 +43,14 @@ void setSimulatedOffline(bool offline) {
   }
 }
 
-static void handleCommand(const String& message) {
+// Trả về true khi lệnh đã được xử lý và tự in log riêng; false để callback in cảnh báo.
+static bool handleCommand(const String& message) {
   if (message == "MODE_AUTO") {
     isAutoMode = true;
     saveMode();
     manualStartedAt = 0;
-    Serial.println("Mode: AUTO");
+    Serial.println("mode: auto");
+    return true;
   } else if (message == "MODE_MANUAL") {
     isAutoMode = false;
     saveMode();
@@ -56,110 +58,141 @@ static void handleCommand(const String& message) {
     stopAllZones("mode manual");
     manualStartedAt = 0;
     for (int i = 0; i < ZONE_COUNT; i++) zoneOverTarget[i] = false;
-    Serial.println("Mode: MANUAL (pumps stopped)");
+    Serial.println("mode: manual");
     updateLcds();
+    return true;
   } else if (message == "PUMP_ON") {
-    if (!isAutoMode) {
-      manualStartedAt = millis();
-      startAllZones();
+    if (isAutoMode) {
+      Serial.println("pump: ignored (auto)");
+      return true;
     }
+    manualStartedAt = millis();
+    startAllZones();
+    Serial.println(anyPumpRunning() ? "pump: on" : "pump: blocked");
+    return true;
   } else if (message == "PUMP_OFF") {
-    if (!isAutoMode) stopAllZones("pump off");
+    if (isAutoMode) {
+      Serial.println("pump: ignored (auto)");
+      return true;
+    }
+    stopAllZones("pump off");
+    if (!anyPumpRunning()) Serial.println("pump: off");
+    return true;
   } else if (message.startsWith("SET_TARGET_")) {
     char zoneId[5] = {0};
     int seconds = 0;
-    if (sscanf(message.c_str(), "SET_TARGET_%4[^_]_%d", zoneId, &seconds) == 2) {
-      seconds = constrain(seconds, 0, static_cast<int>(MAX_ZONE_RUNTIME_MS / 1000UL));
-      const int zone = findZoneIndex(zoneId);
-      if (zone >= 0) {
-        zoneTargetSeconds[zone] = seconds;
-        prefs.putInt((String("tgt_") + zoneId).c_str(), seconds);
-        Serial.print("Set target ");
-        Serial.print(zoneId);
-        Serial.print(" -> ");
-        Serial.print(seconds);
-        Serial.println("s");
-      }
-    }
+    if (sscanf(message.c_str(), "SET_TARGET_%4[^_]_%d", zoneId, &seconds) != 2) return false;
+    seconds = constrain(seconds, 0, static_cast<int>(MAX_ZONE_RUNTIME_MS / 1000UL));
+    const int zone = findZoneIndex(zoneId);
+    if (zone < 0) return false;
+    zoneTargetSeconds[zone] = seconds;
+    prefs.putInt((String("tgt_") + zoneId).c_str(), seconds);
+    Serial.print(zoneId);
+    Serial.print(" target ");
+    Serial.print(seconds);
+    Serial.println("s");
+    return true;
   } else if (message.startsWith("SET_FLOW_")) {
     char zoneId[5] = {0};
     int value = 0;
-    if (sscanf(message.c_str(), "SET_FLOW_%4[^_]_%d", zoneId, &value) == 2) {
-      value = constrain(value, 1, 200);
-      const int zone = findZoneIndex(zoneId);
-      if (zone >= 0) {
-        zoneFlowLph[zone] = value;
-        prefs.putInt((String("flow_") + zoneId).c_str(), value);
-        Serial.print("Set flow ");
-        Serial.print(zoneId);
-        Serial.print(" -> ");
-        Serial.print(value);
-        Serial.println(" L/h");
-      }
-    }
+    if (sscanf(message.c_str(), "SET_FLOW_%4[^_]_%d", zoneId, &value) != 2) return false;
+    value = constrain(value, 1, 200);
+    const int zone = findZoneIndex(zoneId);
+    if (zone < 0) return false;
+    zoneFlowLph[zone] = value;
+    prefs.putInt((String("flow_") + zoneId).c_str(), value);
+    Serial.print(zoneId);
+    Serial.print(" flow ");
+    Serial.print(value);
+    Serial.println("L/h");
+    return true;
   } else if (message.startsWith("SET_RAIN_THRESHOLD_")) {
     int value = 0;
-    if (sscanf(message.c_str(), "SET_RAIN_THRESHOLD_%d", &value) == 1) {
-      rainThreshold = constrain(value, RAIN_THRESHOLD_MIN, RAIN_THRESHOLD_MAX);
-      rainWarnThreshold = max(0, rainThreshold - RAIN_WARN_OFFSET);
-      prefs.putInt("rain", rainThreshold);
-      Serial.print("Set rain threshold -> ");
-      Serial.println(rainThreshold);
-    }
+    if (sscanf(message.c_str(), "SET_RAIN_THRESHOLD_%d", &value) != 1) return false;
+    rainThreshold = constrain(value, RAIN_THRESHOLD_MIN, RAIN_THRESHOLD_MAX);
+    rainWarnThreshold = max(0, rainThreshold - RAIN_WARN_OFFSET);
+    prefs.putInt("rain", rainThreshold);
+    Serial.print("rain threshold ");
+    Serial.println(rainThreshold);
+    return true;
   } else if (message.startsWith("SET_THRESHOLD_")) {
     char zoneId[5] = {0};
     int value = 0;
-    if (sscanf(message.c_str(), "SET_THRESHOLD_%4[^_]_%d", zoneId, &value) == 2) {
-      value = constrain(value, 10, 90);
-      const int zone = findZoneIndex(zoneId);
-      if (zone >= 0) {
-        moistureOn[zone] = value;
-        moistureOff[zone] = constrain(value + STOP_OFFSET, value + 5, 100);
-        prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[zone]);
-        prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
-        soilOnThresholdSynced(zone);
-        Serial.print("Set threshold ");
-        Serial.print(zoneId);
-        Serial.print(" -> ");
-        Serial.println(value);
-      }
-    }
+    if (sscanf(message.c_str(), "SET_THRESHOLD_%4[^_]_%d", zoneId, &value) != 2) return false;
+    value = constrain(value, 10, 90);
+    const int zone = findZoneIndex(zoneId);
+    if (zone < 0) return false;
+    moistureOn[zone] = value;
+    moistureOff[zone] = constrain(value + STOP_OFFSET, value + 5, 100);
+    prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[zone]);
+    prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
+    soilOnThresholdSynced(zone);
+    Serial.print(zoneId);
+    Serial.print(" threshold ");
+    Serial.print(value);
+    Serial.print("/");
+    Serial.println(moistureOff[zone]);
+    return true;
   } else if (message.startsWith("SET_SOIL_")) {
     char zoneId[5] = {0};
     int value = 0;
-    if (sscanf(message.c_str(), "SET_SOIL_%4[^_]_%d", zoneId, &value) == 2) {
-      const int zone = findZoneIndex(zoneId);
-      if (zone >= 0) {
-        soilOnSetSoil(zone, value);
-        Serial.print("Set simulated moisture ");
-        Serial.print(zoneId);
-        Serial.print(" -> ");
-        Serial.print(constrain(value, 0, 100));
-        Serial.println("%");
-      }
+    if (sscanf(message.c_str(), "SET_SOIL_%4[^_]_%d", zoneId, &value) != 2) return false;
+    const int zone = findZoneIndex(zoneId);
+    if (zone < 0) return false;
+    const int before = moisturePercent[zone];
+    soilOnSetSoil(zone, value);
+    // Chỉ Backend gửi SET_SOIL, và chỉ khi phát hiện thiết bị vừa khởi động lại.
+    Serial.print(zoneId);
+    Serial.print(" soil ");
+    Serial.print(before);
+    if (moisturePercent[zone] == before) {
+      Serial.println(" (unchanged)");
+    } else {
+      Serial.print("->");
+      Serial.print(moisturePercent[zone]);
+      Serial.println(" (restore)");
     }
+    return true;
   } else if (message.startsWith("PUMP_ON_")) {
     // Điều khiển từng zone cụ thể: PUMP_ON_T001, PUMP_ON_T002,...
     // Chỉ nhận khi đang Thủ công; ở Tự động firmware tự quyết định.
-    if (!isAutoMode) {
-      manualStartedAt = millis();
-      const String targetId = message.substring(8);
-      const int zone = findZoneIndex(targetId.c_str());
-      if (zone >= 0) startPump(zone);
+    if (isAutoMode) {
+      Serial.println("pump: ignored (auto)");
+      return true;
     }
+    manualStartedAt = millis();
+    const String targetId = message.substring(8);
+    const int zone = findZoneIndex(targetId.c_str());
+    if (zone < 0) return false;
+    startPump(zone);
+    if (pumpRunning[zone]) {
+      Serial.print("pump ");
+      Serial.print(targetId);
+      Serial.println(": on");
+    }
+    return true;
   } else if (message.startsWith("PUMP_OFF_")) {
-    if (!isAutoMode) {
-      const String targetId = message.substring(9);
-      const int zone = findZoneIndex(targetId.c_str());
-      if (zone >= 0) stopPump(zone, "pump off");
+    if (isAutoMode) {
+      Serial.println("pump: ignored (auto)");
+      return true;
     }
+    const String targetId = message.substring(9);
+    const int zone = findZoneIndex(targetId.c_str());
+    if (zone < 0) return false;
+    stopPump(zone, "pump off");
+    return true;
   } else if (message == "WEATHER_GATE_ON") {
     weatherGateEnabled = true;
     prefs.putBool("gate", true);
+    Serial.println("gate: on");
+    return true;
   } else if (message == "WEATHER_GATE_OFF") {
     weatherGateEnabled = false;
     prefs.putBool("gate", false);
+    Serial.println("gate: off");
+    return true;
   }
+  return false;
 }
 
 static void callback(char* topic, byte* payload, unsigned int length) {
@@ -167,12 +200,12 @@ static void callback(char* topic, byte* payload, unsigned int length) {
   for (unsigned int i = 0; i < length; i++) {
     message += static_cast<char>(payload[i]);
   }
-  Serial.print("MQTT [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  Serial.println(message);
 
-  if (String(topic) == TOPIC_CMD) handleCommand(message);
+  if (String(topic) != TOPIC_CMD) return;
+  if (!handleCommand(message)) {
+    Serial.print("unknown: ");
+    Serial.println(message);
+  }
 }
 
 void setupLink() {
@@ -190,38 +223,44 @@ void setupLink() {
   // Không chặn ở setup: WiFi/MQTT nối nền, hệ thống tưới cục bộ chạy ngay.
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
-  Serial.println("WiFi connecting...");
+  Serial.println("wifi: connecting");
 }
 
 void ensureNetwork() {
   if (simulateOffline) {
     if (netWasOnline) {
       netWasOnline = false;
-      Serial.println("NET: OFFLINE (simulated)");
+      Serial.println("link: offline (sim)");
       updateLcds();
     }
     return;
   }
 
   const unsigned long now = millis();
+  // Mã lỗi MQTT chỉ in khi đổi mã hoặc sau 60 giây, tránh lặp rc=-4 mỗi 5 giây.
+  static int lastMqttFailCode = 0;
+  static unsigned long lastMqttFailAt = 0;
 
   if (WiFi.status() != WL_CONNECTED) {
     if (elapsedSince(now, lastWifiAttempt, NET_RETRY_MS)) {
       lastWifiAttempt = now;
-      Serial.println("NET: WiFi reconnecting...");
+      Serial.println("wifi: reconnecting");
       WiFi.reconnect();
     }
-  } else if (!client.connected()) {
-    if (elapsedSince(now, lastMqttAttempt, MQTT_RETRY_MS)) {
-      lastMqttAttempt = now;
-      Serial.print("NET: MQTT connecting...");
-      const String clientId = String(DEVICE_ID) + "-" + String(random(0xffff), HEX);
-      if (client.connect(clientId.c_str())) {
-        Serial.println(" connected");
-        client.subscribe(TOPIC_CMD);
-      } else {
-        Serial.print(" failed, rc=");
-        Serial.println(client.state());
+  } else if (!client.connected() && elapsedSince(now, lastMqttAttempt, MQTT_RETRY_MS)) {
+    lastMqttAttempt = now;
+    const String clientId = String(DEVICE_ID) + "-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      client.subscribe(TOPIC_CMD);
+      lastMqttFailCode = 0;
+      Serial.println("mqtt: connected");
+    } else {
+      const int code = client.state();
+      if (code != lastMqttFailCode || elapsedSince(now, lastMqttFailAt, 60000UL)) {
+        lastMqttFailCode = code;
+        lastMqttFailAt = now;
+        Serial.print("mqtt: retry rc=");
+        Serial.println(code);
       }
     }
   }
@@ -229,7 +268,7 @@ void ensureNetwork() {
   const bool online = isNetOnline();
   if (online != netWasOnline) {
     netWasOnline = online;
-    Serial.println(online ? "NET: ONLINE" : "NET: OFFLINE");
+    Serial.println(online ? "link: online" : "link: offline");
     updateLcds();
   }
 }
@@ -280,13 +319,13 @@ void publishTelemetry() {
   if (!client.connected()) return;
 
   buildTelemetry(telemetryJson);
-  const bool published = client.publish(TOPIC_STATUS, telemetryJson.c_str(), true);
-  if (published) {
-    Serial.print("Published to MQTT: ");
-    Serial.println(telemetryJson);
-  } else {
-    Serial.print("MQTT publish FAILED (");
+  if (client.publish(TOPIC_STATUS, telemetryJson.c_str(), true)) return;
+
+  static unsigned long lastFailAt = 0;
+  if (elapsedSince(millis(), lastFailAt, 60000UL)) {
+    lastFailAt = millis();
+    Serial.print("publish failed, ");
     Serial.print(telemetryJson.length());
-    Serial.println(" bytes). Kiểm tra setBufferSize/độ dài payload.");
+    Serial.println(" bytes");
   }
 }

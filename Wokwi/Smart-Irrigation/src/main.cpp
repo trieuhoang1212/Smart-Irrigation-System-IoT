@@ -135,30 +135,42 @@ static void handleButtons() {
 }
 
 static void printStatusLine() {
-  Serial.print("Net=");
-  Serial.print(isNetOnline() ? "ON" : "OFF");
-  Serial.print(" Auto=");
-  Serial.print(isAutoMode ? "ON" : "OFF");
-  Serial.print(" Rain=");
-  Serial.print(isRaining ? "YES" : "NO");
-  Serial.print(" Tank=");
+  // Chỉ in khi trạng thái đổi hoặc mỗi 30 giây, tránh lấp kín console mỗi 2 giây.
+  // Khoảng cách bồn dao động vài cm nên chỉ dùng mức EMPTY làm mốc kích hoạt.
+  String core = isNetOnline() ? "net:on " : "net:off ";
+  core += isAutoMode ? "AUTO" : "MANUAL";
+  if (isRaining) core += " RAIN";
+  else if (rainWarning) core += " RAIN?";
+  if (tankEmpty) core += " EMPTY";
+
+  String body = "tank:";
   if (tankValid) {
-    Serial.print(tankDistanceCm, 0);
-    Serial.print("cm");
+    body += String(tankDistanceCm, 0);
+    body += "cm";
   } else {
-    Serial.print("?");
+    body += "?";
   }
-  Serial.print(tankEmpty ? "/EMPTY" : "/OK");
-  Serial.print(" Moisture: ");
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
-    Serial.print(zoneNames[zone]);
-    Serial.print("=");
-    Serial.print(moisturePercent[zone]);
-    Serial.print("%/");
-    Serial.print(pumpRunning[zone] ? "ON" : "OFF");
-    if (zone < ZONE_COUNT - 1) Serial.print(", ");
+    core += pumpRunning[zone] ? '1' : '0';
+    body += " ";
+    body += zoneNames[zone];
+    body += ":";
+    body += moisturePercent[zone];
+    if (pumpRunning[zone]) body += " ON";
   }
-  Serial.println();
+
+  static String lastCore = "";
+  static unsigned long lastPrintAt = 0;
+  const unsigned long now = millis();
+  if (core == lastCore && !elapsedSince(now, lastPrintAt, 30000UL)) return;
+  lastCore = core;
+  lastPrintAt = now;
+
+  Serial.print(now / 1000);
+  Serial.print("s ");
+  Serial.print(core.substring(0, core.length() - ZONE_COUNT));
+  Serial.print(" | ");
+  Serial.println(body);
 }
 
 void setup() {
