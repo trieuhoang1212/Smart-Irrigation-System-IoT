@@ -76,15 +76,10 @@ export function Panel({
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
     panel: {
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.line,
       backgroundColor: colors.surface,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
     },
     head: {
       flexDirection: "row",

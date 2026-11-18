@@ -180,7 +180,7 @@ const createStyles = (colors: Palette) =>
       minHeight: 62,
       padding: 8,
       gap: 2,
-      borderRadius: 10,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.lineSoft,
       backgroundColor: colors.surfaceSunken,

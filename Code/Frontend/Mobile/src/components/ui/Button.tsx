@@ -8,7 +8,7 @@ import {
 } from "react-native";
 
 import { useTheme } from "../../providers/ThemeProvider";
-import { radius, typo, type Palette } from "../../theme";
+import { typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
@@ -67,7 +67,7 @@ const createStyles = (colors: Palette) =>
     base: {
       minHeight: 44,
       paddingHorizontal: 18,
-      borderRadius: radius.pill,
+      borderRadius: 8,
       borderWidth: 1,
       alignItems: "center",
       justifyContent: "center",

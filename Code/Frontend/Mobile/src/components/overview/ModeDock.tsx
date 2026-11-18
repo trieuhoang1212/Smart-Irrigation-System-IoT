@@ -221,7 +221,7 @@ const createStyles = (colors: Palette) =>
       position: "relative",
       overflow: "hidden",
       padding: 16,
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.line,
       backgroundColor: colors.deep,

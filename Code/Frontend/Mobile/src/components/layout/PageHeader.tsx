@@ -109,7 +109,7 @@ const createStyles = (colors: Palette) =>
     iconButton: {
       width: 34,
       height: 34,
-      borderRadius: 10,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.line,
       backgroundColor: colors.surface,
