@@ -5,6 +5,7 @@ import { getGardenRainThreshold } from "./garden-settings-repository.js";
 import {
   loadAllLatestTelemetry,
   resolveCommand,
+  saveLatestTelemetry,
   saveTelemetry,
 } from "./telemetry-repository.js";
 import type { MqttGateway } from "./mqtt-gateway.js";
@@ -341,6 +342,18 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     const deviceId = telemetry.deviceId;
     const wasKnown = latestByDevice.has(deviceId);
     const previousTelemetry = latestByDevice.get(deviceId);
+
+    // Retained chỉ đến khi backend (re)subscribe. Nếu là snapshot của lần chạy cũ
+    // (uptime thấp hơn snapshot đã lưu) thì bỏ qua, để lần live kế tiếp vẫn phát
+    // hiện reboot và không ghi đè dữ liệu mới hơn bằng dữ liệu cũ.
+    const staleRetained =
+      meta.retained &&
+      previousTelemetry !== undefined &&
+      typeof telemetry.uptimeMs === "number" &&
+      typeof previousTelemetry.uptimeMs === "number" &&
+      telemetry.uptimeMs < previousTelemetry.uptimeMs;
+    if (staleRetained) return;
+
     if (!meta.retained) restoreSoilAfterReboot(previousTelemetry, telemetry, gateway);
     latestByDevice.set(deviceId, telemetry);
 
@@ -352,13 +365,17 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     // Retained chỉ là snapshot cũ nên không ghi vào history để khỏi lệch chart.
     const now = Date.now();
     const lastSavedAt = lastHistoryWriteByDevice.get(deviceId) ?? 0;
-    if (!meta.retained && now - lastSavedAt >= HISTORY_WRITE_INTERVAL_MS) {
-      try {
+    try {
+      if (!meta.retained && now - lastSavedAt >= HISTORY_WRITE_INTERVAL_MS) {
         saveTelemetry(telemetry);
         lastHistoryWriteByDevice.set(deviceId, now);
-      } catch (error) {
-        console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
+      } else {
+        // Snapshot hiển thị phải bám sát telemetry vừa nhận, kể cả retained
+        // đầu tiên sau khi backend khởi động lại; history vẫn giữ nhịp riêng.
+        saveLatestTelemetry(telemetry);
       }
+    } catch (error) {
+      console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
     }
 
     // Retained telemetry chỉ là snapshot cũ, không dùng để gửi lệnh:

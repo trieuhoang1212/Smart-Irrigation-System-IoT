@@ -235,6 +235,12 @@ export function saveTelemetry(telemetry: Telemetry): void {
   persistTelemetry(telemetry);
 }
 
+// Chỉ cập nhật snapshot mới nhất, không ghi mẫu lịch sử.
+// Giữ latest_telemetry bám sát telemetry live thay vì trễ tới 10 giây.
+export function saveLatestTelemetry(telemetry: Telemetry): void {
+  upsertLatest.run(telemetry.deviceId, JSON.stringify(telemetry));
+}
+
 type PumpSampleRow = {
   zone_id: string;
   pump: number;
@@ -430,12 +436,12 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
         ),
         grouped AS (
           SELECT
-            bucket * :bucket AS recorded_at,
+            MAX(CASE WHEN position = 1 THEN recorded_at END) AS recorded_at,
             zone_id,
-            AVG(moisture) AS moisture,
-            AVG(temperature) AS temperature,
-            AVG(humidity) AS humidity,
-            AVG(rain) AS rain,
+            MAX(CASE WHEN position = 1 THEN moisture END) AS moisture,
+            MAX(CASE WHEN position = 1 THEN temperature END) AS temperature,
+            MAX(CASE WHEN position = 1 THEN humidity END) AS humidity,
+            MAX(CASE WHEN position = 1 THEN rain END) AS rain,
             MAX(CASE WHEN position = 1 THEN threshold END) AS threshold,
             MAX(CASE WHEN position = 1 THEN stop_threshold END) AS stop_threshold,
             MAX(CASE WHEN position = 1 THEN pump END) AS pump,
