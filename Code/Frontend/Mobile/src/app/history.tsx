@@ -75,8 +75,8 @@ export default function HistoryScreen() {
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 {metric === "moisture"
-                  ? "Đường nét đứt là ngưỡng tưới. Tự làm mới mỗi 30 giây."
-                  : "Chỉ số lấy trung bình theo khoảng. Tự làm mới mỗi 30 giây."}
+                  ? "Đường nét đứt là ngưỡng tưới · Mỗi điểm là mẫu mới nhất trong khoảng · Tự làm mới mỗi 30 giây."
+                  : "Mỗi điểm là mẫu mới nhất trong khoảng · Tự làm mới mỗi 30 giây."}
               </Text>
 
               <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>

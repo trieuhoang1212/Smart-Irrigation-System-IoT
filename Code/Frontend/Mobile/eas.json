@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.152:3001"
+        "EXPO_PUBLIC_API_URL": "https://smart-irrigation-system-iot.onrender.com"
       }
     },
     "production": {
