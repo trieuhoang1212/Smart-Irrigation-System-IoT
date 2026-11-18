@@ -29,7 +29,6 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { tickHaptic } from "../../utils/haptics";
-import { AmbientBackground } from "./AmbientBackground";
 
 // Chừa chỗ cho thanh tab nổi ở đáy để nội dung cuối không bị khuất.
 const TAB_BAR_SPACE = 104;
@@ -287,8 +286,6 @@ export function Screen({
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <AmbientBackground />
-
       <GestureDetector gesture={scrollAndGestures} touchAction="pan-y">
         <KeepInputVisibleContext.Provider value={keepInputVisible}>
           <Animated.ScrollView

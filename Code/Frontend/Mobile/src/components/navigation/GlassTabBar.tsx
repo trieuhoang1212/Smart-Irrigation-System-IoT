@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -113,7 +112,6 @@ export function GlassTabBar({
   navigateToTab,
 }: BottomTabBarProps) {
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
@@ -124,13 +122,7 @@ export function GlassTabBar({
           { bottom: Math.max(insets.bottom, 10) + 6 },
         ]}
       >
-        <BlurView
-          // iOS/Web thật sự làm mờ nội dung phía sau; Android cần BlurTargetView
-          // nên tạm dùng nền bán trong suốt vẫn đọc rõ.
-          intensity={isDark ? 40 : 55}
-          tint={isDark ? "dark" : "light"}
-          style={styles.bar}
-        >
+        <View style={styles.bar}>
           {state.routes
             // Cài đặt mở từ nút bánh răng ở đầu trang, không chiếm chỗ trên thanh tab.
             .filter((route) => Boolean(TAB_META[route.name]))
@@ -171,7 +163,7 @@ export function GlassTabBar({
                 />
               );
             })}
-        </BlurView>
+        </View>
       </View>
     </View>
   );
@@ -183,23 +175,18 @@ const createStyles = (colors: Palette) =>
       position: "absolute",
       left: 14,
       right: 14,
-      borderRadius: 999,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.16,
-      shadowRadius: 24,
-      elevation: 12,
+      borderRadius: 14,
     },
     bar: {
       flexDirection: "row",
       alignItems: "center",
       gap: 2,
       padding: 5,
-      borderRadius: 999,
+      borderRadius: 14,
       overflow: "hidden",
       borderWidth: 1,
-      borderColor: colors.glassBorder,
-      backgroundColor: colors.glass,
+      borderColor: colors.line,
+      backgroundColor: colors.surface,
     },
     item: {
       flex: 1,
@@ -207,7 +194,7 @@ const createStyles = (colors: Palette) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 3,
-      borderRadius: 999,
+      borderRadius: 10,
     },
     itemPill: {
       position: "absolute",
@@ -215,7 +202,7 @@ const createStyles = (colors: Palette) =>
       right: 0,
       bottom: 0,
       left: 0,
-      borderRadius: 999,
+      borderRadius: 10,
       backgroundColor: colors.green,
     },
     label: {
