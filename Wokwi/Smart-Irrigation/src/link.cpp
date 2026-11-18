@@ -132,26 +132,6 @@ static bool handleCommand(const String& message) {
     Serial.print("/");
     Serial.println(moistureOff[zone]);
     return true;
-  } else if (message.startsWith("SET_SOIL_")) {
-    char zoneId[5] = {0};
-    int value = 0;
-    if (sscanf(message.c_str(), "SET_SOIL_%4[^_]_%d", zoneId, &value) != 2) return false;
-    const int zone = findZoneIndex(zoneId);
-    if (zone < 0) return false;
-    const int before = moisturePercent[zone];
-    soilOnSetSoil(zone, value);
-    // Chỉ Backend gửi SET_SOIL, và chỉ khi phát hiện thiết bị vừa khởi động lại.
-    Serial.print(zoneId);
-    Serial.print(" soil ");
-    Serial.print(before);
-    if (moisturePercent[zone] == before) {
-      Serial.println(" (unchanged)");
-    } else {
-      Serial.print("->");
-      Serial.print(moisturePercent[zone]);
-      Serial.println(" (restore)");
-    }
-    return true;
   } else if (message.startsWith("PUMP_ON_")) {
     // Điều khiển từng zone cụ thể: PUMP_ON_T001, PUMP_ON_T002,...
     // Chỉ nhận khi đang Thủ công; ở Tự động firmware tự quyết định.

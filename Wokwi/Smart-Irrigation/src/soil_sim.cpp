@@ -57,22 +57,6 @@ void soilOnPumpStopped(int zone, bool wasRunning) {
 #endif
 }
 
-void soilOnSetSoil(int zone, int value) {
-#if SIMULATE_SOIL_DYNAMICS
-  if (zone < 0 || zone >= ZONE_COUNT) return;
-  soilMoisture[zone] = constrain(value, 0, 100);
-  soilManualTarget[zone] = soilMoisture[zone];
-  soilManualChase[zone] = false;
-  soilPotDrift[zone] = 0.0f;
-  soilStateRestored[zone] = true;
-  moisturePercent[zone] = static_cast<int>(round(soilMoisture[zone]));
-  persistSoilState(zone);
-#else
-  (void)zone;
-  (void)value;
-#endif
-}
-
 void soilUpdate(unsigned long elapsedMs) {
 #if SIMULATE_SOIL_DYNAMICS
   // Bơm chạy thì đất ẩm lên, tắt thì khô dần; chiết áp đóng vai trò tay chỉnh nhanh.

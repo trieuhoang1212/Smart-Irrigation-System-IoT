@@ -45,7 +45,6 @@ float readTankDistanceCm();
 // soil_sim.cpp
 void soilSetup();
 void soilUpdate(unsigned long elapsedMs);
-void soilOnSetSoil(int zone, int value);
 void soilOnPumpStopped(int zone, bool wasRunning);
 
 // control.cpp
