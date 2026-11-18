@@ -1,11 +1,15 @@
-import { Platform } from "react-native";
-import { fetch as expoFetch } from "expo/fetch";
+import { File as ExpoFile, UploadType } from "expo-file-system";
 
 import { API_URL } from "./config";
 import { ApiError, request } from "./client";
 import type { GardenConfig, ZoneConfigInput, ZoneProfileInput } from "./types";
 
-const UPLOAD_TIMEOUT_MS = 30_000;
+// Render free tier có thể mất ~50s để thức dậy, nên upload ảnh chờ lâu hơn request thường.
+const UPLOAD_TIMEOUT_MS = 60_000;
+
+function photoEndpoint(deviceId: string, zoneId: string): string {
+  return `${API_URL}/api/devices/${encodeURIComponent(deviceId)}/config/zones/${encodeURIComponent(zoneId)}/photo`;
+}
 
 export function getGardenConfig(): Promise<GardenConfig> {
   return request<GardenConfig>("/api/config");
@@ -41,28 +45,23 @@ export function saveZoneProfile(
   );
 }
 
+/** Web: gửi thẳng File của trình duyệt. */
 export async function uploadZonePhoto(
   deviceId: string,
   zoneId: string,
   body: Blob,
   contentType: string,
 ): Promise<string> {
-  const poster: typeof fetch =
-    Platform.OS === "web" ? fetch : (expoFetch as unknown as typeof fetch);
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
   try {
-    const response = await poster(
-      `${API_URL}/api/devices/${encodeURIComponent(deviceId)}/config/zones/${encodeURIComponent(zoneId)}/photo`,
-      {
-        method: "POST",
-        headers: { "Content-Type": contentType },
-        body,
-        signal: controller.signal,
-      },
-    );
+    const response = await fetch(photoEndpoint(deviceId, zoneId), {
+      method: "POST",
+      headers: { "Content-Type": contentType },
+      body,
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
       throw new ApiError(`Backend trả về lỗi ${response.status}`, response.status);
@@ -70,6 +69,35 @@ export async function uploadZonePhoto(
 
     const result = (await response.json()) as { photoUrl: string };
     return result.photoUrl;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Native: để tầng native đọc tệp và gửi nhị phân, khỏi dựng Blob trong JS. */
+export async function uploadZonePhotoFromFile(
+  deviceId: string,
+  zoneId: string,
+  file: ExpoFile,
+  contentType: string,
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
+  try {
+    const result = await file.upload(photoEndpoint(deviceId, zoneId), {
+      httpMethod: "POST",
+      uploadType: UploadType.BINARY_CONTENT,
+      headers: { "Content-Type": contentType },
+      mimeType: contentType,
+      signal: controller.signal,
+    });
+
+    if (result.status < 200 || result.status >= 300) {
+      throw new ApiError(`Backend trả về lỗi ${result.status}`, result.status);
+    }
+
+    return (JSON.parse(result.body) as { photoUrl: string }).photoUrl;
   } finally {
     clearTimeout(timer);
   }

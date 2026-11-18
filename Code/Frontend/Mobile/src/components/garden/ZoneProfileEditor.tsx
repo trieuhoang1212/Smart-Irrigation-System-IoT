@@ -20,6 +20,7 @@ import {
   deleteZonePhoto,
   saveZoneProfile,
   uploadZonePhoto,
+  uploadZonePhotoFromFile,
 } from "../../api/garden";
 import type { LiveZone, ZoneProfileInput } from "../../api/types";
 import { useGarden } from "../../providers/GardenProvider";
@@ -233,15 +234,30 @@ export function ZoneProfileEditor({
       }
 
       setUploading(true);
-      const body = asset.file ?? (new ExpoFile(asset.uri) as unknown as Blob);
-      const photoUrl = await uploadZonePhoto(deviceId, zone.id, body, contentType);
+      let photoUrl: string;
+      if (Platform.OS === "web") {
+        if (!asset.file) {
+          setError("Trình duyệt không đọc được tệp ảnh. Chọn ảnh khác rồi thử lại.");
+          return;
+        }
+        photoUrl = await uploadZonePhoto(deviceId, zone.id, asset.file, contentType);
+      } else {
+        photoUrl = await uploadZonePhotoFromFile(
+          deviceId,
+          zone.id,
+          new ExpoFile(asset.uri),
+          contentType,
+        );
+      }
 
       setPhoto(assetUrl(photoUrl));
       setPhotoBroken(false);
       notify("Đã cập nhật ảnh khu vườn.", "success");
       onReload();
-    } catch {
-      setError("Không tải ảnh lên được. Kiểm tra Backend rồi thử lại.");
+    } catch (cause) {
+      const detail = cause instanceof Error && cause.message ? ` (${cause.message})` : "";
+      console.warn("uploadZonePhoto lỗi:", cause);
+      setError(`Không tải ảnh lên được${detail}. Kiểm tra Backend rồi thử lại.`);
     } finally {
       setUploading(false);
     }
