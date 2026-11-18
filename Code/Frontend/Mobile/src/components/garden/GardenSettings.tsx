@@ -256,8 +256,8 @@ export function GardenSettings() {
         </View>
 
         <Text style={styles.note}>
-          Cảnh báo khi vườn mất kết nối, trời bắt đầu mưa hoặc bồn nước cạn.
-          Thông báo thử chạy ngay trên máy; nhận từ xa cần bản dev build.
+          Cảnh báo tự động khi chuyển chế độ, thiếu ẩm, chu kỳ tưới, mưa, cạn/đầy bồn, nắng gắt và kết nối lại.
+          Thông báo thử chạy ngay trên máy; nhận từ xa trên điện thoại thật hoặc bản APK.
         </Text>
 
         {notificationsSupported && !projectReady ? (
