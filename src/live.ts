@@ -223,33 +223,6 @@ function resyncRainThreshold(telemetry: Telemetry, gateway: MqttGateway) {
   console.log(`Rain threshold resync: ${telemetry.rainThreshold} -> ${stored}`);
 }
 
-function restoreSoilAfterReboot(
-  previous: Telemetry | undefined,
-  current: Telemetry,
-  gateway: MqttGateway,
-) {
-  if (!previous || current.uptimeMs === undefined || previous.uptimeMs === undefined) {
-    return;
-  }
-
-  // Uptime là số 32-bit nên sau ~49,7 ngày sẽ quay về 0; đó không phải reboot.
-  const wrapped = previous.uptimeMs > 0xffff0000 && current.uptimeMs < 0x00010000;
-  if (wrapped || current.uptimeMs + 5000 >= previous.uptimeMs) return;
-
-  for (const zone of previous.zones) {
-    const command = `SET_SOIL_${zone.id}_${Math.round(zone.moisture)}`;
-    void gateway.publish(command).catch((error) => {
-      console.error(
-        `Soil restore failed (${zone.id}):`,
-        error instanceof Error ? error.message : error,
-      );
-    });
-  }
-  console.log(
-    `Device reboot detected (${previous.uptimeMs} -> ${current.uptimeMs} ms); restoring soil state`,
-  );
-}
-
 function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean {
   if (command === "MODE_AUTO") return telemetry.mode === "auto";
   if (command === "MODE_MANUAL") return telemetry.mode === "manual";
@@ -354,7 +327,6 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
       telemetry.uptimeMs < previousTelemetry.uptimeMs;
     if (staleRetained) return;
 
-    if (!meta.retained) restoreSoilAfterReboot(previousTelemetry, telemetry, gateway);
     latestByDevice.set(deviceId, telemetry);
 
     if (!meta.retained && previousTelemetry) {
