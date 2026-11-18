@@ -92,6 +92,8 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
   const [configToken, setConfigToken] = useState(0);
 
   const pendingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // WebSocket đã gửi trạng thái online thật thì snapshot REST không được ghi đè.
+  const liveStatusRef = useRef(false);
 
   const applyTelemetry = useCallback((raw: Telemetry, online: boolean) => {
     setTelemetry(normalizeTelemetry(raw));
@@ -142,10 +144,17 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
 
     getLatestTelemetry(deviceId)
       .then((latest) => {
-        if (!disposed && latest) applyTelemetry(latest, false);
+        if (disposed || !latest) return;
+        // WS đã báo online thật thì chỉ bổ sung dữ liệu còn thiếu, không hạ
+        // trạng thái xuống offline bằng snapshot REST cũ khi vừa mở app.
+        if (liveStatusRef.current) {
+          setTelemetry((current) => current ?? normalizeTelemetry(latest));
+          return;
+        }
+        applyTelemetry(latest, false);
       })
       .catch(() => {
-        if (!disposed) setDeviceOnline(false);
+        if (!disposed && !liveStatusRef.current) setDeviceOnline(false);
       });
 
     return () => {
@@ -196,8 +205,10 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
         try {
           const message = JSON.parse(String(event.data)) as RealtimeMessage;
           if (message.type === "telemetry") {
+            liveStatusRef.current = true;
             applyTelemetry(message.data, message.online);
           } else if (message.type === "device-status") {
+            liveStatusRef.current = true;
             setDeviceOnline(message.online);
           } else if (message.type === "command-result") {
             resolveCommand(message.commandId, message.status);
