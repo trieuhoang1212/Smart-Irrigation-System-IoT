@@ -9,6 +9,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { BackToTop } from "./components/BackToTop";
+import { SelectMenu } from "./components/SelectMenu";
 import { CloseIcon } from "./components/icons";
 import { BACKEND_URL } from "./lib/backend";
 import {
@@ -275,48 +276,39 @@ export function ActivityApp() {
               </div>
 
               <div className="activity-filters">
-                <label className="activity-filter">
+                <div className="activity-filter">
                   <span>Khu vực</span>
-                  <select
+                  <SelectMenu
                     value={zoneFilter}
-                    onChange={(event) => setZoneFilter(event.target.value)}
-                  >
-                    <option value="all">Tất cả khu vực</option>
-                    {zones.map((zone) => (
-                      <option key={zone.id} value={zone.id}>
-                        {zone.id} · {zone.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="activity-filter">
+                    onChange={setZoneFilter}
+                    ariaLabel="Lọc theo khu vực"
+                    options={[
+                      { value: "all", label: "Tất cả khu vực" },
+                      ...zones.map((zone) => ({
+                        value: zone.id,
+                        label: `${zone.id} · ${zone.name}`,
+                      })),
+                    ]}
+                  />
+                </div>
+                <div className="activity-filter">
                   <span>Loại</span>
-                  <select
+                  <SelectMenu
                     value={kindFilter}
-                    onChange={(event) =>
-                      setKindFilter(event.target.value as ActivityKind | "all")
-                    }
-                  >
-                    {KINDS.map((item) => (
-                      <option key={item.key} value={item.key}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="activity-filter">
+                    onChange={(value) => setKindFilter(value as ActivityKind | "all")}
+                    ariaLabel="Lọc theo loại hoạt động"
+                    options={KINDS.map((item) => ({ value: item.key, label: item.label }))}
+                  />
+                </div>
+                <div className="activity-filter">
                   <span>Thời gian</span>
-                  <select
+                  <SelectMenu
                     value={range}
-                    onChange={(event) => setRange(event.target.value as RangeKey)}
-                  >
-                    {RANGES.map((item) => (
-                      <option key={item.key} value={item.key}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={(value) => setRange(value as RangeKey)}
+                    ariaLabel="Lọc theo thời gian"
+                    options={RANGES.map((item) => ({ value: item.key, label: item.label }))}
+                  />
+                </div>
                 {filtersActive && (
                   <button type="button" className="link-button" onClick={clearFilters}>
                     Bỏ bộ lọc
@@ -348,17 +340,19 @@ export function ActivityApp() {
                   <p>Giữ dữ liệu gần đây, xóa phần quá cũ.</p>
                 </div>
               </div>
-              <label className="field data-cleanup-field">
+              <div className="field data-cleanup-field">
                 <span>Giữ lại</span>
-                <select
-                  value={retentionDays}
-                  onChange={(event) => setRetentionDays(Number(event.target.value))}
-                >
-                  <option value={7}>7 ngày gần nhất</option>
-                  <option value={30}>30 ngày gần nhất</option>
-                  <option value={90}>90 ngày gần nhất</option>
-                </select>
-              </label>
+                <SelectMenu
+                  value={String(retentionDays)}
+                  onChange={(value) => setRetentionDays(Number(value))}
+                  ariaLabel="Số ngày dữ liệu giữ lại"
+                  options={[
+                    { value: "7", label: "7 ngày gần nhất" },
+                    { value: "30", label: "30 ngày gần nhất" },
+                    { value: "90", label: "90 ngày gần nhất" },
+                  ]}
+                />
+              </div>
               <button
                 type="button"
                 className="ghost-button danger data-cleanup-button"

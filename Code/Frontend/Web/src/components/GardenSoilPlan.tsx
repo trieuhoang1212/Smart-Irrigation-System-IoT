@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { SOIL_TYPES, type GardenAdviceResponse, type SoilType } from "../garden-data";
 import { applyGardenAdvice, fetchGardenAdvice, saveGardenSoil } from "../lib/garden-api";
+import { SelectMenu } from "./SelectMenu";
 
 export function GardenSoilPlan({
   deviceId,
@@ -96,20 +97,16 @@ export function GardenSoilPlan({
       </div>
 
       <div className="soil-plan-toolbar">
-        <label className="field">
+        <div className="field">
           <span>Loại đất</span>
-          <select
+          <SelectMenu
             value={soil}
             disabled={saving || applying}
-            onChange={(event) => handleSoilChange(event.target.value as SoilType)}
-          >
-            {SOIL_TYPES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={(value) => handleSoilChange(value as SoilType)}
+            ariaLabel="Chọn loại đất của khu vườn"
+            options={SOIL_TYPES.map((option) => ({ value: option, label: option }))}
+          />
+        </div>
         <div className="soil-plan-context">
           {soilReason && <p>{soilReason}</p>}
           {sample && (

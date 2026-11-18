@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 import type { Zone } from "../garden-data";
 import { formatAge } from "../lib/time";
+import { SelectMenu } from "./SelectMenu";
 
 export type HistorySample = {
   recordedAt: number;
@@ -592,18 +593,16 @@ export function HistoryChart({
               <i /> Trực tiếp
             </span>
           )}
-          <select
+          <SelectMenu
             className="history-zone-select"
             value={activeZone}
-            onChange={(event) => onSelectZone(event.target.value)}
-            aria-label="Chọn khu vực xem lịch sử"
-          >
-            {zones.map((zone) => (
-              <option key={zone.id} value={zone.id}>
-                {zone.id} · {zone.name}
-              </option>
-            ))}
-          </select>
+            onChange={onSelectZone}
+            ariaLabel="Chọn khu vực xem lịch sử"
+            options={zones.map((zone) => ({
+              value: zone.id,
+              label: `${zone.id} · ${zone.name}`,
+            }))}
+          />
           <div className="view-switch">
             {(Object.keys(RANGES) as RangeKey[]).map((key) => (
               <button

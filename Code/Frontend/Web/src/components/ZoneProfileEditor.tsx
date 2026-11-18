@@ -6,6 +6,7 @@ import { deleteZonePhoto, saveZoneProfile, uploadZonePhoto } from "../lib/garden
 import { compressImage } from "../lib/image";
 import { fromDateInput, harvestDate, toDateInput } from "../lib/zone-date";
 import { SaveIcon, TrashIcon, UploadIcon } from "./icons";
+import { SelectMenu } from "./SelectMenu";
 import { ZonePhoto } from "./ZonePhoto";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -205,16 +206,15 @@ export function ZoneProfileEditor({
             />
           </label>
 
-          <label className="field">
+          <div className="field">
             <span>Nhóm cây</span>
-            <select value={group} onChange={(event) => setGroup(event.target.value as CropGroup)}>
-              {CROP_GROUPS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+            <SelectMenu
+              value={group}
+              onChange={(value) => setGroup(value as CropGroup)}
+              ariaLabel="Chọn nhóm cây"
+              options={CROP_GROUPS.map((option) => ({ value: option, label: option }))}
+            />
+          </div>
 
           <p className="group-water-hint field-wide">
             <strong>

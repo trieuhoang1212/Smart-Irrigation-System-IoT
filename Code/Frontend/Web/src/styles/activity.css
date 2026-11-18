@@ -49,21 +49,6 @@
   font-size: 10.5px;
 }
 
-.activity-filter select {
-  padding: 6px 9px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: #fbfcfa;
-  color: var(--ink-soft);
-  font-size: 12.5px;
-  outline: none;
-}
-
-.activity-filter select:focus {
-  border-color: #9dbc9f;
-  outline: 2px solid #cfe0d2;
-}
-
 .activity-filters .link-button {
   align-self: center;
   margin-left: auto;
@@ -109,10 +94,6 @@
 
   .activity-filter {
     flex: 1 1 140px;
-  }
-
-  .activity-filter select {
-    width: 100%;
   }
 
   .activity-filters .link-button {
