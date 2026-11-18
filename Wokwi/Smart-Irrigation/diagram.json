@@ -73,14 +73,14 @@
       "id": "dht1",
       "top": -86.1,
       "left": -120.6,
-      "attrs": { "temperature": "13.4", "humidity": "65.5" }
+      "attrs": { "temperature": "43.3", "humidity": "65.5" }
     },
-    { "type": "wokwi-potentiometer", "id": "pot1", "top": -20.5, "left": -201.8, "attrs": {} },
-    { "type": "wokwi-potentiometer", "id": "pot2", "top": 45, "left": -201.8, "attrs": {} },
-    { "type": "wokwi-potentiometer", "id": "pot3", "top": 110, "left": -201.8, "attrs": {} },
-    { "type": "wokwi-potentiometer", "id": "pot4", "top": 175, "left": -201.8, "attrs": {} },
-    { "type": "wokwi-potentiometer", "id": "pot5", "top": 240, "left": -201.8, "attrs": {} },
-    { "type": "wokwi-potentiometer", "id": "pot6", "top": 305, "left": -201.8, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot1", "top": -20.5, "left": -201.8, "attrs": { "value": "696" } },
+    { "type": "wokwi-potentiometer", "id": "pot2", "top": 45, "left": -201.8, "attrs": { "value": "542" } },
+    { "type": "wokwi-potentiometer", "id": "pot3", "top": 110, "left": -201.8, "attrs": { "value": "440" } },
+    { "type": "wokwi-potentiometer", "id": "pot4", "top": 175, "left": -201.8, "attrs": { "value": "389" } },
+    { "type": "wokwi-potentiometer", "id": "pot5", "top": 240, "left": -201.8, "attrs": { "value": "542" } },
+    { "type": "wokwi-potentiometer", "id": "pot6", "top": 305, "left": -201.8, "attrs": { "value": "645" } },
     { "type": "wokwi-relay-module", "id": "relay1", "top": 9.8, "left": -28.8, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay2", "top": 85, "left": -28.8, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay3", "top": 160, "left": -28.8, "attrs": {} },
@@ -94,7 +94,7 @@
       "top": 470.9,
       "left": -185.1,
       "rotate": 180,
-      "attrs": { "distance": "40" }
+      "attrs": { "distance": "2" }
     },
     {
       "type": "chip-rain-sensor",
