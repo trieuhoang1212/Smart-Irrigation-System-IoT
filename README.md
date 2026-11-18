@@ -36,9 +36,23 @@
 - **MQTT** truyền telemetry và lệnh giữa thiết bị với backend.
 - **Backend** lưu SQLite, cung cấp REST API, WebSocket realtime và engine gợi ý tưới.
 - **Web Dashboard** theo dõi, cấu hình ngưỡng, quản lý hồ sơ cây và xem lịch sử.
-- **Mobile App** cung cấp giao diện đồng hành cơ bản (đang hoàn thiện).
+- **Mobile App** cung cấp giao diện đồng hành: năm tab, điều khiển tưới, hồ sơ cây và thông báo đẩy.
 
 Hệ thống hỗ trợ sáu khu vực `T001`–`T006`, chạy trên phần cứng ESP32 thật hoặc mô phỏng bằng Wokwi. Bản hiện tại là **prototype phục vụ đồ án**, chưa phải hệ thống triển khai thực địa.
+
+## 📸 Giao diện
+
+<div align="center">
+
+**Web Dashboard** · sáng / tối
+
+<img src="images/web-light.png" alt="Web Dashboard - sáng" width="49%"> <img src="images/web-dark.png" alt="Web Dashboard - tối" width="49%">
+
+**Mobile App** · sáng / tối
+
+<img src="images/mobile-light.png" alt="Mobile App - sáng" width="24%"> <img src="images/mobile-dark.png" alt="Mobile App - tối" width="24%">
+
+</div>
 
 ## 🏗️ Kiến trúc
 
@@ -109,9 +123,9 @@ flowchart LR
 
 ### Giao diện
 
-- **Web Dashboard:** giám sát realtime, điều khiển, biểu đồ, nhật ký, quản lý vườn và gợi ý.
+- **Web Dashboard:** giám sát realtime, điều khiển, biểu đồ, nhật ký, quản lý vườn và gợi ý; theme sáng/tối.
 - **Web Garden Manager:** hồ sơ cây, ảnh, loại đất chung, bảng gợi ý 6 ô.
-- **Mobile:** 3 tab Tổng quan / Lịch sử / Cài đặt; đọc dữ liệu, điều khiển cơ bản và chỉnh ngưỡng. Chưa có push notification và hồ sơ cây.
+- **Mobile:** năm tab Tổng quan / Phân tích / Lịch sử / Nhật ký / Khu vườn; điều khiển tưới, hồ sơ cây, thông báo đẩy và theme sáng/tối.
 
 ## 🔌 Phần cứng
 
@@ -285,7 +299,7 @@ Kịch bản demo 15 phút từ Web → Wokwi → Mobile: [docs/KICH_BAN_DEMO_15
 - **Đồng bộ trạng thái:** vùng bị khóa do quá thời gian chưa có trong telemetry nên Web/Mobile chưa hiển thị.
 - **Mục tiêu MANUAL:** tự dừng bơm khi đạt thời gian quy đổi 10–600 giây; mục tiêu lớn hơn vẫn bị giới hạn bởi thời gian an toàn 10 phút/vùng.
 - **Ước tính thời gian:** là suy đoán từ lịch sử, cần đủ mẫu khô/ướt mới hiển thị; độ ẩm đổi do mưa hoặc thay đất sẽ làm lệch.
-- **Mobile:** chưa có push notification, chưa có hồ sơ cây; chưa phải bản phát hành.
+- **Mobile:** chưa phải bản phát hành; giao diện mới được kiểm tra trên bản web và thiết bị Android qua Expo Go.
 - **Mô phỏng:** phần cứng và cảm biến đang mô phỏng trên Wokwi, chưa kiểm chứng ngoài thực địa.
 
 ## 🧭 Hướng phát triển
