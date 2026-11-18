@@ -117,7 +117,7 @@
   height: 7px;
   margin-top: 5px;
   border-radius: 50%;
-  background: #3f8f63;
+  background: var(--green-fill);
 }
 
 .activity-item time {
@@ -133,11 +133,11 @@
 }
 
 .activity-item.pending i {
-  background: #c2913f;
+  background: var(--amber-line);
 }
 
 .activity-item.timeout i {
-  background: #b86666;
+  background: var(--red-ink);
 }
 
 .activity-status {
@@ -148,9 +148,9 @@
 
 .activity-item.selected {
   padding-left: 8px;
-  border-radius: 6px;
-  background: #f6f9f3;
-  box-shadow: inset 3px 0 0 #c08a35;
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  box-shadow: inset 3px 0 0 var(--amber-line);
 }
 
 .activity-link {

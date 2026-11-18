@@ -8,7 +8,7 @@
 
 .garden-meter.pumping i,
 .water-estimate .progress i {
-  background-image: linear-gradient(90deg, #3f8f63, #7cb795, #3f8f63);
+  background-image: linear-gradient(90deg, var(--green-fill), var(--green-fill), var(--green-fill));
   background-size: 200% 100%;
   animation: water-flow 1.8s linear infinite;
 }

@@ -20,22 +20,22 @@
   width: 28px;
   height: 28px;
   margin-bottom: 10px;
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 
 .metric-icon.orange {
-  background: #faf1e4;
-  color: #9a6b2b;
+  background: var(--amber-soft);
+  color: var(--amber-ink);
 }
 
 .metric-icon.blue {
-  background: #ecf2f5;
+  background: var(--blue-soft);
   color: var(--blue);
 }
 
 .metric-icon.green {
-  background: #edf3ec;
-  color: #3f7a56;
+  background: var(--green-soft);
+  color: var(--green-fill);
 }
 
 .metric-card > span {
@@ -69,7 +69,7 @@
 }
 
 .good {
-  color: #3f8f63 !important;
+  color: var(--green-fill) !important;
 }
 
 .warning {

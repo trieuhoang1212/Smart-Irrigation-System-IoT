@@ -35,10 +35,10 @@ const METRICS: Record<
   MetricKey,
   { label: string; unit: string; color: string; percent: boolean }
 > = {
-  moisture: { label: "Độ ẩm đất", unit: "%", color: "#4f8a63", percent: true },
-  temperature: { label: "Nhiệt độ", unit: "°C", color: "#a5762c", percent: false },
-  humidity: { label: "Độ ẩm không khí", unit: "%", color: "#3d6f8c", percent: true },
-  rain: { label: "Cảm biến mưa", unit: "%", color: "#6b8b96", percent: true },
+  moisture: { label: "Độ ẩm đất", unit: "%", color: "var(--green-fill)", percent: true },
+  temperature: { label: "Nhiệt độ", unit: "°C", color: "var(--amber)", percent: false },
+  humidity: { label: "Độ ẩm không khí", unit: "%", color: "var(--blue)", percent: true },
+  rain: { label: "Cảm biến mưa", unit: "%", color: "var(--blue)", percent: true },
 };
 
 const CHART = { width: 900, height: 240, left: 48, right: 18, top: 16, bottom: 30 };
@@ -346,7 +346,7 @@ export function HistoryChart({
                 x2={CHART.width - CHART.right}
                 y1={tick.y}
                 y2={tick.y}
-                stroke="#edf2ee"
+                stroke="var(--line-soft)"
                 strokeWidth="1"
               />
               <text
@@ -379,7 +379,7 @@ export function HistoryChart({
                 x2={CHART.width - CHART.right}
                 y1={chart.thresholdY}
                 y2={chart.thresholdY}
-                stroke="#b58a3f"
+                stroke="var(--amber-line)"
                 strokeWidth="1.3"
                 strokeDasharray="5 6"
               />
@@ -401,7 +401,7 @@ export function HistoryChart({
                 x2={chart.focusX}
                 y1={CHART.top}
                 y2={chart.baseline}
-                stroke="#8a6425"
+                stroke="var(--amber-ink)"
                 strokeWidth="1.2"
                 strokeDasharray="4 4"
               />
@@ -419,7 +419,7 @@ export function HistoryChart({
                   cy={chart.focusPoint.y}
                   r="4.5"
                   fill="none"
-                  stroke="#8a6425"
+                  stroke="var(--amber-ink)"
                   strokeWidth="2"
                 />
               )}
@@ -470,7 +470,7 @@ export function HistoryChart({
                 cy={livePoint.y}
                 r="3.5"
                 fill={chart.config.color}
-                stroke="#fff"
+                stroke="var(--surface)"
                 strokeWidth="1.5"
               />
             </g>
@@ -483,7 +483,7 @@ export function HistoryChart({
                 x2={hoverPoint.x}
                 y1={CHART.top}
                 y2={chart.baseline}
-                stroke="#9fb3a7"
+                stroke="var(--line-strong)"
                 strokeWidth="1"
                 strokeDasharray="3 4"
               />
@@ -491,7 +491,7 @@ export function HistoryChart({
                 cx={hoverPoint.x}
                 cy={hoverPoint.y}
                 r="4.5"
-                fill="#fff"
+                fill="var(--surface)"
                 stroke={chart.config.color}
                 strokeWidth="2.5"
               />

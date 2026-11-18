@@ -11,7 +11,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  background: #fafbf8;
+  background: var(--surface);
   border-right: 1px solid var(--line);
   padding: 24px 14px 18px;
   display: flex;
@@ -24,7 +24,7 @@
   gap: 10px;
   padding: 0 10px 32px;
   text-decoration: none;
-  color: var(--deep);
+  color: var(--ink);
   font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.4px;
@@ -39,9 +39,9 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--green);
+  border-radius: var(--radius);
+  color: var(--on-accent);
+  background: var(--green-fill);
 }
 
 .nav-label {
@@ -59,14 +59,14 @@
   gap: 10px;
   padding: 9px 10px;
   margin-bottom: 2px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--ink-soft);
   text-decoration: none;
   font-size: 13.5px;
 }
 
 .nav-item:hover {
-  background: #eff2ec;
+  background: var(--surface-3);
 }
 
 .nav-item.active {
@@ -82,7 +82,7 @@
 .connection-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 13px;
 }
 
@@ -107,14 +107,14 @@
   margin-top: 10px;
   padding: 6px 9px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: #f7f9f5;
+  border-radius: var(--radius);
+  background: var(--surface-3);
   color: var(--ink-soft);
   font-size: 12px;
 }
 
 .connection-card button:hover {
-  border-color: #cdd9cd;
+  border-color: var(--line-strong);
 }
 
 .pulse,
@@ -123,12 +123,12 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #3f8f63;
+  background: var(--green-fill);
   margin-right: 7px;
 }
 
 .pulse.off {
-  background: #b8c1ba;
+  background: var(--line-strong);
 }
 
 .content {
@@ -162,7 +162,7 @@
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: var(--green-soft);
   color: var(--green-strong);
   font-size: 11.5px;
@@ -179,7 +179,7 @@
 
 .topbar-mode.manual {
   background: var(--amber-soft);
-  color: #7d5c24;
+  color: var(--amber-ink);
 }
 
 .topbar-status {
@@ -195,7 +195,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #3f8f63;
+  background: var(--green-fill);
 }
 
 .topbar-status.off {
@@ -248,11 +248,11 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border: 1px solid #d7e0d5;
+  border: 1px solid var(--line-strong);
   border-radius: 50%;
   background: var(--surface);
   color: var(--green-strong);
-  box-shadow: 0 6px 18px rgba(23, 54, 42, 0.14);
+  box-shadow: var(--shadow-2);
   opacity: 0;
   pointer-events: none;
   transform: translateY(8px);
@@ -269,11 +269,11 @@
 }
 
 .back-to-top:hover {
-  border-color: #b9cbb8;
+  border-color: var(--line-strong);
 }
 
 .back-to-top:focus-visible {
-  outline: 2px solid #b9cbb8;
+  outline: 2px solid var(--line-strong);
   outline-offset: 2px;
 }
 
@@ -303,17 +303,17 @@
 }
 
 .status-card.error {
-  border-color: #ead6d4;
+  border-color: var(--red-line);
   background: var(--red-soft);
   color: var(--red);
 }
 
 .status-card button {
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 8px 14px;
-  color: #fff;
-  background: var(--green);
+  color: var(--on-accent);
+  background: var(--green-fill);
   font-size: 12px;
   font-weight: 500;
 }

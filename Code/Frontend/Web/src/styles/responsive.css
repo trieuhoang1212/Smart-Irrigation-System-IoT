@@ -26,7 +26,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--deep);
+    color: var(--ink);
     font-size: 16px;
     font-weight: 600;
   }
@@ -34,7 +34,7 @@
   .mobile-brand .brand-mark {
     width: 24px;
     height: 24px;
-    border-radius: 7px;
+    border-radius: var(--radius);
   }
 
   .topbar-crumb {
@@ -61,7 +61,7 @@
     flex: none;
     padding: 7px 12px;
     border: 1px solid var(--line);
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--ink-soft);
     font-size: 12.5px;
@@ -74,7 +74,7 @@
   }
 
   .compact-nav a:hover {
-    border-color: #cdd9cd;
+    border-color: var(--line-strong);
   }
 
   .compact-nav a.active {
@@ -156,10 +156,8 @@
     gap: 2px;
     padding: 5px 8px calc(5px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: 0 -10px 26px rgba(23, 54, 42, 0.07);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: var(--surface);
+    box-shadow: var(--shadow-2);
   }
 
   .mobile-tabbar a {
@@ -171,7 +169,7 @@
     justify-content: center;
     gap: 2px;
     padding: 4px 2px;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     color: var(--muted);
     font-size: 10px;
     font-weight: 500;
@@ -449,6 +447,13 @@
   .link-button {
     min-height: 36px;
     padding: 6px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Chế độ toàn vườn đã hiện trong thẻ điều khiển; nhường chỗ cho đồng hồ. */
+  .topbar-mode {
+    display: none;
   }
 }
 

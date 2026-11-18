@@ -29,11 +29,11 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
-        {/* Áp trạng thái ẩn/hiện thanh bên trước khi vẽ để không bị nhảy layout. */}
+        {/* Áp trạng thái ẩn/hiện thanh bên và theme trước khi vẽ để không bị nhảy layout. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try{var r=document.documentElement;["nav","rail"].forEach(function(p){var v=localStorage.getItem("greenflow:panel:"+p);if(v==="collapsed"||v==="open")r.dataset[p]=v;});}catch(e){}',
+              'try{var r=document.documentElement;["nav","rail"].forEach(function(p){var v=localStorage.getItem("greenflow:panel:"+p);if(v==="collapsed"||v==="open")r.dataset[p]=v;});var t=localStorage.getItem("greenflow:theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";r.dataset.theme=t;}catch(e){document.documentElement.dataset.theme="light";}',
           }}
         />
       </head>

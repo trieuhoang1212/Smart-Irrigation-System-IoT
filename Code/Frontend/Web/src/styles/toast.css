@@ -15,15 +15,15 @@
   gap: 9px;
   padding: 10px 11px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink-soft);
   font-size: 12px;
-  box-shadow: 0 8px 24px rgba(23, 54, 42, 0.12);
+  box-shadow: var(--shadow-2);
 }
 
 .toast.error {
-  border-color: #efdcd9;
+  border-color: var(--red-line);
 }
 
 .toast-icon {
@@ -32,7 +32,7 @@
   flex: none;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--green-soft);
   color: var(--green-strong);
 }
@@ -43,7 +43,7 @@
 }
 
 .toast.info .toast-icon {
-  background: #eef2f5;
+  background: var(--blue-soft);
   color: var(--blue);
 }
 

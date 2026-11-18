@@ -21,7 +21,7 @@
   gap: 7px;
   padding: 7px 11px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink-soft);
   font-size: 12.5px;
@@ -45,7 +45,7 @@
 }
 
 .zone-pill:hover {
-  border-color: #cdd9cd;
+  border-color: var(--line-strong);
 }
 
 .zone-pill.active {
@@ -56,7 +56,7 @@
 }
 
 .zone-pill.active small {
-  color: #4f7a5f;
+  color: var(--muted);
 }
 
 .analysis-verdict {
@@ -79,7 +79,7 @@
 }
 
 .analysis-verdict.watch::before {
-  background: #c08a35;
+  background: var(--amber-line);
 }
 
 .analysis-verdict.risk::before {
@@ -87,7 +87,7 @@
 }
 
 .analysis-verdict.unknown::before {
-  background: #b8c1ba;
+  background: var(--line-strong);
 }
 
 .verdict-kicker {
@@ -106,7 +106,7 @@
 }
 
 .analysis-verdict.watch .verdict-kicker svg {
-  color: #b58a3f;
+  color: var(--amber-line);
 }
 
 .analysis-verdict.risk .verdict-kicker svg {
@@ -127,7 +127,7 @@
 }
 
 .analysis-verdict.watch .verdict-title {
-  color: #8a6425;
+  color: var(--amber-ink);
 }
 
 .analysis-verdict.risk .verdict-title {
@@ -145,10 +145,10 @@
 .verdict-stale {
   margin-top: 12px;
   padding: 8px 10px;
-  border: 1px solid #eadfca;
-  border-radius: 7px;
-  background: #fbf6ea;
-  color: #7d5c24;
+  border: 1px solid var(--amber-line-soft);
+  border-radius: var(--radius);
+  background: var(--amber-soft);
+  color: var(--amber-ink);
   font-size: 11.5px;
   line-height: 1.5;
 }
@@ -214,7 +214,7 @@
 
 .score-ring-track {
   fill: none;
-  stroke: #e8eee7;
+  stroke: var(--line-soft);
   stroke-width: 9;
 }
 
@@ -227,7 +227,7 @@
 }
 
 .score-ring-wrap.watch .score-ring-value {
-  stroke: #c08a35;
+  stroke: var(--amber-line);
 }
 
 .score-ring-wrap.risk .score-ring-value {
@@ -285,14 +285,14 @@
   height: 6px;
   margin-top: 5px;
   overflow: hidden;
-  border-radius: 99px;
-  background: #eef2ec;
+  border-radius: var(--radius-sm);
+  background: var(--green-soft);
 }
 
 .score-bar-track i {
   display: block;
   height: 100%;
-  border-radius: 99px;
+  border-radius: var(--radius-sm);
   background: var(--green);
 }
 
@@ -346,16 +346,16 @@
 .legend-band {
   width: 14px;
   height: 8px;
-  border: 1px solid #dcebda;
+  border: 1px solid var(--green-soft);
   border-radius: 2px;
-  background: #e9f2e6;
+  background: var(--green-soft);
 }
 
 .legend-pump {
   width: 14px;
   height: 4px;
-  border-radius: 99px;
-  background: #4f8a63;
+  border-radius: var(--radius-sm);
+  background: var(--green-fill);
 }
 
 .analysis-chart {
@@ -371,12 +371,12 @@
 }
 
 .analysis-axis-text {
-  fill: #7e8d84;
+  fill: var(--faint);
   font-size: 11px;
 }
 
 .analysis-band-text {
-  fill: #5b876a;
+  fill: var(--green);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -384,13 +384,13 @@
 }
 
 .analysis-limit-text {
-  fill: #4f8a63;
+  fill: var(--green-fill);
   font-size: 10.5px;
   font-weight: 600;
 }
 
 .analysis-limit-text.low {
-  fill: #a5762c;
+  fill: var(--amber);
 }
 
 .analysis-chart-empty {
@@ -399,14 +399,14 @@
   min-height: 220px;
   padding: 20px;
   border: 1px dashed var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   color: var(--muted);
   font-size: 12.5px;
   text-align: center;
 }
 
 .analysis-chart-empty.error {
-  border-color: #ead6d4;
+  border-color: var(--red-line);
   background: var(--red-soft);
   color: var(--red);
 }
@@ -416,9 +416,9 @@
   top: 12px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 6px 18px rgba(23, 54, 42, 0.12);
+  box-shadow: var(--shadow-2);
   pointer-events: none;
 }
 
@@ -499,7 +499,7 @@
   margin-top: 14px;
   overflow: hidden;
   border: 1px solid var(--line-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--line-soft);
 }
 

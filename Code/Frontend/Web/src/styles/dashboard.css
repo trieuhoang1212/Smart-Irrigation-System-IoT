@@ -43,7 +43,7 @@
   width: 30px;
   height: 30px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
@@ -51,7 +51,7 @@
 }
 
 .panel-toggle:hover {
-  border-color: #cdd9cd;
+  border-color: var(--line-strong);
   color: var(--green-strong);
 }
 
@@ -195,8 +195,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #edf1ea;
-  border-radius: 8px;
+  background: var(--surface-4);
+  border-radius: var(--radius);
   padding: 3px;
 }
 
@@ -207,7 +207,7 @@
   border: 0;
   background: transparent;
   padding: 6px 13px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
@@ -220,10 +220,10 @@
 }
 
 .overview-tab-btn.active {
-  background: #ffffff;
+  background: var(--surface);
   color: var(--ink);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(23, 54, 42, 0.1);
+  box-shadow: var(--shadow-1);
 }
 
 .overview-tab-sub {
@@ -293,7 +293,7 @@
   flex: none;
   width: 56px;
   height: 56px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
 }
 
 .spot-id {
@@ -337,14 +337,14 @@
   width: 28px;
   height: 28px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
   transition: border-color 0.16s ease, color 0.16s ease;
 }
 
 .spot-edit:hover {
-  border-color: #cdd9cd;
+  border-color: var(--line-strong);
   color: var(--green-strong);
 }
 
@@ -407,20 +407,20 @@
   position: relative;
   height: 8px;
   margin-top: 9px;
-  border-radius: 99px;
-  background: #edf1ea;
+  border-radius: var(--radius-sm);
+  background: var(--surface-4);
 }
 
 .spot-bar-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: 99px;
-  background: linear-gradient(90deg, #8db79a, #3f8f63);
+  border-radius: var(--radius-sm);
+  background: var(--green-fill);
   transition: width 0.45s ease;
 }
 
 .spot-bar.dry .spot-bar-fill {
-  background: linear-gradient(90deg, #dcb970, #a5762c);
+  background: var(--amber);
 }
 
 .spot-bar-tick {
@@ -431,7 +431,6 @@
   border: 2px solid var(--surface);
   border-radius: 2px;
   background: var(--green-strong);
-  box-shadow: 0 1px 3px rgba(23, 54, 42, 0.2);
   transform: translate(-50%, -50%);
 }
 
@@ -457,8 +456,8 @@
   align-items: center;
   gap: 5px;
   padding: 3px 8px;
-  border-radius: 99px;
-  background: #f4f7f2;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
   white-space: nowrap;
 }
 
@@ -480,7 +479,7 @@
   gap: 5px;
   padding: 6px 9px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink-soft);
   font-size: 11.5px;
@@ -495,8 +494,8 @@
 }
 
 .spot-links a:hover {
-  border-color: #b9cdbd;
-  background: #fbfdf9;
+  border-color: var(--line-strong);
+  background: var(--surface-2);
   color: var(--green-strong);
 }
 
@@ -540,8 +539,8 @@
   margin-top: 10px;
   padding: 10px 12px;
   border: 1px solid var(--line-soft);
-  border-radius: 9px;
-  background: #fbfcfa;
+  border-radius: var(--radius);
+  background: var(--surface-2);
   font-size: 11.5px;
 }
 
@@ -673,9 +672,9 @@
 .health-bar-track {
   display: flex;
   height: 7px;
-  border-radius: 99px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: #edf1ea;
+  background: var(--surface-4);
   gap: 2px;
 }
 
@@ -685,7 +684,7 @@
 }
 
 .health-bar-seg.good {
-  background: #3f8f63;
+  background: var(--green-fill);
 }
 
 .health-bar-seg.watering {
@@ -718,7 +717,7 @@
 }
 
 .health-chips-row .dot.good {
-  background: #3f8f63;
+  background: var(--green-fill);
 }
 
 .health-chips-row .dot.watering {
@@ -765,7 +764,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #e6ece4;
+  background: var(--line-soft);
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;
@@ -777,8 +776,8 @@
 
 .tooltip-wrap:hover .tooltip-icon,
 .tooltip-wrap:focus .tooltip-icon {
-  background: var(--green);
-  color: #fff;
+  background: var(--green-fill);
+  color: var(--on-accent);
 }
 
 .tooltip-box {
@@ -786,17 +785,17 @@
   bottom: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%) translateY(4px);
-  background: #1b2620;
-  color: #ffffff;
+  background: var(--deep);
+  color: var(--on-deep);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 11.5px;
   font-weight: 400;
   line-height: 1.45;
   white-space: normal;
   width: max-content;
   max-width: 220px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-2);
   /* Ẩn hẳn khỏi layout để tooltip không tạo thanh cuộn ngang khi thu nhỏ Web. */
   display: none;
   z-index: 99;
@@ -812,7 +811,7 @@
   left: calc(var(--tip-arrow, 50%) - 4px);
   border-width: 4px;
   border-style: solid;
-  border-color: #1b2620 transparent transparent transparent;
+  border-color: var(--deep) transparent transparent transparent;
 }
 
 .tooltip-wrap:hover .tooltip-box,
@@ -849,9 +848,9 @@
   justify-content: space-between;
   width: 100%;
   padding: 8px 10px;
-  background: #f7f9f5;
+  background: var(--surface-3);
   border: 1px solid var(--line-soft);
-  border-radius: 7px;
+  border-radius: var(--radius);
   color: var(--ink-soft);
   font-size: 12.5px;
   font-weight: 500;
@@ -860,8 +859,8 @@
 }
 
 .config-accordion-toggle:hover {
-  background: #edf1ea;
-  border-color: #ccd7c8;
+  background: var(--surface-4);
+  border-color: var(--line-strong);
 }
 
 .config-accordion-toggle small {
@@ -873,9 +872,9 @@
 .config-accordion-section .zone-config-form {
   margin-top: 14px;
   padding: 12px;
-  background: #fafbf9;
+  background: var(--surface-2);
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 @container page (max-width: 1020px) {
@@ -932,6 +931,11 @@
 
   .bento-dashboard .soil-plan {
     order: -1;
+  }
+
+  /* Cột phụ đã xếp dọc nên nút thu gọn rail không còn tác dụng. */
+  .panel-toggle-rail {
+    display: none;
   }
 }
 

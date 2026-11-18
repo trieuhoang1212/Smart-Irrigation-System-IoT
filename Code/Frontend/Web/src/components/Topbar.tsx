@@ -9,6 +9,7 @@ import { LiveClock } from "./LiveClock";
 import { MobileNavDock } from "./MobileNavDock";
 import { PanelToggle } from "./PanelToggle";
 import { SearchBox } from "./SearchBox";
+import { ThemeToggle } from "./ThemeToggle";
 
 type NavKey = "overview" | "analysis" | "history" | "activity" | "garden";
 
@@ -78,6 +79,7 @@ export function Topbar({
           {connected ? `Cập nhật: ${lastUpdated}` : "Mất kết nối máy chủ"}
         </span>
         <LiveClock />
+        <ThemeToggle />
         <PanelToggle panel="rail" />
       </header>
 

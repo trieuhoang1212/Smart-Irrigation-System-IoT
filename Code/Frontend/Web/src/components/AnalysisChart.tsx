@@ -5,7 +5,7 @@ import type { AnalysisSample } from "../lib/analysis";
 import type { AnalysisRange } from "../hooks/useZoneHistory";
 
 const CHART = { width: 900, height: 260, left: 46, right: 16, top: 18, bottom: 46 };
-const LINE_COLOR = "#3c6f52";
+const LINE_COLOR = "var(--green-fill)";
 
 function formatAxisTime(timestamp: number, range: AnalysisRange): string {
   const date = new Date(timestamp);
@@ -166,7 +166,7 @@ export function AnalysisChart({
                 x2={CHART.width - CHART.right}
                 y1={tick.y}
                 y2={tick.y}
-                stroke="#edf2ee"
+                stroke="var(--line-soft)"
                 strokeWidth="1"
               />
               <text
@@ -197,7 +197,7 @@ export function AnalysisChart({
             y={chart.bandTop}
             width={CHART.width - CHART.left - CHART.right}
             height={Math.max(1, chart.bandBottom - chart.bandTop)}
-            fill="#e9f2e6"
+            fill="var(--green-soft)"
           />
           <text
             x={CHART.left + 8}
@@ -212,7 +212,7 @@ export function AnalysisChart({
             x2={CHART.width - CHART.right}
             y1={chart.bandBottom}
             y2={chart.bandBottom}
-            stroke="#b58a3f"
+            stroke="var(--amber-line)"
             strokeWidth="1.2"
             strokeDasharray="5 6"
           />
@@ -284,7 +284,7 @@ export function AnalysisChart({
                 width={run.width}
                 height="5"
                 rx="2.5"
-                fill="#4f8a63"
+                fill="var(--green-fill)"
               />
             ))}
           </g>
@@ -296,7 +296,7 @@ export function AnalysisChart({
                 x2={hoverPoint.x}
                 y1={CHART.top}
                 y2={chart.baseline}
-                stroke="#9fb3a7"
+                stroke="var(--line-strong)"
                 strokeWidth="1"
                 strokeDasharray="3 4"
               />
@@ -304,7 +304,7 @@ export function AnalysisChart({
                 cx={hoverPoint.x}
                 cy={hoverPoint.y}
                 r="4.5"
-                fill="#fff"
+                fill="var(--surface)"
                 stroke={LINE_COLOR}
                 strokeWidth="2.5"
               />

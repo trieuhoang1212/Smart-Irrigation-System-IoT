@@ -24,8 +24,8 @@
   align-items: center;
   gap: 5px;
   padding: 5px 9px;
-  border-radius: 99px;
-  background: #f1f4ef;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
   color: var(--muted);
   font-size: 11.5px;
   font-weight: 500;
@@ -36,7 +36,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a9b5ab;
+  background: var(--faint);
 }
 
 .live-badge.active {
@@ -45,7 +45,7 @@
 }
 
 .live-badge.active i {
-  background: #3f8f63;
+  background: var(--green-fill);
 }
 
 .live-badge.danger {
@@ -117,8 +117,8 @@
 .tank-track {
   position: relative;
   height: 9px;
-  border-radius: 99px;
-  background: linear-gradient(90deg, #e9c5c2 0 20%, #f0dfbd 20% 40%, #d3e4d6 40% 100%);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--red-line) 0 20%, var(--amber-soft) 20% 40%, var(--green-soft) 40% 100%);
 }
 
 .tank-marker {
@@ -126,10 +126,10 @@
   top: 50%;
   width: 11px;
   height: 11px;
-  border: 2px solid #3f8f63;
+  border: 2px solid var(--green-fill);
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(23, 54, 42, 0.28);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
   transform: translate(-50%, -50%);
 }
 
@@ -188,13 +188,13 @@
 .mode-switch {
   display: flex;
   padding: 2px;
-  border-radius: 7px;
-  background: #f1f4ef;
+  border-radius: var(--radius);
+  background: var(--surface-3);
 }
 
 .mode-switch button {
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius);
   padding: 6px 11px;
   background: none;
   color: var(--muted);
@@ -202,10 +202,9 @@
 }
 
 .mode-switch button.selected {
-  background: #fff;
+  background: var(--surface);
   color: var(--green-strong);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(23, 54, 42, 0.08);
 }
 
 .mode-warning {
@@ -213,10 +212,10 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid #eadfca;
-  border-radius: 7px;
-  background: #fbf6ea;
-  color: #7d5c24;
+  border: 1px solid var(--amber-line-soft);
+  border-radius: var(--radius);
+  background: var(--amber-soft);
+  color: var(--amber-ink);
   font-size: 11.5px;
   line-height: 1.45;
 }
@@ -227,19 +226,19 @@
 
 .mode-warning button {
   flex: none;
-  border: 1px solid #e0d2b3;
-  border-radius: 6px;
+  border: 1px solid var(--amber-line-soft);
+  border-radius: var(--radius);
   padding: 4px 8px;
-  background: #fff;
-  color: #7d5c24;
+  background: var(--surface);
+  color: var(--amber-ink);
   font-size: 11px;
   font-weight: 600;
 }
 
 .mode-warning.overwater {
-  border-color: #e5c6bf;
-  background: #fdf3f1;
-  color: #8b3b2c;
+  border-color: var(--red-line);
+  background: var(--red-soft);
+  color: var(--red-ink);
 }
 
 .control-note {
@@ -294,7 +293,7 @@
 
 .mode-switch-wide button {
   padding: 8px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 12.5px;
   font-weight: 500;
 }
@@ -307,7 +306,7 @@
   width: 100%;
   margin-top: 10px;
   padding: 10px 12px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   font-size: 12.5px;
 }
 
@@ -363,8 +362,8 @@
   height: 23px;
   padding: 2px;
   border: 0;
-  border-radius: 99px;
-  background: #d5dcd5;
+  border-radius: var(--radius-sm);
+  background: var(--line-strong);
   transition: background 0.2s;
 }
 
@@ -373,12 +372,12 @@
   width: 19px;
   height: 19px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--on-accent);
   transition: transform 0.2s;
 }
 
 .big-toggle.on {
-  background: #3f8f63;
+  background: var(--green-fill);
 }
 
 .big-toggle.on i {
@@ -405,7 +404,7 @@
 .threshold-control input {
   width: 100%;
   margin: 10px 0 2px;
-  accent-color: #3f8f63;
+  accent-color: var(--green-fill);
 }
 
 .threshold-control > div {
@@ -427,8 +426,8 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
-  background: #f2f5f0;
+  border-radius: var(--radius);
+  background: var(--surface-3);
   color: var(--green-strong);
 }
 
@@ -491,26 +490,26 @@
 .check-row input {
   width: 15px;
   height: 15px;
-  accent-color: #3f8f63;
+  accent-color: var(--green-fill);
 }
 
 .weather-alert {
   margin-top: 10px;
   padding: 8px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--green-soft);
   color: var(--green-strong);
   font-size: 12px;
 }
 
 .weather-alert.off {
-  background: #f3f4f2;
+  background: var(--surface-3);
   color: var(--muted);
 }
 
 .weather-alert.warn {
-  background: #fbf3e4;
-  color: #7d5c24;
+  background: var(--amber-soft);
+  color: var(--amber-ink);
 }
 
 .zone-config-form {
@@ -541,22 +540,22 @@
 
 .config-fields input {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   padding: 7px 9px;
-  background: #fbfcfa;
+  background: var(--surface-2);
   color: var(--ink);
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
 }
 
 .config-fields input:focus {
-  border-color: #9dbc9f;
-  outline: 2px solid #cfe0d2;
+  border-color: var(--line-strong);
+  outline: 2px solid var(--focus-ring);
 }
 
 .config-fields input[aria-invalid="true"] {
   border-color: var(--red);
-  background: #fdf7f6;
+  background: var(--red-soft);
 }
 
 .config-field-error {
@@ -585,8 +584,8 @@
   gap: 5px;
   padding: 10px 12px;
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: #fbfcfa;
+  border-radius: var(--radius);
+  background: var(--surface-2);
   color: var(--muted);
   font-size: 12px;
 }
@@ -613,7 +612,7 @@
 }
 
 .config-verdict.warn {
-  color: #8a6425;
+  color: var(--amber-ink);
 }
 
 .config-feedback {
@@ -640,15 +639,15 @@
   gap: 7px;
   padding: 9px 12px;
   border: 0;
-  border-radius: 8px;
-  background: var(--green);
-  color: #fff;
+  border-radius: var(--radius);
+  background: var(--green-fill);
+  color: var(--on-accent);
   font-size: 12.5px;
   font-weight: 500;
 }
 
 .config-save:hover:not(:disabled) {
-  background: var(--green-strong);
+  background: var(--green-fill-strong);
 }
 
 .water-history {
@@ -701,13 +700,13 @@
   width: 100%;
   height: 5px;
   margin: 8px 0;
-  background: #edf1ea;
-  border-radius: 99px;
+  background: var(--surface-4);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .water-estimate .progress i {
   display: block;
   height: 100%;
-  background: #4f8a63;
+  background: var(--green-fill);
 }
