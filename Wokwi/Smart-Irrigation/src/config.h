@@ -27,11 +27,11 @@ constexpr int MASTER_VALVE_OPEN = 90;
 constexpr const char* WIFI_SSID = "Wokwi-GUEST";
 constexpr const char* WIFI_PASSWORD = "";
 constexpr int WIFI_CHANNEL = 6;
-constexpr const char* MQTT_SERVER = "host.wokwi.internal";
+constexpr const char* MQTT_SERVER = "broker.emqx.io";
 constexpr int MQTT_PORT = 1883;
 constexpr const char* DEVICE_ID = "esp32-garden-01";
-constexpr const char* TOPIC_STATUS = "smart-irrigation/status";
-constexpr const char* TOPIC_CMD = "smart-irrigation/cmd";
+constexpr const char* TOPIC_STATUS = "smart-irrigation/trieuhoang1212/status";
+constexpr const char* TOPIC_CMD = "smart-irrigation/trieuhoang1212/cmd";
 
 // Chu kỳ và thời gian chờ
 constexpr unsigned long CONTROL_INTERVAL_MS = 2000UL;
