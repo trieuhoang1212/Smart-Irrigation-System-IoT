@@ -285,10 +285,6 @@ pio run              # Wokwi: bật mô phỏng động học đất
 pio run -e board     # board thật: tắt mô phỏng, đọc cảm biến trực tiếp
 ```
 
-## 🎬 Demo
-
-Kịch bản demo 15 phút từ Web → Wokwi → Mobile: [docs/KICH_BAN_DEMO_15_PHUT.md](docs/KICH_BAN_DEMO_15_PHUT.md).
-
 ## ⚠️ Giới hạn
 
 - **Mất Internet:** hệ vẫn tưới; mất **điện lưới** thì dừng. Chưa có UPS/ắc quy dự phòng.
