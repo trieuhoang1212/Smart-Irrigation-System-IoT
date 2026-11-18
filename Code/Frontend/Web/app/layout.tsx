@@ -27,6 +27,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
+      <head>
+        {/* Áp trạng thái ẩn/hiện thanh bên trước khi vẽ để không bị nhảy layout. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var r=document.documentElement;["nav","rail"].forEach(function(p){var v=localStorage.getItem("greenflow:panel:"+p);if(v==="collapsed"||v==="open")r.dataset[p]=v;});}catch(e){}',
+          }}
+        />
+      </head>
       <body className={lexend.variable}>
         <RouteMotion />
         {children}

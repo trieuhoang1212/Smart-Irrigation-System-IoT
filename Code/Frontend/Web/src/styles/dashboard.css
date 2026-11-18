@@ -63,12 +63,28 @@
 
 /* Cột phụ thu gọn: cột chính chiếm trọn bề ngang nội dung. */
 @container page (min-width: 921px) {
+  .bento-dashboard {
+    transition:
+      grid-template-columns 0.34s var(--ease-garden),
+      column-gap 0.34s var(--ease-garden);
+  }
+
+  .bento-col-side {
+    transition:
+      opacity 0.22s ease,
+      transform 0.34s var(--ease-garden);
+  }
+
   html[data-rail="collapsed"] .bento-dashboard {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 0px;
+    column-gap: 0;
   }
 
   html[data-rail="collapsed"] .bento-col-side {
-    display: none;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(16px);
+    pointer-events: none;
   }
 }
 
@@ -81,8 +97,22 @@
 
 /* Thanh điều hướng trái vốn tự ẩn dưới 1280px nên nút chỉ có tác dụng khi rộng hơn. */
 @media (min-width: 1281px) {
+  .sidebar {
+    transition:
+      margin-left 0.34s var(--ease-garden),
+      opacity 0.22s ease,
+      visibility 0s linear;
+  }
+
   html[data-nav="collapsed"] .sidebar {
-    display: none;
+    margin-left: -232px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      margin-left 0.34s var(--ease-garden),
+      opacity 0.18s ease,
+      visibility 0s linear 0.34s;
   }
 }
 

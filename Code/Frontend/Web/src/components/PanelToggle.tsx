@@ -6,6 +6,7 @@ import { PanelLeftIcon, PanelRightIcon } from "./icons";
 type Panel = "nav" | "rail";
 
 const CHANGE_EVENT = "greenflow:panel-change";
+const STORAGE_PREFIX = "greenflow:panel:";
 
 const LABELS: Record<Panel, { hide: string; show: string }> = {
   nav: { hide: "Ẩn thanh điều hướng", show: "Hiện thanh điều hướng" },
@@ -30,7 +31,13 @@ export function PanelToggle({ panel }: { panel: Panel }) {
 
   const togglePanel = () => {
     const root = document.documentElement;
-    root.dataset[panel] = isCollapsed(panel) ? "open" : "collapsed";
+    const next = isCollapsed(panel) ? "open" : "collapsed";
+    root.dataset[panel] = next;
+    try {
+      window.localStorage.setItem(`${STORAGE_PREFIX}${panel}`, next);
+    } catch {
+      // Trình duyệt chặn localStorage thì chỉ giữ trạng thái trong phiên.
+    }
     window.dispatchEvent(new Event(CHANGE_EVENT));
   };
 
