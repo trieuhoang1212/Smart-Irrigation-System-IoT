@@ -25,8 +25,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Script bên dưới ghi data-nav/data-rail trước khi hydrate nên HTML máy chủ luôn thiếu hai thuộc tính này.
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <head>
         {/* Áp trạng thái ẩn/hiện thanh bên trước khi vẽ để không bị nhảy layout. */}
         <script
