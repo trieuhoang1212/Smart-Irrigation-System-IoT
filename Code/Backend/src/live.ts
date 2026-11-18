@@ -9,16 +9,16 @@ import {
   saveTelemetry,
 } from "./telemetry-repository.js";
 import type { MqttGateway } from "./mqtt-gateway.js";
-import { sendPushToDevice, type PushPayload } from "./push.js";
+import {
+  checkTelemetryAlerts,
+  checkDeviceOfflineAlert,
+  checkDeviceOnlineAlert,
+} from "./alerts.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 10_000;
 // Không gửi lại cùng một cấu hình xuống thiết bị quá dày.
 const SYNC_COOLDOWN_MS = 10_000;
-
-// Cùng một cảnh báo chỉ đẩy về điện thoại một lần trong khoảng này.
-const OFFLINE_ALERT_COOLDOWN_MS = 5 * 60_000;
-const ENVIRONMENT_ALERT_COOLDOWN_MS = 30 * 60_000;
 
 const latestByDevice = new Map<string, Telemetry>();
 const onlineByDevice = new Map<string, boolean>();
@@ -28,7 +28,6 @@ const lastThresholdSyncAt = new Map<string, number>();
 const lastTargetSyncAt = new Map<string, number>();
 const lastFlowSyncAt = new Map<string, number>();
 const lastRainThresholdSyncAt = new Map<string, number>();
-const lastAlertAt = new Map<string, number>();
 
 type PendingCommand = {
   id: string;
@@ -72,41 +71,6 @@ function broadcast(payload: unknown) {
   webSockets.clients.forEach((socket: LiveSocket) => {
     if (socket.readyState === socket.OPEN) socket.send(message);
   });
-}
-
-function notify(deviceId: string, kind: string, cooldownMs: number, payload: PushPayload) {
-  const key = `${deviceId}:${kind}`;
-  const now = Date.now();
-  if (now - (lastAlertAt.get(key) ?? 0) < cooldownMs) return;
-  lastAlertAt.set(key, now);
-
-  void sendPushToDevice(deviceId, payload).catch((error) => {
-    console.error(
-      "Push notification failed:",
-      error instanceof Error ? error.message : error,
-    );
-  });
-}
-
-// Chỉ báo khi trạng thái đổi từ bình thường sang bất thường, tránh lặp mỗi 2 giây.
-function notifyTelemetryChanges(previous: Telemetry, current: Telemetry) {
-  const deviceId = current.deviceId;
-
-  if (!previous.raining && current.raining && current.weatherGate) {
-    notify(deviceId, "rain", ENVIRONMENT_ALERT_COOLDOWN_MS, {
-      title: "Trời bắt đầu mưa",
-      body: "Hệ thống đã tạm hoãn tưới tự động để tránh tưới thừa.",
-      data: { type: "rain", deviceId },
-    });
-  }
-
-  if (!previous.tank.empty && current.tank.empty) {
-    notify(deviceId, "tank", ENVIRONMENT_ALERT_COOLDOWN_MS, {
-      title: "Bồn nước đã cạn",
-      body: "Tưới tự động dừng cho đến khi bồn có nước trở lại.",
-      data: { type: "tank", deviceId },
-    });
-  }
 }
 
 function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
@@ -330,7 +294,7 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     latestByDevice.set(deviceId, telemetry);
 
     if (!meta.retained && previousTelemetry) {
-      notifyTelemetryChanges(previousTelemetry, telemetry);
+      checkTelemetryAlerts(previousTelemetry, telemetry);
     }
 
     // Live state vẫn 2s/lần, nhưng history chỉ ghi 10s/lần cho nhẹ DB.
@@ -368,6 +332,9 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
       if (!onlineByDevice.get(deviceId)) {
         onlineByDevice.set(deviceId, true);
         broadcast({ type: "device-status", deviceId, online: true });
+        if (wasKnown) {
+          checkDeviceOnlineAlert(deviceId);
+        }
       }
       if (!wasKnown) console.log(`Live telemetry from ${deviceId}`);
     }
@@ -391,11 +358,7 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
       onlineByDevice.set(deviceId, false);
       console.log(`Device ${deviceId} offline (no live telemetry)`);
       broadcast({ type: "device-status", deviceId, online: false });
-      notify(deviceId, "offline", OFFLINE_ALERT_COOLDOWN_MS, {
-        title: "Vườn mất kết nối",
-        body: "Không nhận dữ liệu từ thiết bị. Kiểm tra nguồn và Wi-Fi.",
-        data: { type: "offline", deviceId },
-      });
+      checkDeviceOfflineAlert(deviceId);
     });
   }, 2000);
   deviceWatchdog.unref();
