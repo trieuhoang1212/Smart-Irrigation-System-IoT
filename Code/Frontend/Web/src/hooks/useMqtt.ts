@@ -89,6 +89,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
   const thresholdTimerRef = useRef<Record<string, number>>({});
   const stopTimerRef = useRef<Record<string, number>>({});
+  const stopPendingRef = useRef<Record<string, number>>({});
   const zonesRef = useRef<Zone[]>([]);
   const pendingRainThresholdRef = useRef(0);
   const rainThresholdRef = useRef(MAX_RAIN_THRESHOLD);
@@ -187,6 +188,12 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
             : zone;
         }
 
+        const liveStop =
+          typeof live.stopThreshold === "number" && Number.isFinite(live.stopThreshold)
+            ? Math.round(Math.max(0, Math.min(100, live.stopThreshold)))
+            : null;
+        const stopPending = (stopPendingRef.current[zone.id] ?? 0) > now;
+
         return {
           ...zone,
           moisture: isOnline && typeof live.moisture === "number" && Number.isFinite(live.moisture)
@@ -194,10 +201,10 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
             : isOnline ? zone.moisture : null,
           pump: isOnline ? Boolean(live.pump) : false,
           overTarget: isOnline && Boolean(live.over),
-          // Backend config là nguồn chuẩn của ngưỡng. Telemetry retained/live
-          // có thể còn giá trị cũ trong lúc ESP32 đang được resync.
+          // Ngưỡng bật lấy theo cấu hình Backend; ngưỡng dừng phản ánh số thiết bị
+          // đang dùng, trừ ngay sau khi người dùng vừa kéo (chờ lệnh áp xuống).
           threshold: zone.threshold,
-          stopThreshold: zone.stopThreshold,
+          stopThreshold: isOnline && liveStop !== null && !stopPending ? liveStop : zone.stopThreshold,
           online: isOnline,
         };
       }),
@@ -517,6 +524,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       const current = zonesRef.current.find((zone) => zone.id === zoneId);
       // Ngưỡng dừng đã chỉnh tay thì giữ nguyên, chỉ nâng lên khi ngưỡng bật vượt qua.
       const stop = Math.min(100, Math.max(current?.stopThreshold ?? clamped + 20, clamped + MIN_STOP_GAP));
+      stopPendingRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
       setZones((currentZones) =>
         currentZones.map((zone) =>
           zone.id === zoneId
@@ -533,12 +541,8 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       window.clearTimeout(thresholdTimerRef.current[zoneId]);
       thresholdTimerRef.current[zoneId] = window.setTimeout(() => {
         delete thresholdTimerRef.current[zoneId];
+        // Firmware giữ ngưỡng dừng hiện tại, chỉ kẹp lên khi khoảng cách 5 bị vi phạm.
         void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
-        // Firmware tự đặt ngưỡng dừng = bật + 20 khi nhận SET_THRESHOLD,
-        // nên phải gửi lại ngưỡng dừng đã chỉnh tay sau lệnh ngưỡng bật.
-        if (stop !== Math.min(100, clamped + 20)) {
-          void sendCommand(`SET_STOP_${zoneId}_${stop}`);
-        }
       }, THRESHOLD_DEBOUNCE_MS);
     },
     [sendCommand],
@@ -549,6 +553,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       const current = zonesRef.current.find((zone) => zone.id === zoneId);
       const minStop = (current?.threshold ?? 10) + MIN_STOP_GAP;
       const clamped = Math.max(minStop, Math.min(100, Math.round(value)));
+      stopPendingRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
       setZones((currentZones) =>
         currentZones.map((zone) =>
           zone.id === zoneId ? { ...zone, stopThreshold: clamped } : zone,
@@ -624,16 +629,11 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       setZones((current) =>
         current.map((zone) => {
           if (zone.id !== zoneId) return zone;
-          const thresholdChanged = threshold !== undefined && threshold !== zone.threshold;
-          const wasDefaultStop = zone.stopThreshold === Math.min(100, zone.threshold + 20);
           const nextThreshold = threshold ?? zone.threshold;
-          // Chỉ đổi ngưỡng bật: vùng còn dùng độ trễ mặc định thì dời ngưỡng dừng theo,
-          // vùng đã chỉnh tay thì giữ nguyên giống backend.
+          // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ kẹp khi ngưỡng bật vượt khoảng cách 5.
           const stopThreshold = input.stopThreshold !== undefined
             ? Math.max(nextThreshold + MIN_STOP_GAP, Math.min(100, Math.round(input.stopThreshold)))
-            : thresholdChanged && wasDefaultStop
-              ? Math.min(100, nextThreshold + 20)
-              : zone.stopThreshold;
+            : Math.max(nextThreshold + MIN_STOP_GAP, Math.min(100, Math.round(zone.stopThreshold)));
           return {
             ...zone,
             threshold: nextThreshold,

@@ -138,7 +138,7 @@ export function PumpControlCard({
       <div className="threshold-control pump-threshold">
         <label htmlFor="stop-threshold">
           Ngừng tưới khi đạt <strong>{selectedZone.stopThreshold}%</strong>
-          <Tooltip text="Khi độ ẩm đất đạt ngưỡng này, van của ô sẽ đóng để dừng tưới. Ngưỡng dừng luôn cao hơn ngưỡng bật ít nhất 5%." />
+          <Tooltip text="Áp dụng ở chế độ Tự động: khi độ ẩm đất đạt ngưỡng này, hệ thống tự đóng van để dừng tưới. Ngưỡng dừng luôn cao hơn ngưỡng bật ít nhất 5%." />
         </label>
         <input
           id="stop-threshold"
@@ -152,7 +152,10 @@ export function PumpControlCard({
         />
         <span className="threshold-gap">
           Từ {selectedZone.threshold}% tưới đến {selectedZone.stopThreshold}% (
-          {selectedZone.stopThreshold - selectedZone.threshold} điểm)
+          {selectedZone.stopThreshold - selectedZone.threshold} điểm) · chỉ áp dụng ở chế độ Tự động
+          {selectedZone.stopThreshold - selectedZone.threshold === 5
+            ? " · sát mức tối thiểu 5 điểm"
+            : ""}
         </span>
       </div>
     </article>
