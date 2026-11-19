@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ZONE_IDS } from "@/api/types";
@@ -53,6 +53,12 @@ export default function AnalysisScreen() {
     reload,
   } = useHistory({ deviceId, zoneId: activeZoneId, range });
 
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    void reload().finally(() => setRefreshing(false));
+  }, [reload]);
+
   const analysis = useMemo(
     () =>
       zone
@@ -84,7 +90,7 @@ export default function AnalysisScreen() {
       : clamp(analysis.current, 0, 100);
 
   return (
-    <Screen>
+    <Screen refreshing={refreshing} onRefresh={handleRefresh}>
       <PageHeader
         title="Phân tích"
         status={{ online: deviceOnline, at: lastTelemetryAt }}

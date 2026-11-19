@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -82,6 +82,12 @@ export default function ActivityScreen() {
   const { events, loading, error, reload } = useActivity(deviceId);
   const [kind, setKind] = useState<KindFilter>("all");
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    void reload().finally(() => setRefreshing(false));
+  }, [reload]);
 
   const filtered = useMemo(
     () => (kind === "all" ? events : events.filter((event) => event.kind === kind)),
@@ -126,7 +132,7 @@ export default function ActivityScreen() {
   const shown = Math.min(visibleCount, filtered.length);
 
   return (
-    <Screen>
+    <Screen refreshing={refreshing} onRefresh={handleRefresh}>
       <PageHeader
         title="Nhật ký"
         status={{ online: deviceOnline, at: lastTelemetryAt }}

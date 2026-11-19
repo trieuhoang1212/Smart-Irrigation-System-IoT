@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
@@ -17,18 +17,28 @@ import { useGarden } from "@/providers/GardenProvider";
 
 export default function OverviewScreen() {
   const router = useRouter();
-  const { zones, deviceOnline, lastTelemetryAt } = useGarden();
+  const { zones, deviceOnline, lastTelemetryAt, refreshConfig } = useGarden();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [chartsOpen, setChartsOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    void refreshConfig().finally(() => setRefreshing(false));
+  }, [refreshConfig]);
 
   const openZone = openId
     ? (zones.find((item) => item.id === openId) ?? null)
     : null;
 
   return (
-    <Screen onPullUp={() => setChartsOpen(true)}>
+    <Screen
+      onPullUp={() => setChartsOpen(true)}
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+    >
       <PageHeader
         title="Tổng quan"
         status={{ online: deviceOnline, at: lastTelemetryAt }}

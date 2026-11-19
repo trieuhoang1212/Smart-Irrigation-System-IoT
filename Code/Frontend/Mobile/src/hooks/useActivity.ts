@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getDeviceActivity,
@@ -70,8 +70,17 @@ export function useActivity(deviceId: string, limit = 60) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  // Kéo để làm mới chờ đúng lượt tải do chính nó kích hoạt.
+  const waiters = useRef<Array<() => void>>([]);
 
-  const reload = useCallback(() => setRefreshToken((token) => token + 1), []);
+  const reload = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        waiters.current.push(resolve);
+        setRefreshToken((token) => token + 1);
+      }),
+    [],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -106,7 +115,10 @@ export function useActivity(deviceId: string, limit = 60) {
       } catch {
         if (!disposed) setError("Không tải được nhật ký từ Backend.");
       } finally {
-        if (!disposed) setLoading(false);
+        if (!disposed) {
+          setLoading(false);
+          waiters.current.splice(0).forEach((resolve) => resolve());
+        }
       }
     };
 

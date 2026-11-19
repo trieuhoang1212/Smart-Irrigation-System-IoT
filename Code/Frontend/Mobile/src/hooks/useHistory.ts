@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getTelemetryHistory } from "../api/telemetry";
 import type { HistorySample } from "../api/types";
@@ -29,8 +29,17 @@ export function useHistory({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  // Kéo để làm mới chờ đúng lượt tải do chính nó kích hoạt.
+  const waiters = useRef<Array<() => void>>([]);
 
-  const reload = useCallback(() => setRefreshToken((token) => token + 1), []);
+  const reload = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        waiters.current.push(resolve);
+        setRefreshToken((token) => token + 1);
+      }),
+    [],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -53,7 +62,10 @@ export function useHistory({
       } catch {
         if (!disposed) setError("Không tải được dữ liệu lịch sử.");
       } finally {
-        if (!disposed) setLoading(false);
+        if (!disposed) {
+          setLoading(false);
+          waiters.current.splice(0).forEach((resolve) => resolve());
+        }
       }
     };
 
