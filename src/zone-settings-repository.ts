@@ -1,6 +1,8 @@
 import { db } from "./db.js";
 import {
+  MAX_STOP_THRESHOLD,
   MAX_THRESHOLD,
+  MIN_STOP_GAP,
   MIN_THRESHOLD,
   STOP_OFFSET,
   ZONE_IDS,
@@ -48,13 +50,18 @@ type ZoneSettingChangeRow = {
   updated_at: number;
 };
 
-/** Firmware đặt ngưỡng dừng = ngưỡng bật + 20 (giới hạn 100). */
+/** Mặc định gợi ý: ngưỡng dừng = ngưỡng bật + 20 (giới hạn 100). */
 export function deriveStopThreshold(threshold: number): number {
-  return Math.min(100, threshold + STOP_OFFSET);
+  return Math.min(MAX_STOP_THRESHOLD, threshold + STOP_OFFSET);
 }
 
 export function clampThreshold(value: number): number {
   return Math.max(MIN_THRESHOLD, Math.min(MAX_THRESHOLD, Math.round(value)));
+}
+
+/** Ngưỡng dừng phải cách ngưỡng bật tối thiểu 5 điểm để tránh bơm đóng cắt liên tục. */
+export function clampStopThreshold(value: number, threshold: number): number {
+  return Math.max(threshold + MIN_STOP_GAP, Math.min(MAX_STOP_THRESHOLD, Math.round(value)));
 }
 
 export function isZoneId(value: string): value is ZoneId {
