@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   // Script bên dưới ghi data-nav/data-rail trước khi hydrate nên HTML máy chủ luôn thiếu hai thuộc tính này.
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html lang="vi" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         {/* Áp trạng thái ẩn/hiện thanh bên và theme trước khi vẽ để không bị nhảy layout. */}
         <script
