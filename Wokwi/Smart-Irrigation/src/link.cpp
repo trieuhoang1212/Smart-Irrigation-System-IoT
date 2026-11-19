@@ -115,6 +115,19 @@ static bool handleCommand(const String& message) {
     Serial.print("rain threshold ");
     Serial.println(rainThreshold);
     return true;
+  } else if (message.startsWith("SET_STOP_")) {
+    char zoneId[5] = {0};
+    int value = 0;
+    if (sscanf(message.c_str(), "SET_STOP_%4[^_]_%d", zoneId, &value) != 2) return false;
+    const int zone = findZoneIndex(zoneId);
+    if (zone < 0) return false;
+    // Chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 5 điểm.
+    moistureOff[zone] = constrain(value, moistureOn[zone] + 5, 100);
+    prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
+    Serial.print(zoneId);
+    Serial.print(" stop ");
+    Serial.println(moistureOff[zone]);
+    return true;
   } else if (message.startsWith("SET_THRESHOLD_")) {
     char zoneId[5] = {0};
     int value = 0;
