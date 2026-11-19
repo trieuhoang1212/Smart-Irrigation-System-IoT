@@ -15,6 +15,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://smart-irrigation-system-iot.onrender.com"
+        // "EXPO_PUBLIC_API_URL": "http://192.168.0.215:3001"
       }
     },
     "production": {
