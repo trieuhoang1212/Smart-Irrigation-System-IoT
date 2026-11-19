@@ -94,7 +94,7 @@ flowchart LR
 ### Điều khiển
 
 - Tự động tưới theo ngưỡng riêng của từng khu vực.
-- Hysteresis hai ngưỡng chỉnh riêng từng khu, hạn chế bơm đóng cắt liên tục.
+- Hysteresis hai ngưỡng chỉnh riêng từng khu (ngưỡng dừng áp dụng ở chế độ Tự động), hạn chế bơm đóng cắt liên tục.
 - Weather Gate: mưa ≥ ngưỡng − 20 điểm thì còi + cảnh báo Web; mưa ≥ ngưỡng (40–100%, chỉnh từ Web) thì dừng và chặn bơm ở cả AUTO lẫn MANUAL; phải giảm dưới ngưỡng 5 điểm mới tưới lại.
 - Chuyển AUTO/MANUAL, điều khiển bơm toàn hệ thống hoặc từng vùng.
 - MANUAL đặt mục tiêu nước (lít); vượt mục tiêu thì còi và báo Web để nông dân tắt bơm.
@@ -200,7 +200,7 @@ flowchart LR
 - `PUMP_ON`, `PUMP_OFF` (toàn hệ thống)
 - `PUMP_ON_T001` … `PUMP_OFF_T006` (từng vùng)
 - `SET_THRESHOLD_T001_45` … (ngưỡng bật 10–90%)
-- `SET_STOP_T001_65` … (ngưỡng dừng, cao hơn ngưỡng bật ít nhất 5%, tối đa 100%)
+- `SET_STOP_T001_65` … (ngưỡng dừng cho chế độ Tự động, cao hơn ngưỡng bật ít nhất 5%, tối đa 100%)
 - `SET_TARGET_T001_120` … (mục tiêu thời gian chạy MANUAL, 0–600 giây)
 - `WEATHER_GATE_ON`, `WEATHER_GATE_OFF`
 
