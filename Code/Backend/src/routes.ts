@@ -456,11 +456,8 @@ export function createApiRouter(gateway: MqttGateway) {
         return;
       }
     } else if (hasThreshold) {
-      // Vùng còn dùng độ trễ mặc định thì vẫn dừng ở +20; vùng đã chỉnh tay thì giữ số đã chỉnh.
-      const isDefaultGap = current.stopThreshold === deriveStopThreshold(current.threshold);
-      stopThreshold = isDefaultGap
-        ? deriveStopThreshold(threshold)
-        : clampStopThreshold(current.stopThreshold, threshold);
+      // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ nâng khi ngưỡng bật vượt qua khoảng cách 5.
+      stopThreshold = clampStopThreshold(current.stopThreshold, threshold);
     }
 
     let setting = hasThreshold || hasStopThreshold
@@ -484,8 +481,7 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    // Firmware tự suy ra dừng = bật + 20 khi nhận SET_THRESHOLD, nên gửi kèm
-    // ngưỡng dừng thực tế để không bị kéo về mặc định.
+    // Gửi kèm ngưỡng dừng hiện tại để DB và thiết bị khớp nhau sau khi đổi ngưỡng bật.
     let stopSynced = false;
     if (hasThreshold || hasStopThreshold) {
       try {
@@ -753,6 +749,7 @@ export function createApiRouter(gateway: MqttGateway) {
       response.status(400).json({ error: "Invalid command or zoneId" });
       return;
     }
+    let outgoing = command;
 
     // Firmware chỉ nhận lệnh bơm (toàn vườn hoặc từng vùng) khi đang ở chế độ manual.
     if (
@@ -768,8 +765,8 @@ export function createApiRouter(gateway: MqttGateway) {
     if (commandRequest.action === "SET_THRESHOLD" && commandRequest.zoneId && isZoneId(commandRequest.zoneId)) {
       const threshold = clampThreshold(Number(commandRequest.value));
       const previous = getZoneSetting(deviceId, commandRequest.zoneId);
-      // Vùng đã chỉnh ngưỡng dừng tay thì giữ số đó, chỉ kéo lên nếu sát ngưỡng bật.
-      const stopThreshold = previous && previous.stopThreshold !== deriveStopThreshold(previous.threshold)
+      // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ nâng khi bị ngưỡng bật vượt qua.
+      const stopThreshold = previous
         ? clampStopThreshold(previous.stopThreshold, threshold)
         : deriveStopThreshold(threshold);
       setting = saveZoneSetting(deviceId, commandRequest.zoneId, threshold, stopThreshold);
@@ -784,6 +781,8 @@ export function createApiRouter(gateway: MqttGateway) {
           previous.threshold,
           clampStopThreshold(Number(commandRequest.value), previous.threshold),
         );
+        // Gửi đúng giá trị đã kẹp để lệnh xác nhận khớp với telemetry thiết bị báo.
+        outgoing = `SET_STOP_${commandRequest.zoneId}_${setting.stopThreshold}`;
       }
     }
 
@@ -791,7 +790,7 @@ export function createApiRouter(gateway: MqttGateway) {
     const sentAt = new Date().toISOString();
 
     try {
-      await gateway.publish(command);
+      await gateway.publish(outgoing);
     } catch (error) {
       console.error("MQTT command failed:", error);
       if (setting) {
@@ -803,10 +802,10 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
 
-    trackCommand(commandId, deviceId, command);
+    trackCommand(commandId, deviceId, outgoing);
 
     try {
-      logCommand(commandId, deviceId, command);
+      logCommand(commandId, deviceId, outgoing);
     } catch (error) {
       console.error("Failed to log command:", error instanceof Error ? error.message : error);
     }
@@ -817,7 +816,7 @@ export function createApiRouter(gateway: MqttGateway) {
       appliedRemotely: true,
       commandId,
       deviceId,
-      command,
+      command: outgoing,
       setting,
       sentAt,
     });

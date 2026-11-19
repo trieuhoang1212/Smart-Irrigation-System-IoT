@@ -355,7 +355,7 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     // Chờ telemetry live kế tiếp để chắc chắn thiết bị đã online và nhận lệnh.
     if (!meta.retained) {
       resyncThresholds(telemetry, gateway);
-      // SET_THRESHOLD đặt lại ngưỡng dừng về mặc định +20, nên luôn chạy sau.
+      // Ngưỡng dừng chạy sau ngưỡng bật để giá trị cuối cùng khớp với DB.
       resyncStopThresholds(telemetry, gateway);
       resyncTargets(telemetry, gateway);
       resyncFlows(telemetry, gateway);
