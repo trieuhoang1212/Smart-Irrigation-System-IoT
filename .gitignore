@@ -34,3 +34,7 @@ docs
 
 .pio
 .vscode
+Code/Frontend/Mobile/google-services.json
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+**/*google-services*.json
