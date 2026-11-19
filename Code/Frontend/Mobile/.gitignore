@@ -33,6 +33,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# service account keys (chứa private key, không commit)
+*-firebase-adminsdk-*.json
+serviceAccountKey*.json
+
 # typescript
 *.tsbuildinfo
 
