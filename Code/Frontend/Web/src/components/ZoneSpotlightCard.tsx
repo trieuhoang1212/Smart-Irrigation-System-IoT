@@ -44,6 +44,7 @@ export function ZoneSpotlightCard({ zone, soil }: { zone: Zone; soil: SoilType }
         <div className="spot-threshold">
           <span>Tự tưới khi dưới</span>
           <strong>{zone.threshold}%</strong>
+          <span>dừng khi đạt {zone.stopThreshold}%</span>
         </div>
       </div>
 

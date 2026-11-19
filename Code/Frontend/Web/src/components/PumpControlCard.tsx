@@ -12,6 +12,7 @@ interface PumpControlCardProps {
   onChangeMode: (mode: "auto" | "manual") => Promise<boolean>;
   onTogglePump: () => void;
   onChangeThreshold: (val: number) => void;
+  onChangeStopThreshold: (val: number) => void;
 }
 
 export function PumpControlCard({
@@ -22,8 +23,10 @@ export function PumpControlCard({
   onChangeMode,
   onTogglePump,
   onChangeThreshold,
+  onChangeStopThreshold,
 }: PumpControlCardProps) {
   const offlineReason = "Thiết bị mất kết nối";
+  const minStop = Math.min(100, selectedZone.threshold + 5);
 
   return (
     <article className="panel pump-tile">
@@ -130,6 +133,27 @@ export function PumpControlCard({
           disabled={!controlsEnabled}
           title={controlsEnabled ? undefined : offlineReason}
         />
+      </div>
+
+      <div className="threshold-control pump-threshold">
+        <label htmlFor="stop-threshold">
+          Ngừng tưới khi đạt <strong>{selectedZone.stopThreshold}%</strong>
+          <Tooltip text="Khi độ ẩm đất đạt ngưỡng này, van của ô sẽ đóng để dừng tưới. Ngưỡng dừng luôn cao hơn ngưỡng bật ít nhất 5%." />
+        </label>
+        <input
+          id="stop-threshold"
+          type="range"
+          min={minStop}
+          max="100"
+          value={Math.max(minStop, selectedZone.stopThreshold)}
+          onChange={(event) => onChangeStopThreshold(Number(event.target.value))}
+          disabled={!controlsEnabled}
+          title={controlsEnabled ? undefined : offlineReason}
+        />
+        <span className="threshold-gap">
+          Từ {selectedZone.threshold}% tưới đến {selectedZone.stopThreshold}% (
+          {selectedZone.stopThreshold - selectedZone.threshold} điểm)
+        </span>
       </div>
     </article>
   );

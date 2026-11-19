@@ -33,6 +33,7 @@ type BackendTelemetry = {
 
 export type ZoneConfigInput = {
   threshold?: number;
+  stopThreshold?: number;
   flowLitersPerHour: number;
   targetLiters: number;
 };
@@ -47,6 +48,8 @@ const MAX_RECONNECT_DELAY = 15000;
 const OPTIMISTIC_WINDOW_MS = 3000;
 const THRESHOLD_PENDING_MS = 5000;
 const THRESHOLD_DEBOUNCE_MS = 400;
+// Firmware chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 5 điểm.
+const MIN_STOP_GAP = 5;
 export const MIN_RAIN_THRESHOLD = 40;
 export const MAX_RAIN_THRESHOLD = 100;
 // Cảnh báo "có thể mưa" đi trước ngưỡng dừng 20 điểm, khớp firmware.
@@ -85,6 +88,8 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const pumpByZoneRef = useRef<Record<string, boolean>>({});
   const pendingRef = useRef<{ mode?: number; weatherGate?: number }>({});
   const thresholdTimerRef = useRef<Record<string, number>>({});
+  const stopTimerRef = useRef<Record<string, number>>({});
+  const zonesRef = useRef<Zone[]>([]);
   const pendingRainThresholdRef = useRef(0);
   const rainThresholdRef = useRef(MAX_RAIN_THRESHOLD);
   const rainThresholdTimerRef = useRef<number | undefined>(undefined);
@@ -415,11 +420,14 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     (cmd: string) => {
       const pumpMatch = cmd.match(/^(PUMP_ON|PUMP_OFF)_(T00[1-6])$/);
       const thresholdMatch = cmd.match(/^SET_THRESHOLD_(T00[1-6])_(\d{1,3})$/);
+      const stopMatch = cmd.match(/^SET_STOP_(T00[1-6])_(\d{1,3})$/);
       const body = pumpMatch
         ? { action: pumpMatch[1], zoneId: pumpMatch[2] }
         : thresholdMatch
           ? { action: "SET_THRESHOLD", zoneId: thresholdMatch[1], value: Number(thresholdMatch[2]) }
-          : { action: cmd };
+          : stopMatch
+            ? { action: "SET_STOP", zoneId: stopMatch[1], value: Number(stopMatch[2]) }
+            : { action: cmd };
 
       if (!deviceId) {
         log(`Chưa thể gửi lệnh ${cmd} khi chưa tải cấu hình.`);
@@ -506,13 +514,16 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const setZoneThreshold = useCallback(
     (zoneId: string, value: number) => {
       const clamped = Math.max(10, Math.min(90, Math.round(value)));
-      setZones((current) =>
-        current.map((zone) =>
+      const current = zonesRef.current.find((zone) => zone.id === zoneId);
+      // Ngưỡng dừng đã chỉnh tay thì giữ nguyên, chỉ nâng lên khi ngưỡng bật vượt qua.
+      const stop = Math.min(100, Math.max(current?.stopThreshold ?? clamped + 20, clamped + MIN_STOP_GAP));
+      setZones((currentZones) =>
+        currentZones.map((zone) =>
           zone.id === zoneId
             ? {
                 ...zone,
                 threshold: clamped,
-                stopThreshold: Math.min(100, clamped + 20),
+                stopThreshold: stop,
               }
             : zone,
         ),
@@ -523,6 +534,31 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       thresholdTimerRef.current[zoneId] = window.setTimeout(() => {
         delete thresholdTimerRef.current[zoneId];
         void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
+        // Firmware tự đặt ngưỡng dừng = bật + 20 khi nhận SET_THRESHOLD,
+        // nên phải gửi lại ngưỡng dừng đã chỉnh tay sau lệnh ngưỡng bật.
+        if (stop !== Math.min(100, clamped + 20)) {
+          void sendCommand(`SET_STOP_${zoneId}_${stop}`);
+        }
+      }, THRESHOLD_DEBOUNCE_MS);
+    },
+    [sendCommand],
+  );
+
+  const setZoneStopThreshold = useCallback(
+    (zoneId: string, value: number) => {
+      const current = zonesRef.current.find((zone) => zone.id === zoneId);
+      const minStop = (current?.threshold ?? 10) + MIN_STOP_GAP;
+      const clamped = Math.max(minStop, Math.min(100, Math.round(value)));
+      setZones((currentZones) =>
+        currentZones.map((zone) =>
+          zone.id === zoneId ? { ...zone, stopThreshold: clamped } : zone,
+        ),
+      );
+
+      window.clearTimeout(stopTimerRef.current[zoneId]);
+      stopTimerRef.current[zoneId] = window.setTimeout(() => {
+        delete stopTimerRef.current[zoneId];
+        void sendCommand(`SET_STOP_${zoneId}_${clamped}`);
       }, THRESHOLD_DEBOUNCE_MS);
     },
     [sendCommand],
@@ -586,20 +622,26 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         ? undefined
         : Math.max(10, Math.min(90, Math.round(input.threshold)));
       setZones((current) =>
-        current.map((zone) =>
-          zone.id === zoneId
-            ? {
-                ...zone,
-                threshold: threshold ?? zone.threshold,
-                stopThreshold:
-                  threshold === undefined
-                    ? zone.stopThreshold
-                    : Math.min(100, threshold + 20),
-                flowLitersPerHour: input.flowLitersPerHour,
-                targetLiters: input.targetLiters,
-              }
-            : zone,
-        ),
+        current.map((zone) => {
+          if (zone.id !== zoneId) return zone;
+          const thresholdChanged = threshold !== undefined && threshold !== zone.threshold;
+          const wasDefaultStop = zone.stopThreshold === Math.min(100, zone.threshold + 20);
+          const nextThreshold = threshold ?? zone.threshold;
+          // Chỉ đổi ngưỡng bật: vùng còn dùng độ trễ mặc định thì dời ngưỡng dừng theo,
+          // vùng đã chỉnh tay thì giữ nguyên giống backend.
+          const stopThreshold = input.stopThreshold !== undefined
+            ? Math.max(nextThreshold + MIN_STOP_GAP, Math.min(100, Math.round(input.stopThreshold)))
+            : thresholdChanged && wasDefaultStop
+              ? Math.min(100, nextThreshold + 20)
+              : zone.stopThreshold;
+          return {
+            ...zone,
+            threshold: nextThreshold,
+            stopThreshold,
+            flowLitersPerHour: input.flowLitersPerHour,
+            targetLiters: input.targetLiters,
+          };
+        }),
       );
 
       try {
@@ -642,9 +684,15 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   );
 
   useEffect(() => {
+    zonesRef.current = zones;
+  }, [zones]);
+
+  useEffect(() => {
     const timers = thresholdTimerRef.current;
+    const stopTimers = stopTimerRef.current;
     return () => {
       Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+      Object.values(stopTimers).forEach((timer) => window.clearTimeout(timer));
       window.clearTimeout(rainThresholdTimerRef.current);
     };
   }, []);
@@ -654,7 +702,8 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     rainPercent, raining, rainThreshold,
     rainWarnThreshold: Math.max(0, rainThreshold - RAIN_WARN_OFFSET),
     rainBlock, lastUpdated, sendCommand, togglePump,
-    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, setRainThreshold,
+    changeMode, toggleWeatherGate, reconnect, setZoneThreshold, setZoneStopThreshold,
+    setRainThreshold,
     saveZoneConfig, configLoading, configError, deviceId, deviceOnline, brokerConnected,
     commandVersion, servoAngle, tankDistanceCm, tankEmpty, lastTelemetryAt,
   };

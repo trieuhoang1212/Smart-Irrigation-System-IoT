@@ -92,6 +92,10 @@ export function GardenDetailPanel({
           <dd>{zone.threshold}%</dd>
         </div>
         <div>
+          <dt>Ngưỡng dừng</dt>
+          <dd>{zone.stopThreshold}%</dd>
+        </div>
+        <div>
           <dt>Còn tới ngưỡng</dt>
           <dd className="forecast-value">{dryLabel}</dd>
         </div>

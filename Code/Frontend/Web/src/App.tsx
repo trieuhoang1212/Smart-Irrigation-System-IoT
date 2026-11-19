@@ -60,6 +60,7 @@ export default function App() {
     toggleWeatherGate,
     reconnect,
     setZoneThreshold,
+    setZoneStopThreshold,
     configLoading,
     configError,
     deviceId,
@@ -196,6 +197,7 @@ export default function App() {
                 onChangeMode={changeMode}
                 onTogglePump={handleTogglePump}
                 onChangeThreshold={(val) => setZoneThreshold(selectedZone.id, val)}
+                onChangeStopThreshold={(val) => setZoneStopThreshold(selectedZone.id, val)}
               />
               <GardenHealthCard
                 zones={zones}
