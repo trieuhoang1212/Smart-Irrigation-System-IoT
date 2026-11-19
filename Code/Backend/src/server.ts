@@ -7,7 +7,7 @@ import { closeDatabase, databaseFile, db } from "./db.js";
 import { gardenConfig } from "./garden-config.js";
 import { getLiveStats, startLive, stopLive } from "./live.js";
 import { MqttGateway } from "./mqtt-gateway.js";
-import { createApiRouter } from "./routes.js";
+import { createApiRouter } from "./http/router.js";
 import {
   backfillWateringRuns,
   pruneHistory,
