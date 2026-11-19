@@ -1,6 +1,6 @@
 import { File as ExpoFile } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -114,6 +114,12 @@ export function ZoneProfileEditor({
   const [error, setError] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(() => assetUrl(zone.photoUrl));
   const [photoBroken, setPhotoBroken] = useState(false);
+
+  // Ảnh có thể vừa được đổi trên Web nên đồng bộ lại mỗi khi cấu hình tải về.
+  useEffect(() => {
+    setPhoto(assetUrl(zone.photoUrl));
+    setPhotoBroken(false);
+  }, [zone.photoUrl]);
 
   const draftPlantedAt = partsToTimestamp(dateParts);
   const draftHarvest = harvestDays.trim() === "" ? null : Number(harvestDays);

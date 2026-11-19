@@ -43,6 +43,7 @@ type GardenContextValue = {
   loading: boolean;
   configError: string | null;
   reloadConfig: () => void;
+  refreshConfig: () => Promise<void>;
   setMode: (mode: Mode) => Promise<void>;
   toggleWeatherGate: () => Promise<void>;
   togglePump: () => Promise<void>;
@@ -118,26 +119,20 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
     [notify],
   );
 
+  const loadConfig = useCallback(async () => {
+    try {
+      const config = await getGardenConfig();
+      setDeviceId(config.deviceId);
+      setGardenZones(config.zones);
+      setConfigError(null);
+    } catch {
+      setConfigError("Không tải được cấu hình khu vườn từ Backend.");
+    }
+  }, []);
+
   useEffect(() => {
-    let disposed = false;
-
-    getGardenConfig()
-      .then((config) => {
-        if (disposed) return;
-        setDeviceId(config.deviceId);
-        setGardenZones(config.zones);
-      })
-      .catch(() => {
-        if (!disposed) setConfigError("Không tải được cấu hình khu vườn từ Backend.");
-      })
-      .finally(() => {
-        if (!disposed) setLoading(false);
-      });
-
-    return () => {
-      disposed = true;
-    };
-  }, [configToken]);
+    void loadConfig().finally(() => setLoading(false));
+  }, [configToken, loadConfig]);
 
   useEffect(() => {
     let disposed = false;
@@ -379,6 +374,7 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
       loading,
       configError,
       reloadConfig,
+      refreshConfig: loadConfig,
       setMode,
       toggleWeatherGate,
       togglePump,
@@ -401,6 +397,7 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
       loading,
       configError,
       reloadConfig,
+      loadConfig,
       setMode,
       toggleWeatherGate,
       togglePump,

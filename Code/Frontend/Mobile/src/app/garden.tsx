@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 
 import { ZoneProfileEditor } from "@/components/garden/ZoneProfileEditor";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -29,9 +29,24 @@ export default function GardenScreen() {
   const {
     zones,
     reloadConfig,
+    refreshConfig,
     deviceOnline,
     lastTelemetryAt,
   } = useGarden();
+
+  // Ảnh/hồ sơ có thể được sửa trên Web: vào lại tab Khu vườn thì tải lại cấu hình.
+  useFocusEffect(
+    useCallback(() => {
+      reloadConfig();
+    }, [reloadConfig]),
+  );
+
+  // Kéo xuống để tải lại ngay khi đang đứng sẵn ở tab, không cần mở lại app.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    void refreshConfig().finally(() => setRefreshing(false));
+  }, [refreshConfig]);
 
   // Điều hướng kèm ?zone=...&view=...; đổi tham số thì đổi khu vực và mục.
   const paramKey = `${params.zone ?? ""}|${params.at ?? ""}|${params.view ?? ""}`;
@@ -73,7 +88,11 @@ export default function GardenScreen() {
   };
 
   return (
-    <Screen onSwipe={handleSwipe}>
+    <Screen
+      onSwipe={handleSwipe}
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+    >
       <PageHeader
         title="Khu vườn"
         status={{ online: deviceOnline, at: lastTelemetryAt }}

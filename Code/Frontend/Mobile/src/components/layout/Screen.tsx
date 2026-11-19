@@ -11,6 +11,7 @@ import {
   Dimensions,
   Keyboard,
   Platform,
+  RefreshControl,
   StyleSheet,
   TextInput,
   type StyleProp,
@@ -68,11 +69,15 @@ export function Screen({
   contentStyle,
   onPullUp,
   onSwipe,
+  refreshing,
+  onRefresh,
 }: {
   children: React.ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
   onPullUp?: () => void;
   onSwipe?: (direction: SwipeDirection) => boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -294,6 +299,14 @@ export function Screen({
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl
+                  refreshing={refreshing ?? false}
+                  onRefresh={onRefresh}
+                />
+              ) : undefined
+            }
             onScroll={onScroll}
             scrollEventThrottle={16}
             onLayout={(event) => {
