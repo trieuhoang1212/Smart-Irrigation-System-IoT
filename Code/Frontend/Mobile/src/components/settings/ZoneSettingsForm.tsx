@@ -253,7 +253,11 @@ export function ZoneSettingsForm({ zone }: Props) {
           value={draft.stopThreshold}
           min={Math.min(STOP_MAX, draft.threshold + STOP_GAP_MIN)}
           max={STOP_MAX}
-          hint={`Luôn cao hơn ngưỡng bắt đầu ít nhất ${STOP_GAP_MIN}%.`}
+          hint={
+            draft.stopThreshold === Math.min(STOP_MAX, draft.threshold + STOP_GAP_MIN)
+              ? `Đang ở mức tối thiểu (cao hơn ngưỡng bắt đầu ${STOP_GAP_MIN} điểm). Chỉ áp dụng ở chế độ Tự động.`
+              : `Chỉ áp dụng ở chế độ Tự động; luôn cao hơn ngưỡng bắt đầu ít nhất ${STOP_GAP_MIN}%.`
+          }
           decreaseLabel="Giảm ngưỡng kết thúc tưới"
           increaseLabel="Tăng ngưỡng kết thúc tưới"
           onChange={(stopThreshold) => {
