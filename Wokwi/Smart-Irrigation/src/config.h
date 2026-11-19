@@ -27,7 +27,8 @@ constexpr int MASTER_VALVE_OPEN = 90;
 constexpr const char* WIFI_SSID = "Wokwi-GUEST";
 constexpr const char* WIFI_PASSWORD = "";
 constexpr int WIFI_CHANNEL = 6;
-constexpr const char* MQTT_SERVER = "test.mosquitto.org";
+// constexpr const char* MQTT_SERVER = "test.mosquitto.org";
+constexpr const char* MQTT_SERVER = "192.168.0.215";
 constexpr int MQTT_PORT = 1883;
 constexpr const char* DEVICE_ID = "esp32-garden-01";
 constexpr const char* TOPIC_STATUS = "smart-irrigation/trieuhoang1212/status";
@@ -50,7 +51,6 @@ constexpr int RAIN_THRESHOLD_MIN = 40;
 constexpr int RAIN_THRESHOLD_MAX = 100;
 constexpr int RAIN_WARN_OFFSET = 20;
 constexpr int RAIN_HYSTERESIS = 5;
-constexpr int STOP_OFFSET = 20;
 
 // Chip mưa xuất PWM tối đa 90/100 ms, nên 90 mẫu HIGH tương ứng 100% mưa.
 constexpr int RAIN_PWM_MAX_SAMPLES = 90;

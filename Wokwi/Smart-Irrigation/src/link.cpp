@@ -136,7 +136,8 @@ static bool handleCommand(const String& message) {
     const int zone = findZoneIndex(zoneId);
     if (zone < 0) return false;
     moistureOn[zone] = value;
-    moistureOff[zone] = constrain(value + STOP_OFFSET, value + 5, 100);
+    // Ngưỡng dừng độc lập: giữ số đã chỉnh, chỉ nâng khi vi phạm khoảng cách tối thiểu.
+    moistureOff[zone] = constrain(moistureOff[zone], value + 5, 100);
     prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[zone]);
     prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
     Serial.print(zoneId);
