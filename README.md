@@ -25,7 +25,9 @@ ESP32 đọc cảm biến và quyết định tưới; Web Dashboard và Mobile 
 <a href="#phần-cứng">Phần cứng</a> ·
 <a href="#khởi-chạy">Khởi chạy</a> ·
 <a href="#dịch-vụ-ngoài">Dịch vụ ngoài</a> ·
-<a href="#triển-khai">Triển khai</a>
+<a href="#triển-khai">Triển khai</a> ·
+<a href="#hạn-chế">Hạn chế</a> ·
+<a href="#hướng-phát-triển">Hướng phát triển</a>
 
 <br/>
 
@@ -242,13 +244,58 @@ Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database
 
 ---
 
-## Lưu ý
+## Hạn chế
 
-- Prototype phục vụ đồ án, chưa triển khai thực địa.
-- Bản demo public dùng MQTT broker công khai, chưa có auth/TLS: ai biết topic đều publish được. Chỉ dùng để demo, không dùng cho vườn thật.
-- Mất điện lưới thì dừng — chưa có UPS dự phòng.
-- Mất mạng không buffer telemetry, lịch sử bị hở đoạn offline.
-- Gợi ý tưới là rule-based, chưa kiểm chứng nông học.
+Đây là prototype phục vụ đồ án, chưa triển khai thực địa.
+
+### An toàn và bảo mật
+
+- Bản demo dùng MQTT broker công khai (`test.mosquitto.org`) không TLS, chưa có user/password: ai biết topic đều publish được telemetry hoặc lệnh giả.
+- REST API và WebSocket chưa có auth: ai gọi được URL đều điều khiển được bơm.
+- Chưa phân quyền nhiều người dùng; Web và Mobile dùng chung một `deviceId`.
+
+### Vận hành
+
+- Chỉ hỗ trợ một khu vườn / một thiết bị (`esp32-garden-01`).
+- Mất mạng không buffer telemetry: lịch sử bị hở đoạn offline và lệnh gửi trong lúc đó bị mất.
+- Mỗi lượt tưới tối đa 10 phút/vùng rồi nghỉ 2 phút — lưu lượng nhỏ có thể cần nhiều lượt mới đạt ngưỡng dừng.
+- Mất điện lưới là dừng hoạt động, chưa có UPS hoặc pin mặt trời.
+- Render dùng ổ đĩa tạm: deploy/restart là mất lịch sử SQLite. Ảnh trên Cloudinary không mất.
+- Chưa có OTA: nạp firmware phải qua USB hoặc Wokwi.
+
+### Đo lường và thuật toán
+
+- Lưu lượng nước là số cấu hình (L/h), chưa đo bằng cảm biến lưu lượng thật — lượng lít đã tưới và tốc độ ẩm lên chỉ là ước tính.
+- Ngưỡng độ ẩm tính theo % cảm biến điện trở, chưa hiệu chuẩn theo từng loại đất.
+- Gợi ý tưới là rule-based, chưa kiểm chứng nông học; Weather Gate chỉ dựa cảm biến mưa, chưa dùng dự báo thời tiết.
+- Mô phỏng Wokwi dùng biến trở và động học đất giả lập, không thay thế thử nghiệm ngoài vườn.
+
+### Kỹ thuật
+
+- Chưa có test tự động và CI; hiện kiểm tra bằng typecheck và smoke test thủ công.
+
+---
+
+## Hướng phát triển
+
+### Ngắn hạn
+
+- **Auth và phân quyền**: JWT hoặc API key cho REST, token cho WebSocket, tách dữ liệu theo từng người dùng.
+- **Bảo mật MQTT**: TLS cổng 8883, user/password, broker riêng; topic gắn token thiết bị thay vì tên cố định.
+- **Giữ dữ liệu**: gắn Render Disk hoặc chuyển sang Postgres để không mất lịch sử sau mỗi deploy.
+- **Buffer khi offline**: xếp telemetry vào LittleFS trên ESP32 rồi replay khi có mạng.
+- **Test và CI**: `node:test` hoặc Vitest cho domain/repository, GitHub Actions chạy typecheck + test.
+- **OTA firmware**: cập nhật qua Wi-Fi thay vì cắm USB.
+
+### Dài hạn
+
+- Đa thiết bị, đa khu vườn, nhiều người dùng cùng lúc.
+- Lịch tưới theo giờ và theo mùa; kết hợp dự báo thời tiết thật và chỉ số bốc thoát hơi (ET).
+- Cảm biến lưu lượng thật để đo lít chính xác và phát hiện rò rỉ hoặc tắc đầu tưới.
+- Hiệu chuẩn cảm biến theo loại đất hoặc chuyển sang cảm biến độ ẩm đất dung lượng.
+- Học từ dữ liệu: dự đoán độ ẩm, tối ưu lượng nước theo lịch sử tưới.
+- Phần cứng thực địa: van điện tử, tủ chống nước, pin mặt trời và UPS.
+- Ứng dụng iOS, cache offline và widget thao tác nhanh.
 
 ---
 
