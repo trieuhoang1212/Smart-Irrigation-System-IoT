@@ -55,6 +55,9 @@ Kết quả `ok: true` nghĩa là cả database và MQTT đều sẵn sàng.
 | `DB_PATH` | `data/smart-irrigation.db` | Đường dẫn file SQLite. |
 | `DB_RETENTION_DAYS` | `30` | Số ngày giữ lịch sử trước khi tự dọn. |
 | `UPLOAD_DIR` | `data/uploads` | Thư mục lưu ảnh khu vườn do Web upload. |
+| `CLOUDINARY_CLOUD_NAME` | — | Cloud name Cloudinary; bật lưu ảnh bền vững khi đi cùng hai biến bên dưới. |
+| `CLOUDINARY_API_KEY` | — | API key Cloudinary. |
+| `CLOUDINARY_API_SECRET` | — | API secret Cloudinary, chỉ cấu hình trên Backend/Render. |
 
 ## Cấu trúc mã nguồn (`src/`)
 
