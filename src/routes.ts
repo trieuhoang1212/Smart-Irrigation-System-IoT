@@ -56,7 +56,12 @@ import {
   saveGardenSoil,
 } from "./garden-settings-repository.js";
 import { buildZoneAdvice, growthFor } from "./zone-advice.js";
-import { imageExtension, removeUploadFile, saveZonePhotoFile } from "./uploads.js";
+import {
+  imageExtension,
+  removeCloudinaryZonePhoto,
+  removeUploadFile,
+  saveZonePhotoFile,
+} from "./uploads.js";
 import { isExpoPushToken, sendPushToDevice } from "./push.js";
 import {
   deletePushToken,
@@ -112,7 +117,9 @@ function buildDeviceConfig(deviceId: string) {
               notes: profile.notes,
             }
           : {}),
-        photoUrl: profile?.photoFile ? `/uploads/${profile.photoFile}` : null,
+        photoUrl: profile?.photoFile
+          ? profile.photoFile.startsWith("http") ? profile.photoFile : `/uploads/${profile.photoFile}`
+          : null,
         growth,
         ...(setting
           ? {
@@ -534,7 +541,7 @@ export function createApiRouter(gateway: MqttGateway) {
   router.post(
     "/api/devices/:deviceId/config/zones/:zoneId/photo",
     photoParser,
-    (request, response) => {
+    async (request, response) => {
       const { deviceId, zoneId } = request.params;
       if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
         response.status(404).json({ error: "Zone not found" });
@@ -548,15 +555,17 @@ export function createApiRouter(gateway: MqttGateway) {
       }
 
       const previous = getZoneProfile(deviceId, zoneId);
-      const photoFile = saveZonePhotoFile(deviceId, zoneId, extension, request.body);
+      const photoFile = await saveZonePhotoFile(deviceId, zoneId, extension, request.body);
       setZonePhoto(deviceId, zoneId, photoFile);
-      removeUploadFile(previous?.photoFile ?? null);
+      await removeUploadFile(previous?.photoFile ?? null);
 
-      response.json({ photoUrl: `/uploads/${photoFile}` });
+      response.json({
+        photoUrl: photoFile.startsWith("http") ? photoFile : `/uploads/${photoFile}`,
+      });
     },
   );
 
-  router.delete("/api/devices/:deviceId/config/zones/:zoneId/photo", (request, response) => {
+  router.delete("/api/devices/:deviceId/config/zones/:zoneId/photo", async (request, response) => {
     const { deviceId, zoneId } = request.params;
     if (!isZoneId(zoneId) || !gardenConfig.zones.some((zone) => zone.id === zoneId)) {
       response.status(404).json({ error: "Zone not found" });
@@ -565,7 +574,8 @@ export function createApiRouter(gateway: MqttGateway) {
 
     const previous = getZoneProfile(deviceId, zoneId);
     setZonePhoto(deviceId, zoneId, null);
-    removeUploadFile(previous?.photoFile ?? null);
+    await removeUploadFile(previous?.photoFile ?? null);
+    await removeCloudinaryZonePhoto(deviceId, zoneId, previous?.photoFile ?? null);
 
     response.json({ photoUrl: null });
   });

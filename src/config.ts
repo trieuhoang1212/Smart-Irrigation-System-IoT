@@ -18,6 +18,9 @@ export const config = {
   dbPath: process.env.DB_PATH ?? "data/smart-irrigation.db",
   uploadDir: process.env.UPLOAD_DIR ?? "data/uploads",
   dbRetentionDays: requiredNumber(process.env.DB_RETENTION_DAYS, 30),
+  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME?.trim() || undefined,
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY?.trim() || undefined,
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET?.trim() || undefined,
   // Không bắt buộc: chỉ cần khi bật "Enhanced security" cho Expo Push.
   expoAccessToken: process.env.EXPO_ACCESS_TOKEN?.trim() || undefined,
 };
