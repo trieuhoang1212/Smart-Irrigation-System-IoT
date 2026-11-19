@@ -8,6 +8,9 @@ const ENVIRONMENT_ALERT_COOLDOWN_MS = 30 * 60_000;
 const MODE_ALERT_COOLDOWN_MS = 60_000;
 const WATERING_ALERT_COOLDOWN_MS = 5 * 60_000;
 const MOISTURE_ALERT_COOLDOWN_MS = 30 * 60_000;
+// Thiếu ẩm và bắt đầu tưới dùng chung một thông báo, cooldown đủ dài để mốc
+// thứ hai (bơm vừa bật) không bắn thêm ngay sau mốc đầu.
+const ZONE_WATER_ALERT_COOLDOWN_MS = 10 * 60_000;
 const TEMPERATURE_ALERT_COOLDOWN_MS = 60 * 60_000;
 const TANK_ALERT_COOLDOWN_MS = 30 * 60_000;
 
@@ -159,29 +162,22 @@ export function checkTelemetryAlerts(previous: Telemetry, current: Telemetry): v
     if (!prevZone) continue;
     const label = getZoneLabel(deviceId, zone.id);
 
-    // 5.1 Độ ẩm tụt dưới ngưỡng bật
-    if (
-      prevZone.moisture >= prevZone.threshold &&
-      zone.moisture < zone.threshold &&
-      !zone.pump
-    ) {
-      notify(deviceId, `moisture_low:${zone.id}`, MOISTURE_ALERT_COOLDOWN_MS, {
-        title: `Cây thiếu nước · ${label}`,
-        body: `Độ ẩm còn ${Math.round(zone.moisture)}% (dưới ngưỡng ${zone.threshold}%), chuẩn bị kích hoạt tưới.`,
-        data: { type: "moisture_low", deviceId, zoneId: zone.id },
+    // 5.1 Thiếu ẩm / bắt đầu tưới: gộp một thông báo vì firmware có thể bật
+    // bơm ngay trong cùng chu kỳ telemetry với lúc độ ẩm tụt dưới ngưỡng.
+    const moistureDropped =
+      prevZone.moisture >= prevZone.threshold && zone.moisture < zone.threshold;
+    const pumpStarted = !prevZone.pump && zone.pump;
+    if (moistureDropped || pumpStarted) {
+      notify(deviceId, `zone_needs_water:${zone.id}`, ZONE_WATER_ALERT_COOLDOWN_MS, {
+        title: `${zone.pump ? "Bắt đầu tưới" : "Cây cần nước"} · ${label}`,
+        body: zone.pump
+          ? `Độ ẩm ${Math.round(zone.moisture)}% (ngưỡng ${zone.threshold}%), đang cấp nước cho ${label}.`
+          : `Độ ẩm còn ${Math.round(zone.moisture)}% (dưới ngưỡng ${zone.threshold}%), chuẩn bị kích hoạt tưới.`,
+        data: { type: "zone_needs_water", deviceId, zoneId: zone.id, started: zone.pump },
       });
     }
 
-    // 5.2 Bắt đầu chu kỳ tưới
-    if (!prevZone.pump && zone.pump) {
-      notify(deviceId, `watering_start:${zone.id}`, WATERING_ALERT_COOLDOWN_MS, {
-        title: `Bắt đầu tưới · ${label}`,
-        body: `Đang cấp nước cho ${label} (độ ẩm hiện tại: ${Math.round(zone.moisture)}%).`,
-        data: { type: "watering_start", deviceId, zoneId: zone.id },
-      });
-    }
-
-    // 5.3 Hoàn tất chu kỳ tưới
+    // 5.2 Hoàn tất chu kỳ tưới
     if (prevZone.pump && !zone.pump) {
       notify(deviceId, `watering_done:${zone.id}`, WATERING_ALERT_COOLDOWN_MS, {
         title: `Đã tưới xong · ${label}`,
@@ -190,7 +186,7 @@ export function checkTelemetryAlerts(previous: Telemetry, current: Telemetry): v
       });
     }
 
-    // 5.4 Cảnh báo an toàn quá thời gian tối đa
+    // 5.3 Cảnh báo an toàn quá thời gian tối đa
     if (!prevZone.over && zone.over) {
       notify(deviceId, `safety_lockout:${zone.id}`, MOISTURE_ALERT_COOLDOWN_MS, {
         title: `Cảnh báo an toàn · ${label}`,

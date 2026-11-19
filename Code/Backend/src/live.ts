@@ -25,6 +25,7 @@ const onlineByDevice = new Map<string, boolean>();
 const lastLiveAtByDevice = new Map<string, number>();
 const lastHistoryWriteByDevice = new Map<string, number>();
 const lastThresholdSyncAt = new Map<string, number>();
+const lastStopSyncAt = new Map<string, number>();
 const lastTargetSyncAt = new Map<string, number>();
 const lastFlowSyncAt = new Map<string, number>();
 const lastRainThresholdSyncAt = new Map<string, number>();
@@ -98,6 +99,38 @@ function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
       );
     });
     console.log(`Threshold resync ${zone.id}: ${zone.threshold} -> ${setting.threshold}`);
+  }
+}
+
+function resyncStopThresholds(telemetry: Telemetry, gateway: MqttGateway) {
+  const settings = getZoneSettings(telemetry.deviceId);
+  if (settings.length === 0) return;
+
+  const byZone = new Map(
+    settings.map((setting) => [setting.zoneId as string, setting]),
+  );
+  const now = Date.now();
+
+  for (const zone of telemetry.zones) {
+    // Firmware cũ chưa gửi ngưỡng dừng; không đẩy lệnh để tránh đổi hành vi ngoài ý muốn.
+    if (zone.stopThreshold === undefined) continue;
+    const setting = byZone.get(zone.id);
+    if (!setting || setting.stopThreshold === zone.stopThreshold) continue;
+
+    const key = `${telemetry.deviceId}:${zone.id}`;
+    if (now - (lastStopSyncAt.get(key) ?? 0) < SYNC_COOLDOWN_MS) continue;
+    lastStopSyncAt.set(key, now);
+
+    const command = `SET_STOP_${zone.id}_${Math.round(setting.stopThreshold)}`;
+    void gateway.publish(command).catch((error) => {
+      console.error(
+        `Stop threshold resync failed (${zone.id}):`,
+        error instanceof Error ? error.message : error,
+      );
+    });
+    console.log(
+      `Stop threshold resync ${zone.id}: ${zone.stopThreshold} -> ${setting.stopThreshold}`,
+    );
   }
 }
 
@@ -202,6 +235,9 @@ function commandMatchesTelemetry(command: string, telemetry: Telemetry): boolean
 
   const threshold = command.match(new RegExp(`^SET_THRESHOLD_(${zonePattern})_(\\d{1,3})$`));
   if (threshold) return telemetry.zones.find((zone) => zone.id === threshold[1])?.threshold === Number(threshold[2]);
+
+  const stop = command.match(new RegExp(`^SET_STOP_(${zonePattern})_(\\d{1,3})$`));
+  if (stop) return telemetry.zones.find((zone) => zone.id === stop[1])?.stopThreshold === Number(stop[2]);
 
   const target = command.match(new RegExp(`^SET_TARGET_(${zonePattern})_(\\d{1,3})$`));
   if (target) return telemetry.zones.find((zone) => zone.id === target[1])?.targetSeconds === Number(target[2]);
@@ -319,6 +355,8 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     // Chờ telemetry live kế tiếp để chắc chắn thiết bị đã online và nhận lệnh.
     if (!meta.retained) {
       resyncThresholds(telemetry, gateway);
+      // SET_THRESHOLD đặt lại ngưỡng dừng về mặc định +20, nên luôn chạy sau.
+      resyncStopThresholds(telemetry, gateway);
       resyncTargets(telemetry, gateway);
       resyncFlows(telemetry, gateway);
       resyncRainThreshold(telemetry, gateway);
