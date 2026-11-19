@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "954882541844",
+    "project_id": "smart-irrigation-system-uth",
+    "storage_bucket": "smart-irrigation-system-uth.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954882541844:android:5999d19f7b7c4dbb3c1a01",
+        "android_client_info": {
+          "package_name": "com.trieuhoang1212.Smartirrigation_IoT"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQFVWUp4sSN01OaOTLDzXqcyYuhqPbZB4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
