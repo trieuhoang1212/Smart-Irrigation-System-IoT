@@ -25,11 +25,13 @@ seedZoneProfiles(gardenConfig.deviceId, gardenConfig.zones);
 
 // Lần đầu chạy, dựng lại các lần tưới từ telemetry 24 giờ gần nhất.
 const backfilled = backfillWateringRuns(gardenConfig.deviceId);
-if (backfilled > 0) console.log(`Backfilled watering runs from ${backfilled} samples`);
+if (backfilled > 0)
+  console.log(`Backfilled watering runs from ${backfilled} samples`);
 
 // Lệnh pending chỉ nằm trong RAM; restart xong thì không còn ai xác nhận nữa.
 const staleCommands = timeoutStaleCommands();
-if (staleCommands > 0) console.log(`Marked ${staleCommands} stale commands as timeout`);
+if (staleCommands > 0)
+  console.log(`Marked ${staleCommands} stale commands as timeout`);
 
 const gateway = new MqttGateway();
 const app = express();
@@ -41,7 +43,10 @@ const webSockets = new WebSocketServer({ server, path: "/realtime" });
 const localOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
 app.use(cors({ origin: [config.webOrigin, localOrigin] }));
 app.use(express.json({ limit: "16kb" }));
-app.use("/uploads", express.static(uploadDir, { maxAge: "7d", immutable: true }));
+app.use(
+  "/uploads",
+  express.static(uploadDir, { maxAge: "7d", immutable: true }),
+);
 
 startLive(webSockets, gateway);
 
@@ -74,32 +79,52 @@ app.use((_request, response) => {
 
 // Express 5 tự bắt lỗi async; middleware này giữ response luôn là JSON.
 app.use(
-  (error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+  (
+    error: unknown,
+    _request: express.Request,
+    response: express.Response,
+    _next: express.NextFunction,
+  ) => {
     const status =
       typeof error === "object" && error !== null && "status" in error
         ? Number((error as { status: unknown }).status) || 500
         : 500;
     if (status >= 500) console.error("Unhandled request error:", error);
-    response.status(status).json({ error: status === 400 ? "Invalid JSON body" : "Internal server error" });
+    response
+      .status(status)
+      .json({
+        error: status === 400 ? "Invalid JSON body" : "Internal server error",
+      });
   },
 );
 
 try {
   const removed = pruneHistory(config.dbRetentionDays);
   if (removed > 0) {
-    console.log(`Pruned ${removed} telemetry samples older than ${config.dbRetentionDays} days`);
+    console.log(
+      `Pruned ${removed} telemetry samples older than ${config.dbRetentionDays} days`,
+    );
   }
 } catch (error) {
-  console.error("Failed to prune old telemetry:", error instanceof Error ? error.message : error);
+  console.error(
+    "Failed to prune old telemetry:",
+    error instanceof Error ? error.message : error,
+  );
 }
 
-const retentionTimer = setInterval(() => {
-  try {
-    pruneHistory(config.dbRetentionDays);
-  } catch (error) {
-    console.error("Failed to prune old telemetry:", error instanceof Error ? error.message : error);
-  }
-}, 24 * 60 * 60 * 1000);
+const retentionTimer = setInterval(
+  () => {
+    try {
+      pruneHistory(config.dbRetentionDays);
+    } catch (error) {
+      console.error(
+        "Failed to prune old telemetry:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  },
+  24 * 60 * 60 * 1000,
+);
 retentionTimer.unref();
 
 server.listen(config.port, () => {
@@ -119,7 +144,10 @@ function shutdown(signal: string) {
     try {
       closeDatabase();
     } catch (error) {
-      console.error("Failed to close database:", error instanceof Error ? error.message : error);
+      console.error(
+        "Failed to close database:",
+        error instanceof Error ? error.message : error,
+      );
     }
     process.exit(0);
   });

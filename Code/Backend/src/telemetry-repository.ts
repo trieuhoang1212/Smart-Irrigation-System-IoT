@@ -161,10 +161,17 @@ function finishWateringRun(
 ): void {
   const seconds = Math.max(0, (endedAt - run.started_at) / 1000);
   // Run cũ (backfill) chưa lưu lưu lượng thì tạm dùng cấu hình hiện tại.
-  const flow = run.flow_lph > 0
-    ? run.flow_lph
-    : getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
-  closeWateringRun.run(endedAt, endedAt, seconds, roundLiters((seconds / 3600) * flow), run.id);
+  const flow =
+    run.flow_lph > 0
+      ? run.flow_lph
+      : (getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0);
+  closeWateringRun.run(
+    endedAt,
+    endedAt,
+    seconds,
+    roundLiters((seconds / 3600) * flow),
+    run.id,
+  );
 }
 
 function trackWateringSample(
@@ -174,7 +181,9 @@ function trackWateringSample(
   recordedAt: number,
   gapMs: number,
 ): void {
-  const open = findOpenWateringRun.get(deviceId, zoneId) as OpenWateringRun | undefined;
+  const open = findOpenWateringRun.get(deviceId, zoneId) as
+    | OpenWateringRun
+    | undefined;
 
   if (pumpOn) {
     const flow = getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
@@ -193,9 +202,10 @@ function trackWateringSample(
 
   if (!open) return;
   // Bơm tắt ở giữa hai mẫu; lấy điểm giữa để không luôn cộng dư một chu kỳ.
-  const endedAt = recordedAt - open.last_seen_at <= gapMs
-    ? Math.round((open.last_seen_at + recordedAt) / 2)
-    : open.last_seen_at;
+  const endedAt =
+    recordedAt - open.last_seen_at <= gapMs
+      ? Math.round((open.last_seen_at + recordedAt) / 2)
+      : open.last_seen_at;
   finishWateringRun(open, endedAt, deviceId, zoneId);
 }
 
@@ -227,7 +237,13 @@ const persistTelemetry = db.transaction((telemetry: Telemetry) => {
       zone.pump ? 1 : 0,
       recordedAt,
     );
-    trackWateringSample(telemetry.deviceId, zone.id, zone.pump, recordedAt, LIVE_GAP_MS);
+    trackWateringSample(
+      telemetry.deviceId,
+      zone.id,
+      zone.pump,
+      recordedAt,
+      LIVE_GAP_MS,
+    );
   }
 });
 
@@ -332,7 +348,10 @@ export function getWateringOverview(
     });
   }
 
-  for (const row of selectTodayRuns.all(deviceId, since) as TodayWateringRow[]) {
+  for (const row of selectTodayRuns.all(
+    deviceId,
+    since,
+  ) as TodayWateringRow[]) {
     const current = overview.get(row.zone_id) ?? {
       zoneId: row.zone_id,
       lastRun: null,
@@ -386,7 +405,9 @@ export function loadLatestTelemetry(deviceId: string): Telemetry | null {
 }
 
 export function loadAllLatestTelemetry(): Telemetry[] {
-  const rows = db.prepare("SELECT payload FROM latest_telemetry").all() as LatestRow[];
+  const rows = db
+    .prepare("SELECT payload FROM latest_telemetry")
+    .all() as LatestRow[];
   return rows.flatMap((row) => {
     const telemetry = parseTelemetry(row.payload);
     return telemetry ? [telemetry] : [];
@@ -409,8 +430,15 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
     Math.min(query.limit ?? DEFAULT_HISTORY_LIMIT, MAX_HISTORY_LIMIT),
   );
 
-  const filters = ["z.device_id = :deviceId", "z.recorded_at BETWEEN :from AND :to"];
-  const params: Record<string, string | number> = { deviceId: query.deviceId, from, to };
+  const filters = [
+    "z.device_id = :deviceId",
+    "z.recorded_at BETWEEN :from AND :to",
+  ];
+  const params: Record<string, string | number> = {
+    deviceId: query.deviceId,
+    from,
+    to,
+  };
 
   if (query.zoneId) {
     filters.push("z.zone_id = :zoneId");
@@ -419,7 +447,8 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
 
   if (query.bucketMs && query.bucketMs > 0) {
     const rows = db
-      .prepare(`
+      .prepare(
+        `
         WITH bucketed AS (
           SELECT
             CAST(z.recorded_at / :bucket AS INTEGER) AS bucket,
@@ -460,14 +489,20 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
         FROM numbered
         WHERE zone_position <= :limit
         ORDER BY recorded_at ASC
-      `)
-      .all({ ...params, bucket: Math.max(1000, Math.floor(query.bucketMs)), limit }) as HistoryDbRow[];
+      `,
+      )
+      .all({
+        ...params,
+        bucket: Math.max(1000, Math.floor(query.bucketMs)),
+        limit,
+      }) as HistoryDbRow[];
 
     return rows.map(toHistoryRow);
   }
 
   const rows = db
-    .prepare(`
+    .prepare(
+      `
       WITH ranked AS (
         SELECT
           z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
@@ -482,7 +517,8 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
       FROM ranked
       WHERE zone_position <= :limit
       ORDER BY recorded_at ASC
-    `)
+    `,
+    )
     .all({ ...params, limit }) as HistoryDbRow[];
 
   return rows.map(toHistoryRow);
@@ -504,31 +540,41 @@ function toHistoryRow(row: HistoryDbRow): HistoryRow {
   };
 }
 
-export function logCommand(commandId: string, deviceId: string, command: string): void {
-  db.prepare(`
+export function logCommand(
+  commandId: string,
+  deviceId: string,
+  command: string,
+): void {
+  db.prepare(
+    `
     INSERT INTO command_log (command_id, device_id, command, status, created_at)
     VALUES (?, ?, ?, 'pending', ?)
-  `).run(commandId, deviceId, command, Date.now());
+  `,
+  ).run(commandId, deviceId, command, Date.now());
 }
 
 export function resolveCommand(commandId: string, status: CommandStatus): void {
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE command_log
     SET status = ?, resolved_at = ?
     WHERE command_id = ? AND status = 'pending'
-  `).run(status, Date.now(), commandId);
+  `,
+  ).run(status, Date.now(), commandId);
 }
 
 export function listCommands(deviceId: string, limit = 50): CommandLogRow[] {
   const safeLimit = Math.max(1, Math.min(limit, 500));
   const rows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT command_id, device_id, command, status, created_at, resolved_at
       FROM command_log
       WHERE device_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `)
+    `,
+    )
     .all(deviceId, safeLimit) as CommandDbRow[];
 
   return rows.map((row) => ({
@@ -543,11 +589,13 @@ export function listCommands(deviceId: string, limit = 50): CommandLogRow[] {
 
 export function timeoutStaleCommands(): number {
   return db
-    .prepare(`
+    .prepare(
+      `
       UPDATE command_log
       SET status = 'timeout', resolved_at = ?
       WHERE status = 'pending'
-    `)
+    `,
+    )
     .run(Date.now()).changes;
 }
 
@@ -559,19 +607,28 @@ export type DeletedHistory = {
 };
 
 /** Xóa dữ liệu cũ của một thiết bị; mẫu vùng tự xóa theo khóa ngoại. */
-export function deleteHistoryBefore(deviceId: string, cutoff: number): DeletedHistory {
+export function deleteHistoryBefore(
+  deviceId: string,
+  cutoff: number,
+): DeletedHistory {
   return db.transaction(() => {
     const samples = db
-      .prepare("DELETE FROM telemetry_samples WHERE device_id = ? AND recorded_at < ?")
+      .prepare(
+        "DELETE FROM telemetry_samples WHERE device_id = ? AND recorded_at < ?",
+      )
       .run(deviceId, cutoff);
     const commands = db
       .prepare("DELETE FROM command_log WHERE device_id = ? AND created_at < ?")
       .run(deviceId, cutoff);
     const changes = db
-      .prepare("DELETE FROM zone_setting_changes WHERE device_id = ? AND changed_at < ?")
+      .prepare(
+        "DELETE FROM zone_setting_changes WHERE device_id = ? AND changed_at < ?",
+      )
       .run(deviceId, cutoff);
     const runs = db
-      .prepare("DELETE FROM watering_runs WHERE device_id = ? AND last_seen_at < ?")
+      .prepare(
+        "DELETE FROM watering_runs WHERE device_id = ? AND last_seen_at < ?",
+      )
       .run(deviceId, cutoff);
 
     return {
@@ -592,7 +649,9 @@ export function pruneHistory(retentionDays: number): number {
     .run(cutoff);
 
   db.prepare("DELETE FROM command_log WHERE created_at < ?").run(cutoff);
-  db.prepare("DELETE FROM zone_setting_changes WHERE changed_at < ?").run(cutoff);
+  db.prepare("DELETE FROM zone_setting_changes WHERE changed_at < ?").run(
+    cutoff,
+  );
   // last_seen_at cũng đóng vai trò "lần cuối còn hoạt động" cho run đang mở bị bỏ dở.
   db.prepare("DELETE FROM watering_runs WHERE last_seen_at < ?").run(cutoff);
 

@@ -61,7 +61,10 @@ export function clampThreshold(value: number): number {
 
 /** Ngưỡng dừng phải cách ngưỡng bật tối thiểu 5 điểm để tránh bơm đóng cắt liên tục. */
 export function clampStopThreshold(value: number, threshold: number): number {
-  return Math.max(threshold + MIN_STOP_GAP, Math.min(MAX_STOP_THRESHOLD, Math.round(value)));
+  return Math.max(
+    threshold + MIN_STOP_GAP,
+    Math.min(MAX_STOP_THRESHOLD, Math.round(value)),
+  );
 }
 
 export function isZoneId(value: string): value is ZoneId {
@@ -117,23 +120,30 @@ export function seedZoneSettings(deviceId: string, zones: ZoneSeed[]): void {
 
 export function getZoneSettings(deviceId: string): ZoneSetting[] {
   const rows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT zone_id, threshold, stop_threshold, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ?
       ORDER BY zone_id
-    `)
+    `,
+    )
     .all(deviceId) as ZoneSettingRow[];
   return rows.map(toZoneSetting);
 }
 
-export function getZoneSetting(deviceId: string, zoneId: string): ZoneSetting | null {
+export function getZoneSetting(
+  deviceId: string,
+  zoneId: string,
+): ZoneSetting | null {
   const row = db
-    .prepare(`
+    .prepare(
+      `
       SELECT zone_id, threshold, stop_threshold, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ? AND zone_id = ?
-    `)
+    `,
+    )
     .get(deviceId, zoneId) as ZoneSettingRow | undefined;
   return row ? toZoneSetting(row) : null;
 }
@@ -160,11 +170,20 @@ const insertChange = db.prepare(`
 `);
 
 const persistThreshold = db.transaction(
-  (deviceId: string, zoneId: string, threshold: number, stopThreshold: number) => {
+  (
+    deviceId: string,
+    zoneId: string,
+    threshold: number,
+    stopThreshold: number,
+  ) => {
     const previous = getZoneSetting(deviceId, zoneId);
     const now = Date.now();
 
-    if (previous && previous.threshold === threshold && previous.stopThreshold === stopThreshold) {
+    if (
+      previous &&
+      previous.threshold === threshold &&
+      previous.stopThreshold === stopThreshold
+    ) {
       return previous;
     }
 
@@ -212,10 +231,14 @@ export function updateZoneIrrigation(
   return getZoneSetting(deviceId, zoneId);
 }
 
-export function listZoneSettingChanges(deviceId: string, limit = 50): ZoneSettingChange[] {
+export function listZoneSettingChanges(
+  deviceId: string,
+  limit = 50,
+): ZoneSettingChange[] {
   const safeLimit = Math.max(1, Math.min(limit, 500));
   const rows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT zone_id,
              new_threshold AS threshold,
              new_stop_threshold AS stop_threshold,
@@ -225,7 +248,8 @@ export function listZoneSettingChanges(deviceId: string, limit = 50): ZoneSettin
       WHERE device_id = ?
       ORDER BY changed_at DESC
       LIMIT ?
-    `)
+    `,
+    )
     .all(deviceId, safeLimit) as ZoneSettingChangeRow[];
 
   return rows.map((row) => ({

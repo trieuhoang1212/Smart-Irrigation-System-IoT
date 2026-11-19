@@ -24,7 +24,9 @@ export class MqttGateway {
       });
     });
     this.client.on("reconnect", () => console.log("MQTT reconnecting..."));
-    this.client.on("error", (error) => console.error("MQTT error:", error.message));
+    this.client.on("error", (error) =>
+      console.error("MQTT error:", error.message),
+    );
     this.client.on("message", (_topic, message, packet) => {
       // Chỉ subscribe đúng statusTopic (có thể chứa wildcard), không lọc lại theo chuỗi cấu hình.
       try {
@@ -33,7 +35,9 @@ export class MqttGateway {
           config.deviceId,
         );
         const meta: TelemetryMeta = { retained: Boolean(packet.retain) };
-        this.telemetryListeners.forEach((listener) => listener(telemetry, meta));
+        this.telemetryListeners.forEach((listener) =>
+          listener(telemetry, meta),
+        );
       } catch (error) {
         console.error("Invalid MQTT telemetry:", error);
       }

@@ -53,7 +53,9 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     socket.on("pong", () => {
       socket.isAlive = true;
     });
-    socket.on("error", (error) => console.error("WebSocket error:", error.message));
+    socket.on("error", (error) =>
+      console.error("WebSocket error:", error.message),
+    );
 
     latestByDevice.forEach((telemetry, deviceId) => {
       socket.send(
@@ -126,7 +128,10 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
         saveLatestTelemetry(telemetry);
       }
     } catch (error) {
-      console.error("Failed to persist telemetry:", error instanceof Error ? error.message : error);
+      console.error(
+        "Failed to persist telemetry:",
+        error instanceof Error ? error.message : error,
+      );
     }
 
     // Retained telemetry chỉ là snapshot cũ, không dùng để gửi lệnh:

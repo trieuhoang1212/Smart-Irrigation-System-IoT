@@ -3,7 +3,10 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { config } from "./config.js";
 
-const dbFile = config.dbPath === ":memory:" ? config.dbPath : resolve(process.cwd(), config.dbPath);
+const dbFile =
+  config.dbPath === ":memory:"
+    ? config.dbPath
+    : resolve(process.cwd(), config.dbPath);
 
 if (dbFile !== ":memory:") mkdirSync(dirname(dbFile), { recursive: true });
 
@@ -154,7 +157,9 @@ db.exec(`
 `);
 
 function tableColumns(table: string): Set<string> {
-  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+    name: string;
+  }>;
   return new Set(rows.map((row) => row.name));
 }
 
@@ -172,11 +177,18 @@ function dropColumnIfExists(table: string, name: string) {
 
 // DB cũ tạo temperature/humidity NOT NULL, không lưu được lúc DHT22 lỗi.
 function migrateSensorNullability() {
-  const columns = db.prepare("PRAGMA table_info(telemetry_samples)").all() as Array<{
+  const columns = db
+    .prepare("PRAGMA table_info(telemetry_samples)")
+    .all() as Array<{
     name: string;
     notnull: number;
   }>;
-  if (!columns.some((column) => ["temperature", "humidity"].includes(column.name) && column.notnull)) {
+  if (
+    !columns.some(
+      (column) =>
+        ["temperature", "humidity"].includes(column.name) && column.notnull,
+    )
+  ) {
     return;
   }
 

@@ -82,7 +82,10 @@ const insertSeed = db.prepare(`
 `);
 
 /** Chỉ tạo hồ sơ cho zone chưa có, không ghi đè dữ liệu người dùng đã sửa. */
-export function seedZoneProfiles(deviceId: string, zones: ZoneProfileSeed[]): void {
+export function seedZoneProfiles(
+  deviceId: string,
+  zones: ZoneProfileSeed[],
+): void {
   const seed = db.transaction(() => {
     const now = Date.now();
     for (const zone of zones) {
@@ -101,25 +104,32 @@ export function seedZoneProfiles(deviceId: string, zones: ZoneProfileSeed[]): vo
 
 export function getZoneProfiles(deviceId: string): ZoneProfile[] {
   const rows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT zone_id, name, description, crop_group, planted_at, harvest_days,
              notes, photo_file, updated_at
       FROM zone_profiles
       WHERE device_id = ?
       ORDER BY zone_id
-    `)
+    `,
+    )
     .all(deviceId) as ZoneProfileRow[];
   return rows.map(toProfile);
 }
 
-export function getZoneProfile(deviceId: string, zoneId: string): ZoneProfile | null {
+export function getZoneProfile(
+  deviceId: string,
+  zoneId: string,
+): ZoneProfile | null {
   const row = db
-    .prepare(`
+    .prepare(
+      `
       SELECT zone_id, name, description, crop_group, planted_at, harvest_days,
              notes, photo_file, updated_at
       FROM zone_profiles
       WHERE device_id = ? AND zone_id = ?
-    `)
+    `,
+    )
     .get(deviceId, zoneId) as ZoneProfileRow | undefined;
   return row ? toProfile(row) : null;
 }
