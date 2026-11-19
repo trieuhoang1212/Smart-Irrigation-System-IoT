@@ -12,6 +12,7 @@ import { NumberField } from "../ui/NumberField";
 
 type Draft = {
   threshold: number;
+  stopThreshold: number;
   flowLitersPerHour: string;
   targetLiters: string;
 };
@@ -23,7 +24,9 @@ type Props = {
 const THRESHOLD_MIN = 10;
 const THRESHOLD_MAX = 90;
 const THRESHOLD_STEP = 5;
-const STOP_OFFSET = 20;
+// Firmware chặn hồi ẩm ngược: ngưỡng kết thúc phải cao hơn ngưỡng bắt đầu ít nhất 5 điểm.
+const STOP_GAP_MIN = 5;
+const STOP_MAX = 100;
 // Firmware chỉ chạy trong khoảng 10 giây - 10 phút mỗi lần.
 const MIN_RUNTIME_SECONDS = 10;
 const MAX_RUNTIME_MINUTES = 10;
@@ -31,6 +34,7 @@ const MAX_RUNTIME_MINUTES = 10;
 function toDraft(zone: LiveZone): Draft {
   return {
     threshold: Math.round(zone.threshold),
+    stopThreshold: Math.round(zone.stopThreshold),
     flowLitersPerHour: String(zone.flowLitersPerHour),
     targetLiters: String(zone.targetLiters),
   };
@@ -45,6 +49,12 @@ function validate(
 ): { input: ZoneConfigInput } | { error: string } {
   const flow = parseNumber(draft.flowLitersPerHour);
   const target = parseNumber(draft.targetLiters);
+
+  if (draft.stopThreshold < draft.threshold + STOP_GAP_MIN || draft.stopThreshold > STOP_MAX) {
+    return {
+      error: `Ngưỡng kết thúc phải cao hơn ngưỡng bắt đầu ít nhất ${STOP_GAP_MIN}% và tối đa ${STOP_MAX}%.`,
+    };
+  }
 
   // Firmware đọc lưu lượng bằng %d nên chỉ nhận số nguyên.
   if (!Number.isInteger(flow) || flow < 1 || flow > 200) {
@@ -73,6 +83,7 @@ function validate(
   return {
     input: {
       threshold: draft.threshold,
+      stopThreshold: draft.stopThreshold,
       flowLitersPerHour: flow,
       targetLiters: target,
     },
@@ -80,10 +91,22 @@ function validate(
 }
 
 function ThresholdStepper({
+  label,
   value,
+  min,
+  max,
+  hint,
+  decreaseLabel,
+  increaseLabel,
   onChange,
 }: {
+  label: string;
   value: number;
+  min: number;
+  max: number;
+  hint: string;
+  decreaseLabel: string;
+  increaseLabel: string;
   onChange: (value: number) => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -91,14 +114,14 @@ function ThresholdStepper({
   return (
     <View style={styles.threshold}>
       <View style={styles.thresholdRow}>
-        <Text style={styles.thresholdLabel}>Bắt đầu tưới dưới</Text>
+        <Text style={styles.thresholdLabel}>{label}</Text>
 
         <View style={styles.stepper}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Giảm ngưỡng tưới"
+            accessibilityLabel={decreaseLabel}
             hitSlop={6}
-            onPress={() => onChange(Math.max(THRESHOLD_MIN, value - THRESHOLD_STEP))}
+            onPress={() => onChange(Math.max(min, value - THRESHOLD_STEP))}
             style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
           >
             <Text style={styles.stepSymbol}>−</Text>
@@ -108,9 +131,9 @@ function ThresholdStepper({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tăng ngưỡng tưới"
+            accessibilityLabel={increaseLabel}
             hitSlop={6}
-            onPress={() => onChange(Math.min(THRESHOLD_MAX, value + THRESHOLD_STEP))}
+            onPress={() => onChange(Math.min(max, value + THRESHOLD_STEP))}
             style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
           >
             <Text style={styles.stepSymbol}>+</Text>
@@ -118,9 +141,7 @@ function ThresholdStepper({
         </View>
       </View>
 
-      <Text style={styles.thresholdHint}>
-        Dừng khi độ ẩm đạt {Math.min(100, value + STOP_OFFSET)}%.
-      </Text>
+      <Text style={styles.thresholdHint}>{hint}</Text>
     </View>
   );
 }
@@ -207,11 +228,38 @@ export function ZoneSettingsForm({ zone }: Props) {
         <Text style={styles.sectionLabel}>Ngưỡng tưới</Text>
 
         <ThresholdStepper
+          label="Bắt đầu tưới dưới"
           value={draft.threshold}
+          min={THRESHOLD_MIN}
+          max={THRESHOLD_MAX}
+          hint="Đất khô hơn mức này thì bơm tự bật."
+          decreaseLabel="Giảm ngưỡng bắt đầu tưới"
+          increaseLabel="Tăng ngưỡng bắt đầu tưới"
           onChange={(threshold) => {
             setDraft((current) => ({
               ...current,
               threshold,
+              // Ngưỡng kết thúc đã chỉnh tay thì giữ nguyên, chỉ nâng khi bị vượt qua.
+              stopThreshold: Math.max(
+                current.stopThreshold,
+                Math.min(STOP_MAX, threshold + STOP_GAP_MIN),
+              ),
+            }));
+          }}
+        />
+
+        <ThresholdStepper
+          label="Kết thúc tưới khi đạt"
+          value={draft.stopThreshold}
+          min={Math.min(STOP_MAX, draft.threshold + STOP_GAP_MIN)}
+          max={STOP_MAX}
+          hint={`Luôn cao hơn ngưỡng bắt đầu ít nhất ${STOP_GAP_MIN}%.`}
+          decreaseLabel="Giảm ngưỡng kết thúc tưới"
+          increaseLabel="Tăng ngưỡng kết thúc tưới"
+          onChange={(stopThreshold) => {
+            setDraft((current) => ({
+              ...current,
+              stopThreshold,
             }));
           }}
         />

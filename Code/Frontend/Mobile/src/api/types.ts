@@ -83,6 +83,7 @@ export type CommandResponse = {
 
 export type ZoneConfigInput = {
   threshold?: number;
+  stopThreshold?: number;
   flowLitersPerHour: number;
   targetLiters: number;
 };

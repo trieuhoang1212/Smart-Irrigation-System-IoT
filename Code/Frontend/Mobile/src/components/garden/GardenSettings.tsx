@@ -256,7 +256,7 @@ export function GardenSettings() {
         </View>
 
         <Text style={styles.note}>
-          Cảnh báo tự động khi chuyển chế độ, thiếu ẩm, chu kỳ tưới, mưa, cạn/đầy bồn, nắng gắt và kết nối lại.
+          Cảnh báo tự động khi chuyển chế độ, khu vực cần tưới, tưới xong, mưa, cạn/đầy bồn, nắng gắt và kết nối lại.
           Thông báo thử chạy ngay trên máy; nhận từ xa trên điện thoại thật hoặc bản APK.
         </Text>
 
