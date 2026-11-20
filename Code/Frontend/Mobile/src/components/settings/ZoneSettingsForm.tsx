@@ -24,17 +24,22 @@ type Props = {
 const THRESHOLD_MIN = 10;
 const THRESHOLD_MAX = 90;
 const THRESHOLD_STEP = 5;
-// Firmware chặn hồi ẩm ngược: ngưỡng kết thúc phải cao hơn ngưỡng bắt đầu ít nhất 5 điểm.
-const STOP_GAP_MIN = 5;
+// Firmware chặn hồi ẩm ngược: ngưỡng kết thúc phải cao hơn ngưỡng bắt đầu ít nhất 10 điểm.
+const STOP_GAP_MIN = 10;
 const STOP_MAX = 100;
 // Firmware chỉ chạy trong khoảng 10 giây - 10 phút mỗi lần.
 const MIN_RUNTIME_SECONDS = 10;
 const MAX_RUNTIME_MINUTES = 10;
 
 function toDraft(zone: LiveZone): Draft {
+  const threshold = Math.round(zone.threshold);
   return {
-    threshold: Math.round(zone.threshold),
-    stopThreshold: Math.round(zone.stopThreshold),
+    threshold,
+    // Dữ liệu cũ có thể cách dưới 10 điểm: nâng tạm lên mức hợp lệ để form mở ra là lưu được.
+    stopThreshold: Math.max(
+      threshold + STOP_GAP_MIN,
+      Math.min(STOP_MAX, Math.round(zone.stopThreshold)),
+    ),
     flowLitersPerHour: String(zone.flowLitersPerHour),
     targetLiters: String(zone.targetLiters),
   };
@@ -231,20 +236,12 @@ export function ZoneSettingsForm({ zone }: Props) {
           label="Bắt đầu tưới dưới"
           value={draft.threshold}
           min={THRESHOLD_MIN}
-          max={THRESHOLD_MAX}
+          max={Math.min(THRESHOLD_MAX, draft.stopThreshold - STOP_GAP_MIN)}
           hint="Đất khô hơn mức này thì bơm tự bật."
           decreaseLabel="Giảm ngưỡng bắt đầu tưới"
           increaseLabel="Tăng ngưỡng bắt đầu tưới"
           onChange={(threshold) => {
-            setDraft((current) => ({
-              ...current,
-              threshold,
-              // Ngưỡng kết thúc đã chỉnh tay thì giữ nguyên, chỉ nâng khi bị vượt qua.
-              stopThreshold: Math.max(
-                current.stopThreshold,
-                Math.min(STOP_MAX, threshold + STOP_GAP_MIN),
-              ),
-            }));
+            setDraft((current) => ({ ...current, threshold }));
           }}
         />
 
@@ -255,8 +252,8 @@ export function ZoneSettingsForm({ zone }: Props) {
           max={STOP_MAX}
           hint={
             draft.stopThreshold === Math.min(STOP_MAX, draft.threshold + STOP_GAP_MIN)
-              ? `Đang ở mức tối thiểu (cao hơn ngưỡng bắt đầu ${STOP_GAP_MIN} điểm). Chỉ áp dụng ở chế độ Tự động.`
-              : `Chỉ áp dụng ở chế độ Tự động; luôn cao hơn ngưỡng bắt đầu ít nhất ${STOP_GAP_MIN}%.`
+              ? `Đang ở mức tối thiểu (cao hơn ngưỡng bắt đầu ${STOP_GAP_MIN} điểm).`
+              : `Luôn cao hơn ngưỡng bắt đầu ít nhất ${STOP_GAP_MIN}%.`
           }
           decreaseLabel="Giảm ngưỡng kết thúc tưới"
           increaseLabel="Tăng ngưỡng kết thúc tưới"
