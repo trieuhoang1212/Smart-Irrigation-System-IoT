@@ -59,7 +59,7 @@ export function clampThreshold(value: number): number {
   return Math.max(MIN_THRESHOLD, Math.min(MAX_THRESHOLD, Math.round(value)));
 }
 
-/** Ngưỡng dừng phải cách ngưỡng bật tối thiểu 5 điểm để tránh bơm đóng cắt liên tục. */
+/** Ngưỡng dừng phải cách ngưỡng bật tối thiểu 10 điểm để tránh bơm đóng cắt liên tục. */
 export function clampStopThreshold(value: number, threshold: number): number {
   return Math.max(
     threshold + MIN_STOP_GAP,

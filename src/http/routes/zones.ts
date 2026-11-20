@@ -184,7 +184,7 @@ export function registerZoneRoutes(router: Router, gateway: MqttGateway) {
         return;
       }
     } else if (hasThreshold) {
-      // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ nâng khi ngưỡng bật vượt qua khoảng cách 5.
+      // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ nâng khi ngưỡng bật vượt qua khoảng cách 10.
       stopThreshold = clampStopThreshold(current.stopThreshold, threshold);
     }
 
