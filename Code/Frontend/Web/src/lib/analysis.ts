@@ -115,14 +115,8 @@ export function analyzeZone({
   }
 
   const latest = clean[clean.length - 1];
-  const safeLow = Math.min(
-    Number.isFinite(latest.threshold) ? latest.threshold : zone.threshold,
-    Number.isFinite(latest.stopThreshold) ? latest.stopThreshold : zone.stopThreshold,
-  );
-  const safeHigh = Math.max(
-    Number.isFinite(latest.threshold) ? latest.threshold : zone.threshold,
-    Number.isFinite(latest.stopThreshold) ? latest.stopThreshold : zone.stopThreshold,
-  );
+  const safeLow = Math.min(zone.threshold, zone.stopThreshold);
+  const safeHigh = Math.max(zone.threshold, zone.stopThreshold);
 
   const inSafeCount = clean.filter(
     (sample) => sample.moisture >= safeLow && sample.moisture <= safeHigh,
