@@ -121,8 +121,8 @@ static bool handleCommand(const String& message) {
     if (sscanf(message.c_str(), "SET_STOP_%4[^_]_%d", zoneId, &value) != 2) return false;
     const int zone = findZoneIndex(zoneId);
     if (zone < 0) return false;
-    // Chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 5 điểm.
-    moistureOff[zone] = constrain(value, moistureOn[zone] + 5, 100);
+    // Chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 10 điểm.
+    moistureOff[zone] = constrain(value, moistureOn[zone] + 10, 100);
     prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
     Serial.print(zoneId);
     Serial.print(" stop ");
@@ -137,7 +137,7 @@ static bool handleCommand(const String& message) {
     if (zone < 0) return false;
     moistureOn[zone] = value;
     // Ngưỡng dừng độc lập: giữ số đã chỉnh, chỉ nâng khi vi phạm khoảng cách tối thiểu.
-    moistureOff[zone] = constrain(moistureOff[zone], value + 5, 100);
+    moistureOff[zone] = constrain(moistureOff[zone], value + 10, 100);
     prefs.putInt((String("on_") + zoneId).c_str(), moistureOn[zone]);
     prefs.putInt((String("off_") + zoneId).c_str(), moistureOff[zone]);
     Serial.print(zoneId);
