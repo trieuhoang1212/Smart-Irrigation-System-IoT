@@ -29,6 +29,7 @@ export function ModeDock() {
   const auto = mode === "auto";
   const pumpOn = pump && !auto && !offline;
   const canPump = !disabled && !auto;
+  const accent = offline ? colors.faint : auto ? colors.green : colors.amber;
 
   const label = pending
     ? pending
@@ -42,10 +43,11 @@ export function ModeDock() {
 
   return (
     <View style={styles.card}>
+      <View style={[styles.accentBar, { backgroundColor: accent }]} />
       <View style={styles.ringLarge} />
       <View style={styles.ringSmall} />
 
-      <Text style={styles.kicker}>Chế độ tưới</Text>
+      <Text style={[styles.kicker, { color: accent }]}>Chế độ tưới</Text>
 
       <View style={styles.options}>
         <ModeOrb
@@ -54,6 +56,8 @@ export function ModeDock() {
           icon="auto"
           active={auto}
           disabled={disabled}
+          tone={colors.green}
+          soft={colors.greenSoft}
           onPress={() => {
             if (!auto) {
               tickHaptic();
@@ -63,9 +67,19 @@ export function ModeDock() {
         />
 
         <View style={styles.connector}>
-          <View style={styles.connectorLine} />
-          <View style={styles.connectorDot} />
-          <View style={styles.connectorLine} />
+          <View
+            style={[
+              styles.connectorLine,
+              auto && { backgroundColor: colors.green },
+            ]}
+          />
+          <View style={[styles.connectorDot, { backgroundColor: accent }]} />
+          <View
+            style={[
+              styles.connectorLine,
+              !auto && { backgroundColor: colors.amber },
+            ]}
+          />
         </View>
 
         <ModeOrb
@@ -74,6 +88,8 @@ export function ModeDock() {
           icon="manual"
           active={!auto}
           disabled={disabled}
+          tone={colors.amber}
+          soft={colors.amberSoft}
           onPress={() => {
             if (auto) {
               tickHaptic();
@@ -104,22 +120,26 @@ export function ModeDock() {
         ]}
       >
         {pending ? (
-          <ActivityIndicator size="small" color={colors.onDeep} />
+          <ActivityIndicator
+            size="small"
+            color={pumpOn ? colors.white : colors.ink}
+          />
         ) : offline ? (
           <AppIcon name="error" variant="outline" size={15} color={colors.amber} />
         ) : auto ? (
-          <AppIcon name="auto" variant="outline" size={15} color={colors.onDeepSoft} />
+          <AppIcon name="auto" variant="outline" size={15} color={colors.green} />
         ) : pump ? (
           <PumpDot />
         ) : (
-          <AppIcon name="power" variant="outline" size={15} color={colors.onDeep} />
+          <AppIcon name="power" variant="outline" size={15} color={colors.ink} />
         )}
 
         <Text
           style={[
             styles.pumpLabel,
             pumpOn && styles.pumpLabelOn,
-            (auto || offline) && styles.pumpLabelIdle,
+            auto && styles.pumpLabelAuto,
+            offline && styles.pumpLabelOffline,
           ]}
           numberOfLines={1}
         >
@@ -156,6 +176,8 @@ function ModeOrb({
   icon,
   active,
   disabled,
+  tone,
+  soft,
   onPress,
 }: {
   label: string;
@@ -163,6 +185,8 @@ function ModeOrb({
   icon: AppIconName;
   active: boolean;
   disabled: boolean;
+  tone: string;
+  soft: string;
   onPress: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -191,25 +215,33 @@ function ModeOrb({
       style={styles.orbSlot}
       innerStyle={[
         styles.orb,
-        active && styles.orbActive,
+        active && { backgroundColor: soft, borderColor: tone },
         disabled && styles.orbDisabled,
       ]}
     >
-      <Animated.View style={[styles.orbHalo, haloStyle]} />
+      <Animated.View
+        style={[styles.orbHalo, { borderColor: tone }, haloStyle]}
+      />
 
       <Animated.View style={[styles.orbContent, contentStyle]}>
-        <View style={[styles.iconWrap, active && styles.iconWrapActive]}>
+        <View
+          style={[styles.iconWrap, active && { backgroundColor: tone }]}
+        >
           <AppIcon
             name={icon}
             size={25}
-            color={active ? colors.white : colors.onDeep}
+            color={active ? colors.white : colors.inkSoft}
           />
         </View>
 
-        <Text style={[styles.orbLabel, active && styles.orbLabelActive]}>
+        <Text style={[styles.orbLabel, active && { color: tone }]}>
           {label}
         </Text>
-        <Text style={[styles.orbHint, active && styles.orbHintActive]}>{hint}</Text>
+        <Text
+          style={[styles.orbHint, active && { color: colors.inkSoft }]}
+        >
+          {hint}
+        </Text>
       </Animated.View>
     </PressableScale>
   );
@@ -224,8 +256,15 @@ const createStyles = (colors: Palette) =>
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.line,
-      backgroundColor: colors.deep,
+      backgroundColor: colors.surface,
       gap: 12,
+    },
+    accentBar: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
     },
     ringLarge: {
       position: "absolute",
@@ -235,7 +274,7 @@ const createStyles = (colors: Palette) =>
       height: 210,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.07)",
+      borderColor: colors.line,
     },
     ringSmall: {
       position: "absolute",
@@ -244,11 +283,10 @@ const createStyles = (colors: Palette) =>
       width: 128,
       height: 128,
       borderRadius: 999,
-      backgroundColor: "rgba(255,255,255,0.035)",
+      backgroundColor: colors.lineSoft,
     },
     kicker: {
       ...typo.micro,
-      color: colors.onDeepSoft,
     },
     options: {
       flexDirection: "row",
@@ -264,16 +302,12 @@ const createStyles = (colors: Palette) =>
       flex: 1,
       borderRadius: ORB / 2,
       borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.12)",
-      backgroundColor: "rgba(255,255,255,0.055)",
+      borderColor: colors.line,
+      backgroundColor: colors.surfaceSunken,
       alignItems: "center",
       justifyContent: "center",
       gap: 1,
       overflow: "hidden",
-    },
-    orbActive: {
-      backgroundColor: colors.green,
-      borderColor: "rgba(255,255,255,0.3)",
     },
     orbDisabled: {
       opacity: 0.55,
@@ -286,7 +320,6 @@ const createStyles = (colors: Palette) =>
       left: 0,
       borderRadius: ORB / 2,
       borderWidth: 2,
-      borderColor: colors.onDeepSoft,
     },
     orbContent: {
       alignItems: "center",
@@ -299,28 +332,18 @@ const createStyles = (colors: Palette) =>
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(255,255,255,0.08)",
+      backgroundColor: colors.surfaceRaised,
       marginBottom: 3,
-    },
-    iconWrapActive: {
-      backgroundColor: "rgba(255,255,255,0.16)",
     },
     orbLabel: {
       ...typo.smallStrong,
       fontSize: 12.5,
-      color: colors.onDeep,
-    },
-    orbLabelActive: {
-      color: colors.white,
+      color: colors.ink,
     },
     orbHint: {
       ...typo.caption,
       fontSize: 10,
-      color: colors.onDeepSoft,
-    },
-    orbHintActive: {
-      color: colors.white,
-      opacity: 0.78,
+      color: colors.faint,
     },
     connector: {
       flex: 1,
@@ -332,13 +355,12 @@ const createStyles = (colors: Palette) =>
     connectorLine: {
       flex: 1,
       height: 1,
-      backgroundColor: "rgba(255,255,255,0.14)",
+      backgroundColor: colors.line,
     },
     connectorDot: {
       width: 4,
       height: 4,
       borderRadius: 2,
-      backgroundColor: "rgba(255,255,255,0.32)",
     },
     pumpBar: {
       minHeight: 44,
@@ -349,20 +371,20 @@ const createStyles = (colors: Palette) =>
       paddingHorizontal: 14,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.16)",
-      backgroundColor: "rgba(255,255,255,0.07)",
+      borderColor: colors.line,
+      backgroundColor: colors.surfaceSunken,
     },
     pumpBarOn: {
       backgroundColor: colors.green,
       borderColor: "transparent",
     },
     pumpBarAuto: {
-      backgroundColor: "rgba(255,255,255,0.035)",
-      borderColor: "rgba(255,255,255,0.1)",
+      backgroundColor: colors.greenSoft,
+      borderColor: colors.line,
     },
     pumpBarOffline: {
-      backgroundColor: "rgba(255,255,255,0.035)",
-      borderColor: "rgba(255,255,255,0.1)",
+      backgroundColor: colors.amberSoft,
+      borderColor: colors.amber,
     },
     pumpLabel: {
       flexShrink: 1,
@@ -370,13 +392,16 @@ const createStyles = (colors: Palette) =>
       fontSize: 12.5,
       lineHeight: 17,
       letterSpacing: -0.1,
-      color: colors.onDeep,
+      color: colors.ink,
     },
     pumpLabelOn: {
       color: colors.white,
     },
-    pumpLabelIdle: {
-      color: colors.onDeepSoft,
+    pumpLabelAuto: {
+      color: colors.greenStrong,
+    },
+    pumpLabelOffline: {
+      color: colors.amber,
     },
     liveDot: {
       width: 7,
