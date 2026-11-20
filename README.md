@@ -89,6 +89,59 @@ flowchart LR
 
 **Dịch vụ ngoài** — ảnh khu vườn lưu trên Cloudinary, thông báo đẩy đi qua Firebase FCM / Expo Push. Cả hai đều tùy chọn: thiếu cấu hình thì ảnh lưu local và push bị bỏ qua, phần còn lại vẫn chạy.
 
+### Luồng lệnh
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant W as Web / Mobile
+    participant A as Backend
+    participant M as MQTT
+    participant E as ESP32
+
+    U->>W: Đổi ngưỡng hoặc bật bơm
+    W->>A: POST /api/devices/:id/commands
+    A->>A: Lưu SQLite, đặt hạn 12 giây
+    A->>M: SET_THRESHOLD_T001_51
+    M->>E: chuyển tiếp xuống thiết bị
+    E->>E: Ghi NVS và áp dụng ngay
+    E->>M: telemetry retained
+    M->>A: status topic
+    A->>A: Đối chiếu giá trị
+    A-->>W: WebSocket command-result
+    Note over A,W: Khớp thì confirmed, quá 12 giây thì timeout
+```
+
+### Vòng điều khiển tại thiết bị
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> Auto
+    state "Chờ · AUTO" as Auto
+    state "Đang tưới" as Watering
+    state "Nghỉ 2 phút" as Cooldown
+    state "Hoãn do mưa" as RainHold
+    state "Thủ công" as Manual
+
+    Auto --> Watering: độ ẩm ≤ ngưỡng bật
+    Watering --> Cooldown: đạt ngưỡng dừng hoặc quá 10 phút
+    Cooldown --> Auto: hết 2 phút
+    Auto --> RainHold: cảm biến mưa báo mưa
+    RainHold --> Auto: tạm ngưng mưa
+    Auto --> Manual: người dùng chuyển
+    Manual --> Auto: hết 10 phút
+    Manual --> Manual: đạt mục tiêu lít
+
+    classDef watering fill:#E8F5E9,stroke:#2E8B57,stroke-width:2px,color:#1B5E20
+    classDef idle fill:#F5F8F5,stroke:#9E9E9E,color:#37474F
+    classDef hold fill:#FFF3E0,stroke:#EF6C00,color:#E65100
+    class Watering watering
+    class Auto,Cooldown idle
+    class RainHold,Manual hold
+```
+
 ---
 
 ## Tính năng
