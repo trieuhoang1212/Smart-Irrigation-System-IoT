@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2E8B57,100:9CD68F&height=190&section=header&text=Smart%20Irrigation%20System&fontSize=40&fontColor=ffffff&fontAlignY=34&desc=ESP32%20%C2%B7%20MQTT%20%C2%B7%20Next.js%20%C2%B7%20Expo&descAlignY=56&descSize=16&animation=fadeIn" width="100%" alt="Smart Irrigation System" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2E8B57,100:9CD68F&height=100&section=header" width="100%" alt="" />
+
+<img src="images/favicon.svg" width="84" alt="Smart Irrigation System" />
+
+# Smart Irrigation System
 
 **Tưới cây tự động, tự chủ ngay tại thiết bị.**
 ESP32 đọc cảm biến và quyết định tưới; Web Dashboard và Mobile App giám sát, cấu hình và điều khiển từ xa.
