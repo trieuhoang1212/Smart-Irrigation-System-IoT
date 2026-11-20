@@ -49,14 +49,16 @@ export function savePushToken(
 ): PushTokenRecord {
   const now = Date.now();
   // Cùng token có thể đổi máy hoặc thiết bị; luôn gắn lại về device hiện tại.
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO push_tokens (token, device_id, platform, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(token) DO UPDATE SET
       device_id = excluded.device_id,
       platform = excluded.platform,
       updated_at = excluded.updated_at
-  `).run(token, deviceId, platform, now, now);
+  `,
+  ).run(token, deviceId, platform, now, now);
 
   return { token, deviceId, platform, createdAt: now, updatedAt: now };
 }

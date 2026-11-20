@@ -19,7 +19,12 @@ const RAIN_PRE_ALERT_THRESHOLD = 40;
 
 const lastAlertAt = new Map<string, number>();
 
-function notify(deviceId: string, kind: string, cooldownMs: number, payload: PushPayload): void {
+function notify(
+  deviceId: string,
+  kind: string,
+  cooldownMs: number,
+  payload: PushPayload,
+): void {
   const key = `${deviceId}:${kind}`;
   const now = Date.now();
   if (now - (lastAlertAt.get(key) ?? 0) < cooldownMs) return;
@@ -53,7 +58,10 @@ function getTankPercent(distanceCm: number | null): number | null {
 /**
  * Kiểm tra các thay đổi trạng thái giữa 2 lần telemetry để gửi push notification phù hợp.
  */
-export function checkTelemetryAlerts(previous: Telemetry, current: Telemetry): void {
+export function checkTelemetryAlerts(
+  previous: Telemetry,
+  current: Telemetry,
+): void {
   const deviceId = current.deviceId;
 
   // 1. Chuyển đổi chế độ (Auto <-> Manual)
@@ -145,13 +153,18 @@ export function checkTelemetryAlerts(previous: Telemetry, current: Telemetry): v
   // 4. Nhiệt độ tăng quá nắng
   if (
     current.temperature !== null &&
-    (previous.temperature === null || previous.temperature < HIGH_TEMPERATURE_THRESHOLD) &&
+    (previous.temperature === null ||
+      previous.temperature < HIGH_TEMPERATURE_THRESHOLD) &&
     current.temperature >= HIGH_TEMPERATURE_THRESHOLD
   ) {
     notify(deviceId, "temperature_high", TEMPERATURE_ALERT_COOLDOWN_MS, {
       title: "Cảnh báo nắng gắt",
       body: `Nhiệt độ môi trường đạt ${current.temperature}°C, đất bốc hơi nhanh. Chú ý theo dõi các khu cây non.`,
-      data: { type: "temperature_high", deviceId, temperature: current.temperature },
+      data: {
+        type: "temperature_high",
+        deviceId,
+        temperature: current.temperature,
+      },
     });
   }
 
@@ -168,13 +181,23 @@ export function checkTelemetryAlerts(previous: Telemetry, current: Telemetry): v
       prevZone.moisture >= prevZone.threshold && zone.moisture < zone.threshold;
     const pumpStarted = !prevZone.pump && zone.pump;
     if (moistureDropped || pumpStarted) {
-      notify(deviceId, `zone_needs_water:${zone.id}`, ZONE_WATER_ALERT_COOLDOWN_MS, {
-        title: `${zone.pump ? "Bắt đầu tưới" : "Cây cần nước"} · ${label}`,
-        body: zone.pump
-          ? `Độ ẩm ${Math.round(zone.moisture)}% (ngưỡng ${zone.threshold}%), đang cấp nước cho ${label}.`
-          : `Độ ẩm còn ${Math.round(zone.moisture)}% (dưới ngưỡng ${zone.threshold}%), chuẩn bị kích hoạt tưới.`,
-        data: { type: "zone_needs_water", deviceId, zoneId: zone.id, started: zone.pump },
-      });
+      notify(
+        deviceId,
+        `zone_needs_water:${zone.id}`,
+        ZONE_WATER_ALERT_COOLDOWN_MS,
+        {
+          title: `${zone.pump ? "Bắt đầu tưới" : "Cây cần nước"} · ${label}`,
+          body: zone.pump
+            ? `Độ ẩm ${Math.round(zone.moisture)}% (ngưỡng ${zone.threshold}%), đang cấp nước cho ${label}.`
+            : `Độ ẩm còn ${Math.round(zone.moisture)}% (dưới ngưỡng ${zone.threshold}%), chuẩn bị kích hoạt tưới.`,
+          data: {
+            type: "zone_needs_water",
+            deviceId,
+            zoneId: zone.id,
+            started: zone.pump,
+          },
+        },
+      );
     }
 
     // 5.2 Hoàn tất chu kỳ tưới
@@ -188,11 +211,16 @@ export function checkTelemetryAlerts(previous: Telemetry, current: Telemetry): v
 
     // 5.3 Cảnh báo an toàn quá thời gian tối đa
     if (!prevZone.over && zone.over) {
-      notify(deviceId, `safety_lockout:${zone.id}`, MOISTURE_ALERT_COOLDOWN_MS, {
-        title: `Cảnh báo an toàn · ${label}`,
-        body: `${label} đã tưới liên tục quá thời gian tối đa và được tự động ngắt để chống úng nước.`,
-        data: { type: "safety_lockout", deviceId, zoneId: zone.id },
-      });
+      notify(
+        deviceId,
+        `safety_lockout:${zone.id}`,
+        MOISTURE_ALERT_COOLDOWN_MS,
+        {
+          title: `Cảnh báo an toàn · ${label}`,
+          body: `${label} đã tưới liên tục quá thời gian tối đa và được tự động ngắt để chống úng nước.`,
+          data: { type: "safety_lockout", deviceId, zoneId: zone.id },
+        },
+      );
     }
   }
 }

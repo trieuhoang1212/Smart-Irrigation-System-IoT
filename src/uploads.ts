@@ -10,8 +10,8 @@ mkdirSync(uploadDir, { recursive: true });
 
 const cloudinaryEnabled = Boolean(
   config.cloudinaryCloudName &&
-    config.cloudinaryApiKey &&
-    config.cloudinaryApiSecret,
+  config.cloudinaryApiKey &&
+  config.cloudinaryApiSecret,
 );
 
 if (cloudinaryEnabled) {
@@ -45,25 +45,32 @@ export async function saveZonePhotoFile(
   data: Buffer,
 ): Promise<string> {
   if (cloudinaryEnabled) {
-    const result = await new Promise<{ secure_url: string }>((resolveUpload, reject) => {
-      const upload = cloudinary.uploader.upload_stream(
-        {
-          folder: "smart-irrigation",
-          public_id: cloudinaryPublicId(deviceId, zoneId).replace("smart-irrigation/", ""),
-          overwrite: true,
-          resource_type: "image",
-          format: extension,
-        },
-        (error, uploaded) => {
-          if (error || !uploaded?.secure_url) {
-            reject(error ?? new Error("Cloudinary did not return an image URL"));
-            return;
-          }
-          resolveUpload({ secure_url: uploaded.secure_url });
-        },
-      );
-      upload.end(data);
-    });
+    const result = await new Promise<{ secure_url: string }>(
+      (resolveUpload, reject) => {
+        const upload = cloudinary.uploader.upload_stream(
+          {
+            folder: "smart-irrigation",
+            public_id: cloudinaryPublicId(deviceId, zoneId).replace(
+              "smart-irrigation/",
+              "",
+            ),
+            overwrite: true,
+            resource_type: "image",
+            format: extension,
+          },
+          (error, uploaded) => {
+            if (error || !uploaded?.secure_url) {
+              reject(
+                error ?? new Error("Cloudinary did not return an image URL"),
+              );
+              return;
+            }
+            resolveUpload({ secure_url: uploaded.secure_url });
+          },
+        );
+        upload.end(data);
+      },
+    );
     return result.secure_url;
   }
 

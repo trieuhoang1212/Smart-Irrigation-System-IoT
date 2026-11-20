@@ -1,4 +1,7 @@
-import Expo, { type ExpoPushMessage, type ExpoPushTicket } from "expo-server-sdk";
+import Expo, {
+  type ExpoPushMessage,
+  type ExpoPushTicket,
+} from "expo-server-sdk";
 import { config } from "./config.js";
 import { deletePushTokens, listPushTokens } from "./push-repository.js";
 
@@ -62,7 +65,10 @@ export async function sendPushToDevice(
       }
 
       const token = chunk[index]?.to;
-      if (ticket.details?.error === "DeviceNotRegistered" && typeof token === "string") {
+      if (
+        ticket.details?.error === "DeviceNotRegistered" &&
+        typeof token === "string"
+      ) {
         invalid.push(token);
         return;
       }

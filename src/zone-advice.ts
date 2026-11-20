@@ -175,15 +175,17 @@ export function growthFor(
   harvestDays: number | null,
   now = Date.now(),
 ): GrowthInfo | null {
-  if (plantedAt === null || harvestDays === null || harvestDays < 1) return null;
+  if (plantedAt === null || harvestDays === null || harvestDays < 1)
+    return null;
   if (plantedAt > now) return null;
 
   const day = Math.floor((now - plantedAt) / DAY_MS) + 1;
   const ratio = day / harvestDays;
   const rules = STAGE_RULES[isCropGroup(group) ? group : "Khác"];
-  const rule = ratio > 1
-    ? { stage: "overdue" as const, label: "Quá ngày thu hoạch" }
-    : (rules.find((item) => ratio <= item.until) ?? rules[rules.length - 1]);
+  const rule =
+    ratio > 1
+      ? { stage: "overdue" as const, label: "Quá ngày thu hoạch" }
+      : (rules.find((item) => ratio <= item.until) ?? rules[rules.length - 1]);
 
   return {
     stage: rule.stage,
@@ -255,30 +257,44 @@ export function buildZoneAdvice(
     switch (growth.stage) {
       case "seedling":
         thresholdShift += 5;
-        reasons.push(`Cây con (ngày ${growth.day}/${growth.totalDays}) cần ẩm đều nên tăng nhẹ ngưỡng`);
+        reasons.push(
+          `Cây con (ngày ${growth.day}/${growth.totalDays}) cần ẩm đều nên tăng nhẹ ngưỡng`,
+        );
         break;
       case "flowering":
         thresholdShift += 6;
-        reasons.push(`Ra hoa - đậu quả (ngày ${growth.day}/${growth.totalDays}) cần nhiều nước hơn`);
+        reasons.push(
+          `Ra hoa - đậu quả (ngày ${growth.day}/${growth.totalDays}) cần nhiều nước hơn`,
+        );
         break;
       case "bulking":
         thresholdShift += 5;
-        reasons.push(`Hình thành củ (ngày ${growth.day}/${growth.totalDays}) cần ẩm ổn định`);
+        reasons.push(
+          `Hình thành củ (ngày ${growth.day}/${growth.totalDays}) cần ẩm ổn định`,
+        );
         break;
       case "harvest":
         thresholdShift -= 5;
-        reasons.push(`Đang thu hoạch (ngày ${growth.day}/${growth.totalDays}) nên giảm nước`);
+        reasons.push(
+          `Đang thu hoạch (ngày ${growth.day}/${growth.totalDays}) nên giảm nước`,
+        );
         break;
       case "overdue":
         thresholdShift -= 5;
-        reasons.push(`Đã quá ${growth.overdueDays} ngày so với dự kiến, kiểm tra lại lịch chăm sóc`);
+        reasons.push(
+          `Đã quá ${growth.overdueDays} ngày so với dự kiến, kiểm tra lại lịch chăm sóc`,
+        );
         break;
       default:
-        reasons.push(`Giai đoạn ${growth.label.toLowerCase()} (ngày ${growth.day}/${growth.totalDays})`);
+        reasons.push(
+          `Giai đoạn ${growth.label.toLowerCase()} (ngày ${growth.day}/${growth.totalDays})`,
+        );
         break;
     }
   } else {
-    reasons.push("Chưa đủ ngày trồng và số ngày thu hoạch nên chưa xác định giai đoạn");
+    reasons.push(
+      "Chưa đủ ngày trồng và số ngày thu hoạch nên chưa xác định giai đoạn",
+    );
   }
 
   switch (zone.soil) {
@@ -324,7 +340,9 @@ export function buildZoneAdvice(
   }
 
   if (!telemetry) {
-    reasons.push("Chưa có dữ liệu cảm biến thời tiết, chỉ dựa vào mùa và loại đất");
+    reasons.push(
+      "Chưa có dữ liệu cảm biến thời tiết, chỉ dựa vào mùa và loại đất",
+    );
   }
 
   // Luôn tính từ ngưỡng gốc của nhóm cây để áp dụng nhiều lần không bị cộng dồn.
@@ -334,7 +352,8 @@ export function buildZoneAdvice(
     MAX_THRESHOLD,
   );
 
-  const recommended = GROUP_WATER_WINDOWS[isCropGroup(zone.group) ? zone.group : "Khác"];
+  const recommended =
+    GROUP_WATER_WINDOWS[isCropGroup(zone.group) ? zone.group : "Khác"];
   let window: ZoneAdvice["window"] = null;
   let windowNote = `Chỉ là gợi ý theo nhóm cây; ESP32 vẫn tưới theo độ ẩm đất. ${recommended.note}`;
   if (weather.raining) {

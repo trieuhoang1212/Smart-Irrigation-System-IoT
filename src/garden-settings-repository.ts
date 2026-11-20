@@ -13,7 +13,10 @@ export const MAX_RAIN_THRESHOLD = 100;
 export const RAIN_WARN_OFFSET = 20;
 
 export function clampRainThreshold(value: number): number {
-  return Math.max(MIN_RAIN_THRESHOLD, Math.min(MAX_RAIN_THRESHOLD, Math.round(value)));
+  return Math.max(
+    MIN_RAIN_THRESHOLD,
+    Math.min(MAX_RAIN_THRESHOLD, Math.round(value)),
+  );
 }
 
 export function isSoilType(value: string): value is SoilType {
@@ -32,11 +35,13 @@ export function saveGardenSoil(
   soil: SoilType,
 ): { soil: SoilType; updatedAt: number } {
   const updatedAt = Date.now();
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO garden_settings (device_id, soil, updated_at)
     VALUES (?, ?, ?)
     ON CONFLICT(device_id) DO UPDATE SET soil = excluded.soil, updated_at = excluded.updated_at
-  `).run(deviceId, soil, updatedAt);
+  `,
+  ).run(deviceId, soil, updatedAt);
   return { soil, updatedAt };
 }
 
@@ -53,12 +58,14 @@ export function saveGardenRainThreshold(
 ): { rainThreshold: number; updatedAt: number } {
   const rainThreshold = clampRainThreshold(threshold);
   const updatedAt = Date.now();
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO garden_settings (device_id, rain_threshold, updated_at)
     VALUES (?, ?, ?)
     ON CONFLICT(device_id) DO UPDATE SET
       rain_threshold = excluded.rain_threshold,
       updated_at = excluded.updated_at
-  `).run(deviceId, rainThreshold, updatedAt);
+  `,
+  ).run(deviceId, rainThreshold, updatedAt);
   return { rainThreshold, updatedAt };
 }
