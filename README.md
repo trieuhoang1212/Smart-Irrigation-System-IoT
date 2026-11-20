@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="images/favicon.svg" width="84" alt="Smart Irrigation System" />
-
-# Smart Irrigation System
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2E8B57,100:9CD68F&height=190&section=header&text=Smart%20Irrigation%20System&fontSize=40&fontColor=ffffff&fontAlignY=34&desc=ESP32%20%C2%B7%20MQTT%20%C2%B7%20Next.js%20%C2%B7%20Expo&descAlignY=56&descSize=16&animation=fadeIn" width="100%" alt="Smart Irrigation System" />
 
 **Tưới cây tự động, tự chủ ngay tại thiết bị.**
 ESP32 đọc cảm biến và quyết định tưới; Web Dashboard và Mobile App giám sát, cấu hình và điều khiển từ xa.
@@ -26,6 +24,7 @@ ESP32 đọc cảm biến và quyết định tưới; Web Dashboard và Mobile 
 <a href="#khởi-chạy">Khởi chạy</a> ·
 <a href="#dịch-vụ-ngoài">Dịch vụ ngoài</a> ·
 <a href="#triển-khai">Triển khai</a> ·
+<a href="#nhóm-thực-hiện">Nhóm thực hiện</a> ·
 <a href="#hạn-chế">Hạn chế</a> ·
 <a href="#hướng-phát-triển">Hướng phát triển</a>
 
@@ -241,6 +240,26 @@ Biến môi trường cần khai báo trong Render: `MQTT_URL`, `MQTT_STATUS_TOP
 Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database.ok: true`.
 
 > Ổ đĩa của Render là tạm: mỗi lần deploy/restart, SQLite trong `data/` bị tạo lại. Ảnh đã đẩy lên Cloudinary nên không mất.
+
+---
+
+## Nhóm thực hiện
+
+| Thành viên | Vai trò | Phụ trách |
+|:---:|:---:|:---:|
+| <img src="https://github.com/trieuhoang1212.png?size=80" width="56" alt="@trieuhoang1212" /><br/>**@trieuhoang1212** | ![Leader](https://img.shields.io/badge/Leader-2E8B57?style=flat-square&logo=github&logoColor=white) | Trưởng nhóm |
+| <img src="https://github.com/huylm8848-code.png?size=80" width="56" alt="@huylm8848-code" /><br/>**@huylm8848-code** | ![Design](https://img.shields.io/badge/Design-7E57C2?style=flat-square&logo=figma&logoColor=white) | Thiết kế & Giao diện |
+| <img src="https://github.com/phuongttt7928-cpu.png?size=80" width="56" alt="@phuongttt7928-cpu" /><br/>**@phuongttt7928-cpu** | ![Developer](https://img.shields.io/badge/Developer-1565C0?style=flat-square&logo=github&logoColor=white) | Phát triển phần mềm |
+| <img src="https://github.com/buithanhnguyen257-cmyk.png?size=80" width="56" alt="@buithanhnguyen257-cmyk" /><br/>**@buithanhnguyen257-cmyk** | ![Hardware](https://img.shields.io/badge/Hardware-EF6C00?style=flat-square&logo=espressif&logoColor=white) | Phần cứng & Vi điều khiển |
+
+<div align="center">
+
+<img height="150" src="https://github-readme-stats.vercel.app/api?username=trieuhoang1212&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=2E8B57&icon_color=2E8B57&text_color=1F2937&locale=vi" alt="GitHub stats @trieuhoang1212" />
+<img height="150" src="https://github-readme-stats.vercel.app/api?username=huylm8848-code&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=7E57C2&icon_color=7E57C2&text_color=1F2937&locale=vi" alt="GitHub stats @huylm8848-code" />
+<img height="150" src="https://github-readme-stats.vercel.app/api?username=phuongttt7928-cpu&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=1565C0&icon_color=1565C0&text_color=1F2937&locale=vi" alt="GitHub stats @phuongttt7928-cpu" />
+<img height="150" src="https://github-readme-stats.vercel.app/api?username=buithanhnguyen257-cmyk&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=EF6C00&icon_color=EF6C00&text_color=1F2937&locale=vi" alt="GitHub stats @buithanhnguyen257-cmyk" />
+
+</div>
 
 ---
 
