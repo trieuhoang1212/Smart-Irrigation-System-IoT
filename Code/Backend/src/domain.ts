@@ -12,8 +12,8 @@ export const MIN_THRESHOLD = 10;
 export const MAX_THRESHOLD = 90;
 // Ngưỡng dừng gợi ý cho vùng chưa có cấu hình: ngưỡng bật + 20 (tối đa 100).
 export const STOP_OFFSET = 20;
-// Ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 5 điểm, giống chặn trong firmware.
-export const MIN_STOP_GAP = 5;
+// Ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 10 điểm, giống chặn trong firmware.
+export const MIN_STOP_GAP = 10;
 export const MAX_STOP_THRESHOLD = 100;
 
 export const MIN_RUN_SECONDS = 10;
