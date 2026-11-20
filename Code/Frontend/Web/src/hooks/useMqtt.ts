@@ -50,6 +50,8 @@ const THRESHOLD_PENDING_MS = 5000;
 const THRESHOLD_DEBOUNCE_MS = 400;
 // Firmware chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 10 điểm.
 const MIN_STOP_GAP = 10;
+// Kéo slider sát mức chặn sinh nhiều sự kiện; gộp cảnh báo để không spam toast.
+const GAP_WARN_THROTTLE_MS = 1500;
 export const MIN_RAIN_THRESHOLD = 40;
 export const MAX_RAIN_THRESHOLD = 100;
 // Cảnh báo "có thể mưa" đi trước ngưỡng dừng 20 điểm, khớp firmware.
@@ -113,6 +115,14 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
   const notify = useCallback((message: string, tone: ToastTone) => {
     notifyRef.current?.(message, tone);
   }, []);
+
+  const gapWarnAtRef = useRef(0);
+  const warnGap = useCallback((message: string) => {
+    const now = Date.now();
+    if (now - gapWarnAtRef.current < GAP_WARN_THROTTLE_MS) return;
+    gapWarnAtRef.current = now;
+    notify(message, "error");
+  }, [notify]);
 
   // WS chỉ là kênh Web–Backend; trạng thái MQTT thật lấy từ /api/health.
   useEffect(() => {
@@ -525,7 +535,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       // Ngưỡng dừng giữ nguyên; từ chối thay đổi làm khoảng cách xuống dưới mức tối thiểu.
       const stop = current?.stopThreshold ?? Math.min(100, clamped + 20);
       if (clamped + MIN_STOP_GAP > stop) {
-        notify(`Ngưỡng tưới phải thấp hơn ngưỡng dừng ít nhất ${MIN_STOP_GAP} điểm.`, "error");
+        warnGap(`Ngưỡng tưới phải thấp hơn ngưỡng dừng ít nhất ${MIN_STOP_GAP} điểm.`);
         return;
       }
       stopPendingRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
@@ -548,7 +558,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
       }, THRESHOLD_DEBOUNCE_MS);
     },
-    [notify, sendCommand],
+    [warnGap, sendCommand],
   );
 
   const setZoneStopThreshold = useCallback(
@@ -557,7 +567,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       const minStop = (current?.threshold ?? 10) + MIN_STOP_GAP;
       const clamped = Math.min(100, Math.round(value));
       if (clamped < minStop) {
-        notify(`Ngưỡng dừng phải cao hơn ngưỡng tưới ít nhất ${MIN_STOP_GAP} điểm.`, "error");
+        warnGap(`Ngưỡng dừng phải cao hơn ngưỡng tưới ít nhất ${MIN_STOP_GAP} điểm.`);
         return;
       }
       stopPendingRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
@@ -573,7 +583,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         void sendCommand(`SET_STOP_${zoneId}_${clamped}`);
       }, THRESHOLD_DEBOUNCE_MS);
     },
-    [notify, sendCommand],
+    [warnGap, sendCommand],
   );
 
   const setRainThreshold = useCallback(

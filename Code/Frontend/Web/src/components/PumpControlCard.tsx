@@ -26,7 +26,6 @@ export function PumpControlCard({
   onChangeStopThreshold,
 }: PumpControlCardProps) {
   const offlineReason = "Thiết bị mất kết nối";
-  const minStop = Math.min(100, selectedZone.threshold + 10);
 
   return (
     <article className="panel pump-tile">
@@ -127,7 +126,7 @@ export function PumpControlCard({
           id="threshold"
           type="range"
           min="10"
-          max="90"
+          max="100"
           value={selectedZone.threshold}
           onChange={(event) => onChangeThreshold(Number(event.target.value))}
           disabled={!controlsEnabled}
@@ -143,9 +142,9 @@ export function PumpControlCard({
         <input
           id="stop-threshold"
           type="range"
-          min={minStop}
+          min="10"
           max="100"
-          value={Math.max(minStop, selectedZone.stopThreshold)}
+          value={selectedZone.stopThreshold}
           onChange={(event) => onChangeStopThreshold(Number(event.target.value))}
           disabled={!controlsEnabled}
           title={controlsEnabled ? undefined : offlineReason}
