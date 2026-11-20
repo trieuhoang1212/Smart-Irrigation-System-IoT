@@ -98,13 +98,11 @@ export function PumpControlCard({
         {selectedZone.pump ? "Dừng tưới" : "Tưới tay ngay"}
       </button>
 
-      {controlsEnabled && (
+      {controlsEnabled && (tankEmpty || mode === "manual") && (
         <p className="pump-hint">
           {tankEmpty
             ? "Bồn đã cạn — bơm bị chặn để tránh chạy khô."
-            : mode === "auto"
-              ? "Đang Tự động: tưới tay sẽ chuyển cả vườn sang Thủ công."
-              : "Đang Thủ công: hệ thống không tự tưới cho tới khi bạn bật lại Tự động."}
+            : "Đang Thủ công: hệ thống không tự tưới cho tới khi bạn bật lại Tự động."}
         </p>
       )}
 
