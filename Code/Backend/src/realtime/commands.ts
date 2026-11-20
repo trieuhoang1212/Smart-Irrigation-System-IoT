@@ -97,7 +97,12 @@ export function confirmPendingCommands(telemetry: Telemetry) {
     )
       return;
     pendingCommands.delete(commandId);
-    resolveCommand(commandId, "confirmed");
+    void resolveCommand(commandId, "confirmed").catch((error) => {
+      console.error(
+        "Failed to resolve command:",
+        error instanceof Error ? error.message : error,
+      );
+    });
     broadcast({
       type: "command-result",
       commandId,
@@ -113,7 +118,12 @@ export function expirePendingCommands() {
   pendingCommands.forEach((pending, commandId) => {
     if (pending.expiresAt > now) return;
     pendingCommands.delete(commandId);
-    resolveCommand(commandId, "timeout");
+    void resolveCommand(commandId, "timeout").catch((error) => {
+      console.error(
+        "Failed to resolve command:",
+        error instanceof Error ? error.message : error,
+      );
+    });
     broadcast({
       type: "command-result",
       commandId,

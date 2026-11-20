@@ -23,13 +23,7 @@ import {
   latestByDevice,
   onlineByDevice,
 } from "./state.js";
-import {
-  resyncFlows,
-  resyncRainThreshold,
-  resyncStopThresholds,
-  resyncTargets,
-  resyncThresholds,
-} from "./sync.js";
+import { resyncDeviceConfig } from "./sync.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 10_000;
@@ -39,11 +33,12 @@ let deviceWatchdog: ReturnType<typeof setInterval> | null = null;
 let commandWatchdog: ReturnType<typeof setInterval> | null = null;
 let unsubscribeTelemetry: (() => void) | null = null;
 
-export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
+export async function startLive(ws: WebSocketServer, gateway: MqttGateway) {
   attachWebSocketServer(ws);
 
   // Khôi phục snapshot mới nhất sau restart; chưa chứng minh thiết bị đang online.
-  for (const telemetry of loadAllLatestTelemetry()) {
+  const savedTelemetry = await loadAllLatestTelemetry();
+  for (const telemetry of savedTelemetry) {
     latestByDevice.set(telemetry.deviceId, telemetry);
     onlineByDevice.set(telemetry.deviceId, false);
   }
@@ -111,39 +106,43 @@ export function startLive(ws: WebSocketServer, gateway: MqttGateway) {
     latestByDevice.set(deviceId, telemetry);
 
     if (!meta.retained && previousTelemetry) {
-      checkTelemetryAlerts(previousTelemetry, telemetry);
+      void checkTelemetryAlerts(previousTelemetry, telemetry).catch((error) => {
+        console.error(
+          "Failed to check telemetry alerts:",
+          error instanceof Error ? error.message : error,
+        );
+      });
     }
 
     // Live state vẫn 2s/lần, nhưng history chỉ ghi 10s/lần cho nhẹ DB.
     // Retained chỉ là snapshot cũ nên không ghi vào history để khỏi lệch chart.
     const now = Date.now();
     const lastSavedAt = lastHistoryWriteByDevice.get(deviceId) ?? 0;
-    try {
-      if (!meta.retained && now - lastSavedAt >= HISTORY_WRITE_INTERVAL_MS) {
-        saveTelemetry(telemetry);
-        lastHistoryWriteByDevice.set(deviceId, now);
-      } else {
-        // Snapshot hiển thị phải bám sát telemetry vừa nhận, kể cả retained
+    const writeHistory =
+      !meta.retained && now - lastSavedAt >= HISTORY_WRITE_INTERVAL_MS;
+    const persist = writeHistory
+      ? saveTelemetry(telemetry)
+      : // Snapshot hiển thị phải bám sát telemetry vừa nhận, kể cả retained
         // đầu tiên sau khi backend khởi động lại; history vẫn giữ nhịp riêng.
         saveLatestTelemetry(telemetry);
-      }
-    } catch (error) {
+    if (writeHistory) lastHistoryWriteByDevice.set(deviceId, now);
+    persist.catch((error) => {
       console.error(
         "Failed to persist telemetry:",
         error instanceof Error ? error.message : error,
       );
-    }
+    });
 
     // Retained telemetry chỉ là snapshot cũ, không dùng để gửi lệnh:
     // ESP32 có thể đang offline nên command MQTT sẽ bị mất.
     // Chờ telemetry live kế tiếp để chắc chắn thiết bị đã online và nhận lệnh.
     if (!meta.retained) {
-      resyncThresholds(telemetry, gateway);
-      // Ngưỡng dừng chạy sau ngưỡng bật để giá trị cuối cùng khớp với DB.
-      resyncStopThresholds(telemetry, gateway);
-      resyncTargets(telemetry, gateway);
-      resyncFlows(telemetry, gateway);
-      resyncRainThreshold(telemetry, gateway);
+      void resyncDeviceConfig(telemetry, gateway).catch((error) => {
+        console.error(
+          "Failed to resync device config:",
+          error instanceof Error ? error.message : error,
+        );
+      });
     }
 
     if (meta.retained) {

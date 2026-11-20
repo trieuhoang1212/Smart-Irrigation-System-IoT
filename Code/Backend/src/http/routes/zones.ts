@@ -147,7 +147,7 @@ export function registerZoneRoutes(router: Router, gateway: MqttGateway) {
       return;
     }
 
-    const current = getZoneSetting(deviceId, zoneId);
+    const current = await getZoneSetting(deviceId, zoneId);
     if (!current) {
       response.status(404).json({ error: "Zone setting not found" });
       return;
@@ -167,7 +167,9 @@ export function registerZoneRoutes(router: Router, gateway: MqttGateway) {
       }
     }
 
-    const profile = hasProfile ? saveZoneProfile(deviceId, zoneId, profilePatch) : null;
+    const profile = hasProfile
+      ? await saveZoneProfile(deviceId, zoneId, profilePatch)
+      : null;
     if (hasProfile && !profile) {
       response.status(404).json({ error: "Zone profile not found" });
       return;
@@ -188,12 +190,14 @@ export function registerZoneRoutes(router: Router, gateway: MqttGateway) {
       stopThreshold = clampStopThreshold(current.stopThreshold, threshold);
     }
 
-    let setting = hasThreshold || hasStopThreshold
-      ? saveZoneSetting(deviceId, zoneId, threshold, stopThreshold)
-      : current;
+    let setting =
+      hasThreshold || hasStopThreshold
+        ? await saveZoneSetting(deviceId, zoneId, threshold, stopThreshold)
+        : current;
 
     if (Object.keys(irrigation).length > 0) {
-      setting = updateZoneIrrigation(deviceId, zoneId, irrigation) ?? setting;
+      setting =
+        (await updateZoneIrrigation(deviceId, zoneId, irrigation)) ?? setting;
     }
 
     let appliedRemotely = false;
@@ -275,9 +279,9 @@ export function registerZoneRoutes(router: Router, gateway: MqttGateway) {
         return;
       }
 
-      const previous = getZoneProfile(deviceId, zoneId);
+      const previous = await getZoneProfile(deviceId, zoneId);
       const photoFile = await saveZonePhotoFile(deviceId, zoneId, extension, request.body);
-      setZonePhoto(deviceId, zoneId, photoFile);
+      await setZonePhoto(deviceId, zoneId, photoFile);
       await removeUploadFile(previous?.photoFile ?? null);
 
       response.json({
@@ -293,8 +297,8 @@ export function registerZoneRoutes(router: Router, gateway: MqttGateway) {
       return;
     }
 
-    const previous = getZoneProfile(deviceId, zoneId);
-    setZonePhoto(deviceId, zoneId, null);
+    const previous = await getZoneProfile(deviceId, zoneId);
+    await setZonePhoto(deviceId, zoneId, null);
     await removeUploadFile(previous?.photoFile ?? null);
     await removeCloudinaryZonePhoto(deviceId, zoneId, previous?.photoFile ?? null);
 

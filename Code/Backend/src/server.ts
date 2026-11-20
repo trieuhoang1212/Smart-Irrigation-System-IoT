@@ -3,7 +3,7 @@ import express from "express";
 import http from "node:http";
 import { WebSocketServer } from "ws";
 import { config } from "./config.js";
-import { closeDatabase, databaseFile, db } from "./db.js";
+import { closeDatabase, databaseLabel, initDatabase, pool } from "./db.js";
 import { gardenConfig } from "./garden-config.js";
 import { getLiveStats, startLive, stopLive } from "./live.js";
 import { MqttGateway } from "./mqtt-gateway.js";
@@ -17,19 +17,22 @@ import { seedZoneSettings } from "./zone-settings-repository.js";
 import { seedZoneProfiles } from "./zone-profile-repository.js";
 import { uploadDir } from "./uploads.js";
 
+// ESM top-level await: DB phải sẵn sàng trước khi seed và mở cổng.
+await initDatabase();
+
 // Tạo ngưỡng mặc định trong DB cho zone chưa từng được lưu.
-seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
+await seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
 
 // Hồ sơ cây (tên, nhóm, ngày trồng, ảnh) do người dùng chỉnh trên Web.
-seedZoneProfiles(gardenConfig.deviceId, gardenConfig.zones);
+await seedZoneProfiles(gardenConfig.deviceId, gardenConfig.zones);
 
 // Lần đầu chạy, dựng lại các lần tưới từ telemetry 24 giờ gần nhất.
-const backfilled = backfillWateringRuns(gardenConfig.deviceId);
+const backfilled = await backfillWateringRuns(gardenConfig.deviceId);
 if (backfilled > 0)
   console.log(`Backfilled watering runs from ${backfilled} samples`);
 
 // Lệnh pending chỉ nằm trong RAM; restart xong thì không còn ai xác nhận nữa.
-const staleCommands = timeoutStaleCommands();
+const staleCommands = await timeoutStaleCommands();
 if (staleCommands > 0)
   console.log(`Marked ${staleCommands} stale commands as timeout`);
 
@@ -48,12 +51,12 @@ app.use(
   express.static(uploadDir, { maxAge: "7d", immutable: true }),
 );
 
-startLive(webSockets, gateway);
+await startLive(webSockets, gateway);
 
-app.get("/api/health", (_request, response) => {
+app.get("/api/health", async (_request, response) => {
   let database = false;
   try {
-    db.prepare("SELECT 1").get();
+    await pool.query("SELECT 1");
     database = true;
   } catch {
     database = false;
@@ -64,7 +67,7 @@ app.get("/api/health", (_request, response) => {
   response.status(ok ? 200 : 503).json({
     ok,
     mqtt: gateway.connected,
-    database: { ok: database, driver: "sqlite", file: databaseFile },
+    database: { ok: database, driver: "postgres", url: databaseLabel },
     devices,
     onlineDevices,
     realtimeClients: webSockets.clients.size,
@@ -99,7 +102,7 @@ app.use(
 );
 
 try {
-  const removed = pruneHistory(config.dbRetentionDays);
+  const removed = await pruneHistory(config.dbRetentionDays);
   if (removed > 0) {
     console.log(
       `Pruned ${removed} telemetry samples older than ${config.dbRetentionDays} days`,
@@ -114,14 +117,12 @@ try {
 
 const retentionTimer = setInterval(
   () => {
-    try {
-      pruneHistory(config.dbRetentionDays);
-    } catch (error) {
+    pruneHistory(config.dbRetentionDays).catch((error) => {
       console.error(
         "Failed to prune old telemetry:",
         error instanceof Error ? error.message : error,
       );
-    }
+    });
   },
   24 * 60 * 60 * 1000,
 );
@@ -129,7 +130,7 @@ retentionTimer.unref();
 
 server.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`);
-  console.log(`SQLite database: ${databaseFile}`);
+  console.log(`PostgreSQL database: ${databaseLabel}`);
 });
 
 function shutdown(signal: string) {
@@ -141,15 +142,14 @@ function shutdown(signal: string) {
   webSockets.close();
   server.closeAllConnections();
   server.close(() => {
-    try {
-      closeDatabase();
-    } catch (error) {
-      console.error(
-        "Failed to close database:",
-        error instanceof Error ? error.message : error,
-      );
-    }
-    process.exit(0);
+    closeDatabase()
+      .catch((error) => {
+        console.error(
+          "Failed to close database:",
+          error instanceof Error ? error.message : error,
+        );
+      })
+      .finally(() => process.exit(0));
   });
   // Không để process treo nếu còn kết nối chưa đóng.
   setTimeout(() => process.exit(1), 5000).unref();

@@ -22,18 +22,24 @@ import { getZoneProfiles } from "../zone-profile-repository.js";
 import { getZoneSettings } from "../zone-settings-repository.js";
 
 /** gardenConfig gốc + ngưỡng trong DB + hồ sơ cây do người dùng chỉnh. */
-export function buildDeviceConfig(deviceId: string) {
+export async function buildDeviceConfig(deviceId: string) {
+  const [zoneSettings, zoneProfiles, soil, rainThreshold] = await Promise.all([
+    getZoneSettings(deviceId),
+    getZoneProfiles(deviceId),
+    getGardenSoil(deviceId),
+    getGardenRainThreshold(deviceId),
+  ]);
   const settings = new Map(
-    getZoneSettings(deviceId).map((setting) => [setting.zoneId as string, setting]),
+    zoneSettings.map((setting) => [setting.zoneId as string, setting]),
   );
   const profiles = new Map(
-    getZoneProfiles(deviceId).map((profile) => [profile.zoneId as string, profile]),
+    zoneProfiles.map((profile) => [profile.zoneId as string, profile]),
   );
 
   return {
     ...gardenConfig,
-    soil: getGardenSoil(deviceId),
-    rainThreshold: getGardenRainThreshold(deviceId),
+    soil,
+    rainThreshold,
     limits: {
       thresholdMin: MIN_THRESHOLD,
       thresholdMax: MAX_THRESHOLD,
@@ -85,13 +91,17 @@ export function buildDeviceConfig(deviceId: string) {
   };
 }
 
-export type DeviceZone = ReturnType<typeof buildDeviceConfig>["zones"][number];
+export type DeviceZone = Awaited<
+  ReturnType<typeof buildDeviceConfig>
+>["zones"][number];
 
 // Gợi ý chỉ dùng thời tiết còn mới; snapshot quá cũ dễ làm khuyến nghị sai.
 const ADVICE_TELEMETRY_MAX_AGE_MS = 30 * 60_000;
 
-export function telemetryForAdvice(deviceId: string): Telemetry | null {
-  const telemetry = loadLatestTelemetry(deviceId);
+export async function telemetryForAdvice(
+  deviceId: string,
+): Promise<Telemetry | null> {
+  const telemetry = await loadLatestTelemetry(deviceId);
   if (!telemetry) return null;
   const age = Date.now() - Date.parse(telemetry.receivedAt);
   return Number.isFinite(age) && age <= ADVICE_TELEMETRY_MAX_AGE_MS ? telemetry : null;

@@ -1,7 +1,7 @@
 import { targetSecondsFor, type Telemetry } from "../domain.js";
 import { getGardenRainThreshold } from "../garden-settings-repository.js";
 import type { MqttGateway } from "../mqtt-gateway.js";
-import { getZoneSettings } from "../zone-settings-repository.js";
+import { getZoneSettings, type ZoneSetting } from "../zone-settings-repository.js";
 
 // Không gửi lại cùng một cấu hình xuống thiết bị quá dày.
 const SYNC_COOLDOWN_MS = 10_000;
@@ -14,12 +14,28 @@ const lastRainThresholdSyncAt = new Map<string, number>();
 
 /**
  * Đồng bộ cấu hình trong DB xuống thiết bị sau mỗi telemetry live.
- * Retained telemetry là snapshot cũ nên nơi gọi không được chạy các hàm này.
+ * Retained telemetry là snapshot cũ nên nơi gọi không được chạy hàm này.
  */
-export function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
-  const settings = getZoneSettings(telemetry.deviceId);
+export async function resyncDeviceConfig(
+  telemetry: Telemetry,
+  gateway: MqttGateway,
+): Promise<void> {
+  const settings = await getZoneSettings(telemetry.deviceId);
   if (settings.length === 0) return;
 
+  // Ngưỡng dừng chạy sau ngưỡng bật để giá trị cuối cùng khớp với DB.
+  resyncThresholds(telemetry, gateway, settings);
+  resyncStopThresholds(telemetry, gateway, settings);
+  resyncTargets(telemetry, gateway, settings);
+  resyncFlows(telemetry, gateway, settings);
+  await resyncRainThreshold(telemetry, gateway);
+}
+
+export function resyncThresholds(
+  telemetry: Telemetry,
+  gateway: MqttGateway,
+  settings: ZoneSetting[],
+) {
   const byZone = new Map(
     settings.map((setting) => [setting.zoneId as string, setting]),
   );
@@ -44,10 +60,11 @@ export function resyncThresholds(telemetry: Telemetry, gateway: MqttGateway) {
   }
 }
 
-export function resyncStopThresholds(telemetry: Telemetry, gateway: MqttGateway) {
-  const settings = getZoneSettings(telemetry.deviceId);
-  if (settings.length === 0) return;
-
+export function resyncStopThresholds(
+  telemetry: Telemetry,
+  gateway: MqttGateway,
+  settings: ZoneSetting[],
+) {
   const byZone = new Map(
     settings.map((setting) => [setting.zoneId as string, setting]),
   );
@@ -76,10 +93,11 @@ export function resyncStopThresholds(telemetry: Telemetry, gateway: MqttGateway)
   }
 }
 
-export function resyncTargets(telemetry: Telemetry, gateway: MqttGateway) {
-  const settings = getZoneSettings(telemetry.deviceId);
-  if (settings.length === 0) return;
-
+export function resyncTargets(
+  telemetry: Telemetry,
+  gateway: MqttGateway,
+  settings: ZoneSetting[],
+) {
   const byZone = new Map(
     settings.map((setting) => [setting.zoneId as string, setting]),
   );
@@ -109,10 +127,11 @@ export function resyncTargets(telemetry: Telemetry, gateway: MqttGateway) {
   }
 }
 
-export function resyncFlows(telemetry: Telemetry, gateway: MqttGateway) {
-  const settings = getZoneSettings(telemetry.deviceId);
-  if (settings.length === 0) return;
-
+export function resyncFlows(
+  telemetry: Telemetry,
+  gateway: MqttGateway,
+  settings: ZoneSetting[],
+) {
   const byZone = new Map(
     settings.map((setting) => [setting.zoneId as string, setting]),
   );
@@ -140,11 +159,14 @@ export function resyncFlows(telemetry: Telemetry, gateway: MqttGateway) {
   }
 }
 
-export function resyncRainThreshold(telemetry: Telemetry, gateway: MqttGateway) {
+export async function resyncRainThreshold(
+  telemetry: Telemetry,
+  gateway: MqttGateway,
+) {
   // Firmware cũ chưa gửi ngưỡng mưa; không đẩy lệnh để tránh đổi hành vi ngoài ý muốn.
   if (telemetry.rainThreshold === undefined) return;
 
-  const stored = getGardenRainThreshold(telemetry.deviceId);
+  const stored = await getGardenRainThreshold(telemetry.deviceId);
   if (stored === telemetry.rainThreshold) return;
 
   const now = Date.now();

@@ -15,11 +15,11 @@ import {
 import { queryNumber } from "../query.js";
 
 export function registerCommandRoutes(router: Router, gateway: MqttGateway) {
-  router.get("/api/devices/:deviceId/commands", (request, response) => {
+  router.get("/api/devices/:deviceId/commands", async (request, response) => {
     const limit = queryNumber(request.query.limit);
     response.json({
       deviceId: request.params.deviceId,
-      commands: listCommands(request.params.deviceId, limit),
+      commands: await listCommands(request.params.deviceId, limit),
     });
   });
 
@@ -48,21 +48,21 @@ export function registerCommandRoutes(router: Router, gateway: MqttGateway) {
     }
 
     // Lưu ngay ngưỡng mới để cấu hình không mất khi restart, kể cả khi MQTT lỗi.
-    let setting: ReturnType<typeof saveZoneSetting> | undefined;
+    let setting: Awaited<ReturnType<typeof saveZoneSetting>> | undefined;
     if (commandRequest.action === "SET_THRESHOLD" && commandRequest.zoneId && isZoneId(commandRequest.zoneId)) {
       const threshold = clampThreshold(Number(commandRequest.value));
-      const previous = getZoneSetting(deviceId, commandRequest.zoneId);
+      const previous = await getZoneSetting(deviceId, commandRequest.zoneId);
       // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ nâng khi bị ngưỡng bật vượt qua.
       const stopThreshold = previous
         ? clampStopThreshold(previous.stopThreshold, threshold)
         : deriveStopThreshold(threshold);
-      setting = saveZoneSetting(deviceId, commandRequest.zoneId, threshold, stopThreshold);
+      setting = await saveZoneSetting(deviceId, commandRequest.zoneId, threshold, stopThreshold);
     }
 
     if (commandRequest.action === "SET_STOP" && commandRequest.zoneId && isZoneId(commandRequest.zoneId)) {
-      const previous = getZoneSetting(deviceId, commandRequest.zoneId);
+      const previous = await getZoneSetting(deviceId, commandRequest.zoneId);
       if (previous) {
-        setting = saveZoneSetting(
+        setting = await saveZoneSetting(
           deviceId,
           commandRequest.zoneId,
           previous.threshold,
@@ -92,7 +92,7 @@ export function registerCommandRoutes(router: Router, gateway: MqttGateway) {
     trackCommand(commandId, deviceId, outgoing);
 
     try {
-      logCommand(commandId, deviceId, outgoing);
+      await logCommand(commandId, deviceId, outgoing);
     } catch (error) {
       console.error("Failed to log command:", error instanceof Error ? error.message : error);
     }

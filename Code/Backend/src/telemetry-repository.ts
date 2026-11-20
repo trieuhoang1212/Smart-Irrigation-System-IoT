@@ -1,6 +1,6 @@
-import { db } from "./db.js";
+import type { PoolClient } from "pg";
+import { pool, transaction } from "./db.js";
 import type { Telemetry } from "./domain.js";
-import { getZoneSetting } from "./zone-settings-repository.js";
 
 export type CommandStatus = "pending" | "confirmed" | "timeout";
 
@@ -72,23 +72,24 @@ function recordedAtOf(telemetry: Telemetry): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
-const upsertLatest = db.prepare(`
+const upsertLatestSql = `
   INSERT INTO latest_telemetry (device_id, payload)
-  VALUES (?, ?)
-  ON CONFLICT(device_id) DO UPDATE SET payload = excluded.payload
-`);
+  VALUES ($1, $2)
+  ON CONFLICT (device_id) DO UPDATE SET payload = excluded.payload
+`;
 
-const insertSample = db.prepare(`
+const insertSampleSql = `
   INSERT INTO telemetry_samples
     (device_id, mode, temperature, humidity, rain, raining, recorded_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-`);
+  VALUES ($1, $2, $3, $4, $5, $6, $7)
+  RETURNING id
+`;
 
-const insertZoneSample = db.prepare(`
+const insertZoneSampleSql = `
   INSERT INTO telemetry_zone_samples
     (sample_id, device_id, zone_id, moisture, threshold, stop_threshold, pump, recorded_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-`);
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`;
 
 // Telemetry thật 2–10 giây/lần; mất tín hiệu quá 60 giây coi như lần tưới đã kết thúc.
 const LIVE_GAP_MS = 60_000;
@@ -127,76 +128,101 @@ export type ZoneWateringOverview = {
   todayRuns: number;
 };
 
-const findOpenWateringRun = db.prepare(`
+const findOpenWateringRunSql = `
   SELECT id, started_at, last_seen_at, flow_lph FROM watering_runs
-  WHERE device_id = ? AND zone_id = ? AND ended_at IS NULL
+  WHERE device_id = $1 AND zone_id = $2 AND ended_at IS NULL
   ORDER BY id DESC
   LIMIT 1
-`);
+`;
 
-const insertWateringRun = db.prepare(`
+const insertWateringRunSql = `
   INSERT INTO watering_runs (device_id, zone_id, started_at, last_seen_at, flow_lph)
-  VALUES (?, ?, ?, ?, ?)
-`);
+  VALUES ($1, $2, $3, $4, $5)
+`;
 
-const touchWateringRun = db.prepare(
-  "UPDATE watering_runs SET last_seen_at = ? WHERE id = ?",
-);
+const touchWateringRunSql =
+  "UPDATE watering_runs SET last_seen_at = $1 WHERE id = $2";
 
-const closeWateringRun = db.prepare(`
+const closeWateringRunSql = `
   UPDATE watering_runs
-  SET ended_at = ?, last_seen_at = ?, seconds = ?, liters = ?
-  WHERE id = ?
-`);
+  SET ended_at = $1, last_seen_at = $2, seconds = $3, liters = $4
+  WHERE id = $5
+`;
 
 function roundLiters(liters: number): number {
   return Math.round(liters * 100) / 100;
 }
 
-function finishWateringRun(
+async function zoneFlowOn(
+  client: PoolClient,
+  deviceId: string,
+  zoneId: string,
+): Promise<number> {
+  const { rows } = await client.query<{ flow_lph: number | null }>(
+    "SELECT flow_lph FROM zone_settings WHERE device_id = $1 AND zone_id = $2",
+    [deviceId, zoneId],
+  );
+  return rows[0]?.flow_lph ?? 0;
+}
+
+async function finishWateringRun(
+  client: PoolClient,
   run: OpenWateringRun,
   endedAt: number,
   deviceId: string,
   zoneId: string,
-): void {
+): Promise<void> {
   const seconds = Math.max(0, (endedAt - run.started_at) / 1000);
   // Run cũ (backfill) chưa lưu lưu lượng thì tạm dùng cấu hình hiện tại.
   const flow =
-    run.flow_lph > 0
-      ? run.flow_lph
-      : (getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0);
-  closeWateringRun.run(
+    run.flow_lph > 0 ? run.flow_lph : await zoneFlowOn(client, deviceId, zoneId);
+  await client.query(closeWateringRunSql, [
     endedAt,
     endedAt,
     seconds,
     roundLiters((seconds / 3600) * flow),
     run.id,
-  );
+  ]);
 }
 
-function trackWateringSample(
+async function trackWateringSample(
+  client: PoolClient,
   deviceId: string,
   zoneId: string,
   pumpOn: boolean,
   recordedAt: number,
   gapMs: number,
-): void {
-  const open = findOpenWateringRun.get(deviceId, zoneId) as
-    | OpenWateringRun
-    | undefined;
+): Promise<void> {
+  const { rows } = await client.query<OpenWateringRun>(
+    findOpenWateringRunSql,
+    [deviceId, zoneId],
+  );
+  const open = rows[0];
 
   if (pumpOn) {
-    const flow = getZoneSetting(deviceId, zoneId)?.flowLitersPerHour ?? 0;
+    const flow = await zoneFlowOn(client, deviceId, zoneId);
     if (open && recordedAt - open.last_seen_at > gapMs) {
-      finishWateringRun(open, open.last_seen_at, deviceId, zoneId);
-      insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt, flow);
+      await finishWateringRun(client, open, open.last_seen_at, deviceId, zoneId);
+      await client.query(insertWateringRunSql, [
+        deviceId,
+        zoneId,
+        recordedAt,
+        recordedAt,
+        flow,
+      ]);
       return;
     }
     if (open) {
-      touchWateringRun.run(recordedAt, open.id);
+      await client.query(touchWateringRunSql, [recordedAt, open.id]);
       return;
     }
-    insertWateringRun.run(deviceId, zoneId, recordedAt, recordedAt, flow);
+    await client.query(insertWateringRunSql, [
+      deviceId,
+      zoneId,
+      recordedAt,
+      recordedAt,
+      flow,
+    ]);
     return;
   }
 
@@ -206,55 +232,57 @@ function trackWateringSample(
     recordedAt - open.last_seen_at <= gapMs
       ? Math.round((open.last_seen_at + recordedAt) / 2)
       : open.last_seen_at;
-  finishWateringRun(open, endedAt, deviceId, zoneId);
+  await finishWateringRun(client, open, endedAt, deviceId, zoneId);
 }
 
-const persistTelemetry = db.transaction((telemetry: Telemetry) => {
+export async function saveTelemetry(telemetry: Telemetry): Promise<void> {
   const recordedAt = recordedAtOf(telemetry);
   const payload = JSON.stringify(telemetry);
 
-  upsertLatest.run(telemetry.deviceId, payload);
+  await transaction(async (client) => {
+    await client.query(upsertLatestSql, [telemetry.deviceId, payload]);
 
-  const sample = insertSample.run(
-    telemetry.deviceId,
-    telemetry.mode,
-    telemetry.temperature,
-    telemetry.humidity,
-    telemetry.rain,
-    telemetry.raining ? 1 : 0,
-    recordedAt,
-  );
-  const sampleId = Number(sample.lastInsertRowid);
-
-  for (const zone of telemetry.zones) {
-    insertZoneSample.run(
-      sampleId,
+    const sample = await client.query<{ id: number }>(insertSampleSql, [
       telemetry.deviceId,
-      zone.id,
-      zone.moisture,
-      zone.threshold,
-      zone.stopThreshold,
-      zone.pump ? 1 : 0,
+      telemetry.mode,
+      telemetry.temperature,
+      telemetry.humidity,
+      telemetry.rain,
+      telemetry.raining ? 1 : 0,
       recordedAt,
-    );
-    trackWateringSample(
-      telemetry.deviceId,
-      zone.id,
-      zone.pump,
-      recordedAt,
-      LIVE_GAP_MS,
-    );
-  }
-});
+    ]);
+    const sampleId = sample.rows[0].id;
 
-export function saveTelemetry(telemetry: Telemetry): void {
-  persistTelemetry(telemetry);
+    for (const zone of telemetry.zones) {
+      await client.query(insertZoneSampleSql, [
+        sampleId,
+        telemetry.deviceId,
+        zone.id,
+        zone.moisture,
+        zone.threshold,
+        zone.stopThreshold,
+        zone.pump ? 1 : 0,
+        recordedAt,
+      ]);
+      await trackWateringSample(
+        client,
+        telemetry.deviceId,
+        zone.id,
+        zone.pump,
+        recordedAt,
+        LIVE_GAP_MS,
+      );
+    }
+  });
 }
 
 // Chỉ cập nhật snapshot mới nhất, không ghi mẫu lịch sử.
 // Giữ latest_telemetry bám sát telemetry live thay vì trễ tới 10 giây.
-export function saveLatestTelemetry(telemetry: Telemetry): void {
-  upsertLatest.run(telemetry.deviceId, JSON.stringify(telemetry));
+export async function saveLatestTelemetry(telemetry: Telemetry): Promise<void> {
+  await pool.query(upsertLatestSql, [
+    telemetry.deviceId,
+    JSON.stringify(telemetry),
+  ]);
 }
 
 type PumpSampleRow = {
@@ -269,72 +297,81 @@ type TodayWateringRow = {
   liters: number;
 };
 
-const selectRecentPumpSamples = db.prepare(`
+const selectRecentPumpSamplesSql = `
   SELECT zone_id, pump, recorded_at
   FROM telemetry_zone_samples
-  WHERE device_id = ? AND recorded_at >= ?
+  WHERE device_id = $1 AND recorded_at >= $2
   ORDER BY recorded_at ASC
-`);
+`;
 
-const countWateringRuns = db.prepare(
-  "SELECT COUNT(*) AS total FROM watering_runs WHERE device_id = ?",
-);
+const countWateringRunsSql =
+  "SELECT COUNT(*) AS total FROM watering_runs WHERE device_id = $1";
 
-const selectLastRuns = db.prepare(`
+const selectLastRunsSql = `
   SELECT zone_id, started_at, ended_at, seconds, liters FROM (
     SELECT
       zone_id, started_at, ended_at, seconds, liters,
       ROW_NUMBER() OVER (PARTITION BY zone_id ORDER BY ended_at DESC) AS position
     FROM watering_runs
-    WHERE device_id = ? AND ended_at IS NOT NULL
-  )
+    WHERE device_id = $1 AND ended_at IS NOT NULL
+  ) AS ranked
   WHERE position = 1
-`);
+`;
 
-const selectTodayRuns = db.prepare(`
+const selectTodayRunsSql = `
   SELECT zone_id, COUNT(*) AS runs, COALESCE(SUM(liters), 0) AS liters
   FROM watering_runs
-  WHERE device_id = ? AND ended_at IS NOT NULL AND ended_at >= ?
+  WHERE device_id = $1 AND ended_at IS NOT NULL AND ended_at >= $2
   GROUP BY zone_id
-`);
+`;
 
-const selectOpenRuns = db.prepare(`
+const selectOpenRunsSql = `
   SELECT zone_id, started_at, last_seen_at, flow_lph
   FROM watering_runs
-  WHERE device_id = ? AND ended_at IS NULL
-`);
-
-const backfillWatering = db.transaction((deviceId: string, since: number) => {
-  const rows = selectRecentPumpSamples.all(deviceId, since) as PumpSampleRow[];
-  for (const row of rows) {
-    trackWateringSample(
-      deviceId,
-      row.zone_id,
-      Boolean(row.pump),
-      row.recorded_at,
-      BACKFILL_GAP_MS,
-    );
-  }
-  return rows.length;
-});
+  WHERE device_id = $1 AND ended_at IS NULL
+`;
 
 /**
  * Dựng lại lịch sử tưới từ telemetry đã lưu (chỉ chạy một lần cho mỗi thiết bị).
  */
-export function backfillWateringRuns(deviceId: string, hours = 24): number {
-  const existing = countWateringRuns.get(deviceId) as { total: number };
-  if (existing.total > 0) return 0;
+export async function backfillWateringRuns(
+  deviceId: string,
+  hours = 24,
+): Promise<number> {
+  const { rows: countRows } = await pool.query<{ total: number }>(
+    countWateringRunsSql,
+    [deviceId],
+  );
+  if (countRows[0].total > 0) return 0;
+
   const since = Date.now() - Math.max(1, hours) * 60 * 60 * 1000;
-  return backfillWatering(deviceId, since);
+  return transaction(async (client) => {
+    const { rows } = await client.query<PumpSampleRow>(
+      selectRecentPumpSamplesSql,
+      [deviceId, since],
+    );
+    for (const row of rows) {
+      await trackWateringSample(
+        client,
+        deviceId,
+        row.zone_id,
+        Boolean(row.pump),
+        row.recorded_at,
+        BACKFILL_GAP_MS,
+      );
+    }
+    return rows.length;
+  });
 }
 
-export function getWateringOverview(
+export async function getWateringOverview(
   deviceId: string,
   since: number,
-): ZoneWateringOverview[] {
+): Promise<ZoneWateringOverview[]> {
   const overview = new Map<string, ZoneWateringOverview>();
 
-  for (const row of selectLastRuns.all(deviceId) as WateringDbRow[]) {
+  const lastRuns = await pool.query<WateringDbRow>(selectLastRunsSql, [deviceId]);
+  for (const row of lastRuns.rows) {
     overview.set(row.zone_id, {
       zoneId: row.zone_id,
       lastRun: {
@@ -348,10 +385,11 @@ export function getWateringOverview(
     });
   }
 
-  for (const row of selectTodayRuns.all(
+  const todayRuns = await pool.query<TodayWateringRow>(selectTodayRunsSql, [
     deviceId,
     since,
-  ) as TodayWateringRow[]) {
+  ]);
+  for (const row of todayRuns.rows) {
     const current = overview.get(row.zone_id) ?? {
       zoneId: row.zone_id,
       lastRun: null,
@@ -365,12 +403,14 @@ export function getWateringOverview(
 
   // Lần tưới đang chạy: hiện số liệu tạm tính để UI không bị 0 L trong lúc bơm.
   const now = Date.now();
-  for (const row of selectOpenRuns.all(deviceId) as Array<{
+  const openRuns = await pool.query<{
     zone_id: string;
     started_at: number;
     last_seen_at: number;
     flow_lph: number;
-  }>) {
+  }>(selectOpenRunsSql, [deviceId]);
+
+  for (const row of openRuns.rows) {
     if (now - row.last_seen_at > OPEN_RUN_STALE_MS) continue;
 
     const seconds = Math.max(0, (row.last_seen_at - row.started_at) / 1000);
@@ -397,17 +437,20 @@ export function getWateringOverview(
   return [...overview.values()];
 }
 
-export function loadLatestTelemetry(deviceId: string): Telemetry | null {
-  const row = db
-    .prepare("SELECT payload FROM latest_telemetry WHERE device_id = ?")
-    .get(deviceId) as LatestRow | undefined;
-  return row ? parseTelemetry(row.payload) : null;
+export async function loadLatestTelemetry(
+  deviceId: string,
+): Promise<Telemetry | null> {
+  const { rows } = await pool.query<LatestRow>(
+    "SELECT payload FROM latest_telemetry WHERE device_id = $1",
+    [deviceId],
+  );
+  return rows[0] ? parseTelemetry(rows[0].payload) : null;
 }
 
-export function loadAllLatestTelemetry(): Telemetry[] {
-  const rows = db
-    .prepare("SELECT payload FROM latest_telemetry")
-    .all() as LatestRow[];
+export async function loadAllLatestTelemetry(): Promise<Telemetry[]> {
+  const { rows } = await pool.query<LatestRow>(
+    "SELECT payload FROM latest_telemetry",
+  );
   return rows.flatMap((row) => {
     const telemetry = parseTelemetry(row.payload);
     return telemetry ? [telemetry] : [];
@@ -422,7 +465,9 @@ function parseTelemetry(payload: string): Telemetry | null {
   }
 }
 
-export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
+export async function getTelemetryHistory(
+  query: HistoryQuery,
+): Promise<HistoryRow[]> {
   const from = query.from ?? Date.now() - 24 * 60 * 60 * 1000;
   const to = query.to ?? Date.now();
   const limit = Math.max(
@@ -430,96 +475,93 @@ export function getTelemetryHistory(query: HistoryQuery): HistoryRow[] {
     Math.min(query.limit ?? DEFAULT_HISTORY_LIMIT, MAX_HISTORY_LIMIT),
   );
 
+  const params: Array<string | number> = [query.deviceId, from, to];
   const filters = [
-    "z.device_id = :deviceId",
-    "z.recorded_at BETWEEN :from AND :to",
+    "z.device_id = $1",
+    "z.recorded_at BETWEEN $2 AND $3",
   ];
-  const params: Record<string, string | number> = {
-    deviceId: query.deviceId,
-    from,
-    to,
-  };
 
   if (query.zoneId) {
-    filters.push("z.zone_id = :zoneId");
-    params.zoneId = query.zoneId;
+    params.push(query.zoneId);
+    filters.push(`z.zone_id = $${params.length}`);
   }
 
+  params.push(limit);
+  const limitPlaceholder = `$${params.length}`;
+  const where = filters.join(" AND ");
+
   if (query.bucketMs && query.bucketMs > 0) {
-    const rows = db
-      .prepare(
-        `
-        WITH bucketed AS (
-          SELECT
-            CAST(z.recorded_at / :bucket AS INTEGER) AS bucket,
-            z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
-            s.temperature, s.humidity, s.rain, s.raining, s.mode
-          FROM telemetry_zone_samples z
-          JOIN telemetry_samples s ON s.id = z.sample_id
-          WHERE ${filters.join(" AND ")}
-        ),
-        ranked AS (
-          SELECT *,
-            ROW_NUMBER() OVER (PARTITION BY bucket, zone_id ORDER BY recorded_at DESC) AS position
-          FROM bucketed
-        ),
-        grouped AS (
-          SELECT
-            MAX(CASE WHEN position = 1 THEN recorded_at END) AS recorded_at,
-            zone_id,
-            MAX(CASE WHEN position = 1 THEN moisture END) AS moisture,
-            MAX(CASE WHEN position = 1 THEN temperature END) AS temperature,
-            MAX(CASE WHEN position = 1 THEN humidity END) AS humidity,
-            MAX(CASE WHEN position = 1 THEN rain END) AS rain,
-            MAX(CASE WHEN position = 1 THEN threshold END) AS threshold,
-            MAX(CASE WHEN position = 1 THEN stop_threshold END) AS stop_threshold,
-            MAX(CASE WHEN position = 1 THEN pump END) AS pump,
-            MAX(CASE WHEN position = 1 THEN raining END) AS raining,
-            MAX(CASE WHEN position = 1 THEN mode END) AS mode
-          FROM ranked
-          GROUP BY bucket, zone_id
-        ),
-        numbered AS (
-          SELECT *,
-            ROW_NUMBER() OVER (PARTITION BY zone_id ORDER BY recorded_at DESC) AS zone_position
-          FROM grouped
-        )
-        SELECT recorded_at, zone_id, moisture, temperature, humidity, rain,
-               threshold, stop_threshold, pump, raining, mode
-        FROM numbered
-        WHERE zone_position <= :limit
-        ORDER BY recorded_at ASC
-      `,
+    params.push(Math.max(1000, Math.floor(query.bucketMs)));
+    const bucketPlaceholder = `$${params.length}`;
+
+    const { rows } = await pool.query<HistoryDbRow>(
+      `
+      WITH bucketed AS (
+        SELECT
+          (z.recorded_at / ${bucketPlaceholder})::bigint AS bucket,
+          z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
+          s.temperature, s.humidity, s.rain, s.raining, s.mode
+        FROM telemetry_zone_samples z
+        JOIN telemetry_samples s ON s.id = z.sample_id
+        WHERE ${where}
+      ),
+      ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY bucket, zone_id ORDER BY recorded_at DESC) AS position
+        FROM bucketed
+      ),
+      grouped AS (
+        SELECT
+          MAX(CASE WHEN position = 1 THEN recorded_at END) AS recorded_at,
+          zone_id,
+          MAX(CASE WHEN position = 1 THEN moisture END) AS moisture,
+          MAX(CASE WHEN position = 1 THEN temperature END) AS temperature,
+          MAX(CASE WHEN position = 1 THEN humidity END) AS humidity,
+          MAX(CASE WHEN position = 1 THEN rain END) AS rain,
+          MAX(CASE WHEN position = 1 THEN threshold END) AS threshold,
+          MAX(CASE WHEN position = 1 THEN stop_threshold END) AS stop_threshold,
+          MAX(CASE WHEN position = 1 THEN pump END) AS pump,
+          MAX(CASE WHEN position = 1 THEN raining END) AS raining,
+          MAX(CASE WHEN position = 1 THEN mode END) AS mode
+        FROM ranked
+        GROUP BY bucket, zone_id
+      ),
+      numbered AS (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY zone_id ORDER BY recorded_at DESC) AS zone_position
+        FROM grouped
       )
-      .all({
-        ...params,
-        bucket: Math.max(1000, Math.floor(query.bucketMs)),
-        limit,
-      }) as HistoryDbRow[];
+      SELECT recorded_at, zone_id, moisture, temperature, humidity, rain,
+             threshold, stop_threshold, pump, raining, mode
+      FROM numbered
+      WHERE zone_position <= ${limitPlaceholder}
+      ORDER BY recorded_at ASC
+      `,
+      params,
+    );
 
     return rows.map(toHistoryRow);
   }
 
-  const rows = db
-    .prepare(
-      `
-      WITH ranked AS (
-        SELECT
-          z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
-          s.temperature, s.humidity, s.rain, s.raining, s.mode,
-          ROW_NUMBER() OVER (PARTITION BY z.zone_id ORDER BY z.recorded_at DESC) AS zone_position
-        FROM telemetry_zone_samples z
-        JOIN telemetry_samples s ON s.id = z.sample_id
-        WHERE ${filters.join(" AND ")}
-      )
-      SELECT recorded_at, zone_id, moisture, threshold, stop_threshold, pump,
-             temperature, humidity, rain, raining, mode
-      FROM ranked
-      WHERE zone_position <= :limit
-      ORDER BY recorded_at ASC
-    `,
+  const { rows } = await pool.query<HistoryDbRow>(
+    `
+    WITH ranked AS (
+      SELECT
+        z.recorded_at, z.zone_id, z.moisture, z.threshold, z.stop_threshold, z.pump,
+        s.temperature, s.humidity, s.rain, s.raining, s.mode,
+        ROW_NUMBER() OVER (PARTITION BY z.zone_id ORDER BY z.recorded_at DESC) AS zone_position
+      FROM telemetry_zone_samples z
+      JOIN telemetry_samples s ON s.id = z.sample_id
+      WHERE ${where}
     )
-    .all({ ...params, limit }) as HistoryDbRow[];
+    SELECT recorded_at, zone_id, moisture, threshold, stop_threshold, pump,
+           temperature, humidity, rain, raining, mode
+    FROM ranked
+    WHERE zone_position <= ${limitPlaceholder}
+    ORDER BY recorded_at ASC
+  `,
+    params,
+  );
 
   return rows.map(toHistoryRow);
 }
@@ -540,42 +582,49 @@ function toHistoryRow(row: HistoryDbRow): HistoryRow {
   };
 }
 
-export function logCommand(
+export async function logCommand(
   commandId: string,
   deviceId: string,
   command: string,
-): void {
-  db.prepare(
+): Promise<void> {
+  await pool.query(
     `
     INSERT INTO command_log (command_id, device_id, command, status, created_at)
-    VALUES (?, ?, ?, 'pending', ?)
+    VALUES ($1, $2, $3, 'pending', $4)
   `,
-  ).run(commandId, deviceId, command, Date.now());
+    [commandId, deviceId, command, Date.now()],
+  );
 }
 
-export function resolveCommand(commandId: string, status: CommandStatus): void {
-  db.prepare(
+export async function resolveCommand(
+  commandId: string,
+  status: CommandStatus,
+): Promise<void> {
+  await pool.query(
     `
     UPDATE command_log
-    SET status = ?, resolved_at = ?
-    WHERE command_id = ? AND status = 'pending'
+    SET status = $1, resolved_at = $2
+    WHERE command_id = $3 AND status = 'pending'
   `,
-  ).run(status, Date.now(), commandId);
+    [status, Date.now(), commandId],
+  );
 }
 
-export function listCommands(deviceId: string, limit = 50): CommandLogRow[] {
+export async function listCommands(
+  deviceId: string,
+  limit = 50,
+): Promise<CommandLogRow[]> {
   const safeLimit = Math.max(1, Math.min(limit, 500));
-  const rows = db
-    .prepare(
-      `
-      SELECT command_id, device_id, command, status, created_at, resolved_at
-      FROM command_log
-      WHERE device_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `,
-    )
-    .all(deviceId, safeLimit) as CommandDbRow[];
+  const { rows } = await pool.query<CommandDbRow>(
+    `
+    SELECT command_id, device_id, command, status, created_at, resolved_at
+    FROM command_log
+    WHERE device_id = $1
+    ORDER BY created_at DESC
+    LIMIT $2
+  `,
+    [deviceId, safeLimit],
+  );
 
   return rows.map((row) => ({
     commandId: row.command_id,
@@ -587,16 +636,16 @@ export function listCommands(deviceId: string, limit = 50): CommandLogRow[] {
   }));
 }
 
-export function timeoutStaleCommands(): number {
-  return db
-    .prepare(
-      `
-      UPDATE command_log
-      SET status = 'timeout', resolved_at = ?
-      WHERE status = 'pending'
-    `,
-    )
-    .run(Date.now()).changes;
+export async function timeoutStaleCommands(): Promise<number> {
+  const result = await pool.query(
+    `
+    UPDATE command_log
+    SET status = 'timeout', resolved_at = $1
+    WHERE status = 'pending'
+  `,
+    [Date.now()],
+  );
+  return result.rowCount ?? 0;
 }
 
 export type DeletedHistory = {
@@ -607,53 +656,60 @@ export type DeletedHistory = {
 };
 
 /** Xóa dữ liệu cũ của một thiết bị; mẫu vùng tự xóa theo khóa ngoại. */
-export function deleteHistoryBefore(
+export async function deleteHistoryBefore(
   deviceId: string,
   cutoff: number,
-): DeletedHistory {
-  return db.transaction(() => {
-    const samples = db
-      .prepare(
-        "DELETE FROM telemetry_samples WHERE device_id = ? AND recorded_at < ?",
-      )
-      .run(deviceId, cutoff);
-    const commands = db
-      .prepare("DELETE FROM command_log WHERE device_id = ? AND created_at < ?")
-      .run(deviceId, cutoff);
-    const changes = db
-      .prepare(
-        "DELETE FROM zone_setting_changes WHERE device_id = ? AND changed_at < ?",
-      )
-      .run(deviceId, cutoff);
-    const runs = db
-      .prepare(
-        "DELETE FROM watering_runs WHERE device_id = ? AND last_seen_at < ?",
-      )
-      .run(deviceId, cutoff);
+): Promise<DeletedHistory> {
+  return transaction(async (client) => {
+    const samples = await client.query(
+      "DELETE FROM telemetry_samples WHERE device_id = $1 AND recorded_at < $2",
+      [deviceId, cutoff],
+    );
+    const commands = await client.query(
+      "DELETE FROM command_log WHERE device_id = $1 AND created_at < $2",
+      [deviceId, cutoff],
+    );
+    const changes = await client.query(
+      "DELETE FROM zone_setting_changes WHERE device_id = $1 AND changed_at < $2",
+      [deviceId, cutoff],
+    );
+    const runs = await client.query(
+      "DELETE FROM watering_runs WHERE device_id = $1 AND last_seen_at < $2",
+      [deviceId, cutoff],
+    );
 
     return {
-      samples: samples.changes,
-      commands: commands.changes,
-      changes: changes.changes,
-      runs: runs.changes,
+      samples: samples.rowCount ?? 0,
+      commands: commands.rowCount ?? 0,
+      changes: changes.rowCount ?? 0,
+      runs: runs.rowCount ?? 0,
     };
-  })();
+  });
 }
 
-export function pruneHistory(retentionDays: number): number {
+export async function pruneHistory(retentionDays: number): Promise<number> {
   const safeDays = Math.max(1, Math.floor(retentionDays));
   const cutoff = Date.now() - safeDays * 24 * 60 * 60 * 1000;
 
-  const removedSamples = db
-    .prepare("DELETE FROM telemetry_samples WHERE recorded_at < ?")
-    .run(cutoff);
+  return transaction(async (client) => {
+    const removedSamples = await client.query(
+      "DELETE FROM telemetry_samples WHERE recorded_at < $1",
+      [cutoff],
+    );
 
-  db.prepare("DELETE FROM command_log WHERE created_at < ?").run(cutoff);
-  db.prepare("DELETE FROM zone_setting_changes WHERE changed_at < ?").run(
-    cutoff,
-  );
-  // last_seen_at cũng đóng vai trò "lần cuối còn hoạt động" cho run đang mở bị bỏ dở.
-  db.prepare("DELETE FROM watering_runs WHERE last_seen_at < ?").run(cutoff);
+    await client.query("DELETE FROM command_log WHERE created_at < $1", [
+      cutoff,
+    ]);
+    await client.query(
+      "DELETE FROM zone_setting_changes WHERE changed_at < $1",
+      [cutoff],
+    );
+    // last_seen_at cũng đóng vai trò "lần cuối còn hoạt động" cho run đang mở bị bỏ dở.
+    await client.query(
+      "DELETE FROM watering_runs WHERE last_seen_at < $1",
+      [cutoff],
+    );
 
-  return removedSamples.changes;
+    return removedSamples.rowCount ?? 0;
+  });
 }

@@ -15,7 +15,11 @@ export const config = {
   commandTopic: process.env.MQTT_COMMAND_TOPIC ?? "smart-irrigation/cmd",
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
   deviceId: process.env.DEFAULT_DEVICE_ID ?? "esp32-garden-01",
-  dbPath: process.env.DB_PATH ?? "data/smart-irrigation.db",
+  databaseUrl:
+    process.env.DATABASE_URL ??
+    "postgres://postgres@127.0.0.1:5432/smart_irrigation",
+  // Postgres hosted (Neon/Render/Supabase) thường cần SSL; localhost thì không.
+  databaseSsl: process.env.DATABASE_SSL === "true",
   uploadDir: process.env.UPLOAD_DIR ?? "data/uploads",
   dbRetentionDays: requiredNumber(process.env.DB_RETENTION_DAYS, 30),
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME?.trim() || undefined,

@@ -1,4 +1,4 @@
-import { db } from "./db.js";
+import { pool, transaction } from "./db.js";
 import { ZONE_IDS, type ZoneId } from "./domain.js";
 
 export const CROP_GROUPS = [
@@ -74,107 +74,112 @@ function toProfile(row: ZoneProfileRow): ZoneProfile {
   };
 }
 
-const insertSeed = db.prepare(`
-  INSERT INTO zone_profiles
-    (device_id, zone_id, name, description, crop_group, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?)
-  ON CONFLICT(device_id, zone_id) DO NOTHING
-`);
+const PROFILE_COLUMNS = `
+  zone_id, name, description, crop_group, planted_at, harvest_days,
+  notes, photo_file, updated_at
+`;
 
 /** Chỉ tạo hồ sơ cho zone chưa có, không ghi đè dữ liệu người dùng đã sửa. */
-export function seedZoneProfiles(
+export async function seedZoneProfiles(
   deviceId: string,
   zones: ZoneProfileSeed[],
-): void {
-  const seed = db.transaction(() => {
+): Promise<void> {
+  await transaction(async (client) => {
     const now = Date.now();
     for (const zone of zones) {
-      insertSeed.run(
-        deviceId,
-        zone.id,
-        zone.name,
-        zone.crop,
-        isCropGroup(zone.group) ? zone.group : "Khác",
-        now,
+      await client.query(
+        `
+        INSERT INTO zone_profiles
+          (device_id, zone_id, name, description, crop_group, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (device_id, zone_id) DO NOTHING
+        `,
+        [
+          deviceId,
+          zone.id,
+          zone.name,
+          zone.crop,
+          isCropGroup(zone.group) ? zone.group : "Khác",
+          now,
+        ],
       );
     }
   });
-  seed();
 }
 
-export function getZoneProfiles(deviceId: string): ZoneProfile[] {
-  const rows = db
-    .prepare(
-      `
-      SELECT zone_id, name, description, crop_group, planted_at, harvest_days,
-             notes, photo_file, updated_at
-      FROM zone_profiles
-      WHERE device_id = ?
-      ORDER BY zone_id
+export async function getZoneProfiles(deviceId: string): Promise<ZoneProfile[]> {
+  const { rows } = await pool.query<ZoneProfileRow>(
+    `
+    SELECT ${PROFILE_COLUMNS}
+    FROM zone_profiles
+    WHERE device_id = $1
+    ORDER BY zone_id
     `,
-    )
-    .all(deviceId) as ZoneProfileRow[];
+    [deviceId],
+  );
   return rows.map(toProfile);
 }
 
-export function getZoneProfile(
+export async function getZoneProfile(
   deviceId: string,
   zoneId: string,
-): ZoneProfile | null {
-  const row = db
-    .prepare(
-      `
-      SELECT zone_id, name, description, crop_group, planted_at, harvest_days,
-             notes, photo_file, updated_at
-      FROM zone_profiles
-      WHERE device_id = ? AND zone_id = ?
+): Promise<ZoneProfile | null> {
+  const { rows } = await pool.query<ZoneProfileRow>(
+    `
+    SELECT ${PROFILE_COLUMNS}
+    FROM zone_profiles
+    WHERE device_id = $1 AND zone_id = $2
     `,
-    )
-    .get(deviceId, zoneId) as ZoneProfileRow | undefined;
-  return row ? toProfile(row) : null;
+    [deviceId, zoneId],
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
 }
 
-const updateProfile = db.prepare(`
-  UPDATE zone_profiles
-  SET name = ?, description = ?, crop_group = ?, planted_at = ?,
-      harvest_days = ?, notes = ?, updated_at = ?
-  WHERE device_id = ? AND zone_id = ?
-`);
-
-export function saveZoneProfile(
+export async function saveZoneProfile(
   deviceId: string,
   zoneId: ZoneId,
   patch: ZoneProfilePatch,
-): ZoneProfile | null {
-  const current = getZoneProfile(deviceId, zoneId);
+): Promise<ZoneProfile | null> {
+  const current = await getZoneProfile(deviceId, zoneId);
   if (!current) return null;
 
-  updateProfile.run(
-    patch.name ?? current.name,
-    patch.description ?? current.description,
-    patch.group ?? current.group,
-    patch.plantedAt === undefined ? current.plantedAt : patch.plantedAt,
-    patch.harvestDays === undefined ? current.harvestDays : patch.harvestDays,
-    patch.notes ?? current.notes,
-    Date.now(),
-    deviceId,
-    zoneId,
+  const { rows } = await pool.query<ZoneProfileRow>(
+    `
+    UPDATE zone_profiles
+    SET name = $1, description = $2, crop_group = $3, planted_at = $4,
+        harvest_days = $5, notes = $6, updated_at = $7
+    WHERE device_id = $8 AND zone_id = $9
+    RETURNING ${PROFILE_COLUMNS}
+    `,
+    [
+      patch.name ?? current.name,
+      patch.description ?? current.description,
+      patch.group ?? current.group,
+      patch.plantedAt === undefined ? current.plantedAt : patch.plantedAt,
+      patch.harvestDays === undefined ? current.harvestDays : patch.harvestDays,
+      patch.notes ?? current.notes,
+      Date.now(),
+      deviceId,
+      zoneId,
+    ],
   );
 
-  return getZoneProfile(deviceId, zoneId);
+  return rows[0] ? toProfile(rows[0]) : null;
 }
 
-const updatePhoto = db.prepare(`
-  UPDATE zone_profiles SET photo_file = ?, updated_at = ?
-  WHERE device_id = ? AND zone_id = ?
-`);
-
-export function setZonePhoto(
+export async function setZonePhoto(
   deviceId: string,
   zoneId: ZoneId,
   photoFile: string | null,
-): ZoneProfile | null {
+): Promise<ZoneProfile | null> {
   if (!ZONE_IDS.includes(zoneId)) return null;
-  updatePhoto.run(photoFile, Date.now(), deviceId, zoneId);
-  return getZoneProfile(deviceId, zoneId);
+  const { rows } = await pool.query<ZoneProfileRow>(
+    `
+    UPDATE zone_profiles SET photo_file = $1, updated_at = $2
+    WHERE device_id = $3 AND zone_id = $4
+    RETURNING ${PROFILE_COLUMNS}
+    `,
+    [photoFile, Date.now(), deviceId, zoneId],
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
 }

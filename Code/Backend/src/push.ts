@@ -30,7 +30,7 @@ export async function sendPushToDevice(
   deviceId: string,
   payload: PushPayload,
 ): Promise<PushResult> {
-  const records = listPushTokens(deviceId);
+  const records = await listPushTokens(deviceId);
   if (records.length === 0) return { targeted: 0, sent: 0, invalid: [] };
 
   const messages: ExpoPushMessage[] = records.map((record) => ({
@@ -79,6 +79,6 @@ export async function sendPushToDevice(
     });
   }
 
-  if (invalid.length > 0) deletePushTokens(invalid);
+  if (invalid.length > 0) await deletePushTokens(invalid);
   return { targeted: records.length, sent, invalid };
 }

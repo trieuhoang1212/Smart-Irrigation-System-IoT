@@ -38,9 +38,12 @@ function notify(
   });
 }
 
-function getZoneLabel(deviceId: string, zoneId: string): string {
+async function getZoneLabel(
+  deviceId: string,
+  zoneId: string,
+): Promise<string> {
   try {
-    const profile = getZoneProfile(deviceId, zoneId);
+    const profile = await getZoneProfile(deviceId, zoneId);
     if (profile?.name && profile.name.trim()) {
       return `Khu ${zoneId} (${profile.name.trim()})`;
     }
@@ -58,10 +61,10 @@ function getTankPercent(distanceCm: number | null): number | null {
 /**
  * Kiểm tra các thay đổi trạng thái giữa 2 lần telemetry để gửi push notification phù hợp.
  */
-export function checkTelemetryAlerts(
+export async function checkTelemetryAlerts(
   previous: Telemetry,
   current: Telemetry,
-): void {
+): Promise<void> {
   const deviceId = current.deviceId;
 
   // 1. Chuyển đổi chế độ (Auto <-> Manual)
@@ -173,7 +176,7 @@ export function checkTelemetryAlerts(
   for (const zone of current.zones) {
     const prevZone = prevZones.get(zone.id);
     if (!prevZone) continue;
-    const label = getZoneLabel(deviceId, zone.id);
+    const label = await getZoneLabel(deviceId, zone.id);
 
     // 5.1 Thiếu ẩm / bắt đầu tưới: gộp một thông báo vì firmware có thể bật
     // bơm ngay trong cùng chu kỳ telemetry với lúc độ ẩm tụt dưới ngưỡng.

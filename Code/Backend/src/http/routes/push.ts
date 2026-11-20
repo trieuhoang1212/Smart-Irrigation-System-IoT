@@ -8,8 +8,8 @@ import {
 } from "../../push-repository.js";
 
 export function registerPushRoutes(router: Router) {
-  router.get("/api/devices/:deviceId/push-tokens", (request, response) => {
-    const tokens = listPushTokens(request.params.deviceId);
+  router.get("/api/devices/:deviceId/push-tokens", async (request, response) => {
+    const tokens = await listPushTokens(request.params.deviceId);
     response.json({
       deviceId: request.params.deviceId,
       count: tokens.length,
@@ -17,7 +17,7 @@ export function registerPushRoutes(router: Router) {
     });
   });
 
-  router.post("/api/devices/:deviceId/push-tokens", (request, response) => {
+  router.post("/api/devices/:deviceId/push-tokens", async (request, response) => {
     const body = request.body as { token?: unknown; platform?: unknown } | undefined;
     if (typeof body?.token !== "string" || !isExpoPushToken(body.token)) {
       response.status(400).json({ error: "token must be a valid Expo push token" });
@@ -28,16 +28,20 @@ export function registerPushRoutes(router: Router) {
       return;
     }
 
-    const saved = savePushToken(request.params.deviceId, body.token, body.platform);
+    const saved = await savePushToken(
+      request.params.deviceId,
+      body.token,
+      body.platform,
+    );
     response.status(201).json({
       deviceId: request.params.deviceId,
       token: saved.token,
       platform: saved.platform,
-      count: listPushTokens(request.params.deviceId).length,
+      count: (await listPushTokens(request.params.deviceId)).length,
     });
   });
 
-  router.delete("/api/devices/:deviceId/push-tokens", (request, response) => {
+  router.delete("/api/devices/:deviceId/push-tokens", async (request, response) => {
     const body = request.body as { token?: unknown } | undefined;
     const token =
       typeof request.query.token === "string"
@@ -53,8 +57,8 @@ export function registerPushRoutes(router: Router) {
 
     response.json({
       deviceId: request.params.deviceId,
-      removed: deletePushToken(request.params.deviceId, token),
-      count: listPushTokens(request.params.deviceId).length,
+      removed: await deletePushToken(request.params.deviceId, token),
+      count: (await listPushTokens(request.params.deviceId)).length,
     });
   });
 

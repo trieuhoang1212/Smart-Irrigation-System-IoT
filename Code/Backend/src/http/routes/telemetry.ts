@@ -19,7 +19,7 @@ export function registerTelemetryRoutes(router: Router) {
     response.json(telemetry);
   });
 
-  router.get("/api/devices/:deviceId/telemetry/history", (request, response) => {
+  router.get("/api/devices/:deviceId/telemetry/history", async (request, response) => {
     const to = queryNumber(request.query.to) ?? Date.now();
     const from = queryNumber(request.query.from) ?? to - 24 * 60 * 60 * 1000;
     const limit = queryNumber(request.query.limit);
@@ -38,7 +38,7 @@ export function registerTelemetryRoutes(router: Router) {
     // Luôn gộp bucket để chart dài ngày không trả về quá nhiều điểm.
     const bucketMs = Math.max(1000, Math.floor(requestedBucket ?? (to - from) / 500));
 
-    const samples = getTelemetryHistory({
+    const samples = await getTelemetryHistory({
       deviceId: request.params.deviceId,
       zoneId,
       from,
@@ -58,16 +58,15 @@ export function registerTelemetryRoutes(router: Router) {
     });
   });
 
-  router.get("/api/devices/:deviceId/watering", (request, response) => {
+  router.get("/api/devices/:deviceId/watering", async (request, response) => {
     const deviceId = request.params.deviceId;
     const now = Date.now();
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
     const from = startOfDay.getTime();
 
-    const byZone = new Map(
-      getWateringOverview(deviceId, from).map((item) => [item.zoneId, item]),
-    );
+    const overview = await getWateringOverview(deviceId, from);
+    const byZone = new Map(overview.map((item) => [item.zoneId, item]));
 
     response.json({
       deviceId,
@@ -86,7 +85,7 @@ export function registerTelemetryRoutes(router: Router) {
   });
 
   // Dọn dữ liệu cũ thủ công từ Web; chặn xóa dữ liệu trong ngày hiện tại.
-  router.delete("/api/devices/:deviceId/history", (request, response) => {
+  router.delete("/api/devices/:deviceId/history", async (request, response) => {
     const days = queryNumber(request.query.days);
     if (days === undefined || !Number.isInteger(days) || days < 1 || days > 365) {
       response.status(400).json({ error: "days must be an integer between 1 and 365" });
@@ -94,7 +93,10 @@ export function registerTelemetryRoutes(router: Router) {
     }
 
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const removed = deleteHistoryBefore(request.params.deviceId, cutoff);
+    const removed = await deleteHistoryBefore(
+      request.params.deviceId,
+      cutoff,
+    );
     console.log(
       `Deleted history older than ${days} days for ${request.params.deviceId}:`,
       removed,

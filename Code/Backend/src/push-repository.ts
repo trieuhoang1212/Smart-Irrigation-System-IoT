@@ -1,4 +1,4 @@
-import { db } from "./db.js";
+import { pool } from "./db.js";
 
 export const PUSH_PLATFORMS = ["ios", "android"] as const;
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
@@ -33,49 +33,56 @@ function mapRow(row: PushTokenRow): PushTokenRecord {
   };
 }
 
-export function listPushTokens(deviceId: string): PushTokenRecord[] {
-  const rows = db
-    .prepare(
-      "SELECT token, device_id, platform, created_at, updated_at FROM push_tokens WHERE device_id = ? ORDER BY updated_at DESC",
-    )
-    .all(deviceId) as PushTokenRow[];
+export async function listPushTokens(
+  deviceId: string,
+): Promise<PushTokenRecord[]> {
+  const { rows } = await pool.query<PushTokenRow>(
+    "SELECT token, device_id, platform, created_at, updated_at FROM push_tokens WHERE device_id = $1 ORDER BY updated_at DESC",
+    [deviceId],
+  );
   return rows.map(mapRow);
 }
 
-export function savePushToken(
+export async function savePushToken(
   deviceId: string,
   token: string,
   platform: PushPlatform,
-): PushTokenRecord {
+): Promise<PushTokenRecord> {
   const now = Date.now();
   // Cùng token có thể đổi máy hoặc thiết bị; luôn gắn lại về device hiện tại.
-  db.prepare(
+  await pool.query(
     `
     INSERT INTO push_tokens (token, device_id, platform, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(token) DO UPDATE SET
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (token) DO UPDATE SET
       device_id = excluded.device_id,
       platform = excluded.platform,
       updated_at = excluded.updated_at
-  `,
-  ).run(token, deviceId, platform, now, now);
+    `,
+    [token, deviceId, platform, now, now],
+  );
 
   return { token, deviceId, platform, createdAt: now, updatedAt: now };
 }
 
-export function deletePushToken(deviceId: string, token: string): boolean {
-  const result = db
-    .prepare("DELETE FROM push_tokens WHERE device_id = ? AND token = ?")
-    .run(deviceId, token);
-  return result.changes > 0;
+export async function deletePushToken(
+  deviceId: string,
+  token: string,
+): Promise<boolean> {
+  const result = await pool.query(
+    "DELETE FROM push_tokens WHERE device_id = $1 AND token = $2",
+    [deviceId, token],
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 // Expo báo DeviceNotRegistered khi app bị gỡ; token đó không dùng lại được nữa.
-export function deletePushTokens(tokens: string[]): number {
+export async function deletePushTokens(tokens: string[]): Promise<number> {
   if (tokens.length === 0) return 0;
-  const placeholders = tokens.map(() => "?").join(", ");
-  const result = db
-    .prepare(`DELETE FROM push_tokens WHERE token IN (${placeholders})`)
-    .run(...tokens);
-  return result.changes;
+  const placeholders = tokens.map((_, index) => `$${index + 1}`).join(", ");
+  const result = await pool.query(
+    `DELETE FROM push_tokens WHERE token IN (${placeholders})`,
+    tokens,
+  );
+  return result.rowCount ?? 0;
 }
