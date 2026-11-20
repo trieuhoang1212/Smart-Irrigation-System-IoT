@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, type DimensionValue } from "react-native";
+import { Image, StyleSheet, Text, View, type DimensionValue } from "react-native";
 
+import { assetUrl } from "../../api/garden";
 import type { LiveZone } from "../../api/types";
 import { useGarden } from "../../providers/GardenProvider";
 import { useTheme } from "../../providers/ThemeProvider";
 import { typo, type Palette } from "../../theme";
 import { useThemedStyles } from "../../theme/useThemedStyles";
 import { formatNumber } from "../../utils/format";
+import { AppIcon } from "../ui/AppIcon";
 import { Badge, type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Sheet } from "../ui/Sheet";
@@ -66,6 +68,11 @@ export function ZoneSheet({
       <Text style={styles.subtitle}>
         {displayed.id} · {displayed.crop} · {displayed.group}
       </Text>
+
+      <ZoneCover
+        key={`${displayed.id}-${displayed.photoUrl ?? ""}`}
+        zone={displayed}
+      />
 
       <View style={styles.summary}>
         <Text
@@ -136,6 +143,41 @@ export function ZoneSheet({
   );
 }
 
+/** Ảnh khu vườn do người dùng tải lên; chưa có ảnh thì hiện khung gợi ý. */
+function ZoneCover({ zone }: { zone: LiveZone }) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
+  const photo = assetUrl(zone.photoUrl);
+  const [broken, setBroken] = useState(false);
+
+  if (!photo || broken) {
+    return (
+      <View style={styles.cover}>
+        <View style={styles.coverEmpty}>
+          <View style={styles.coverBadge}>
+            <AppIcon name="leaf" size={16} color={colors.green} />
+          </View>
+          <Text style={styles.coverEmptyText}>Chưa có ảnh khu vườn</Text>
+          <Text style={styles.coverHint}>Thêm ảnh trong tab Khu vườn</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.cover}>
+      <Image
+        source={{ uri: photo }}
+        resizeMode="cover"
+        onError={() => setBroken(true)}
+        accessibilityRole="image"
+        accessibilityLabel={`Ảnh khu vườn ${zone.name}`}
+        style={styles.coverImage}
+      />
+    </View>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   const styles = useThemedStyles(createStyles);
 
@@ -153,6 +195,40 @@ const createStyles = (colors: Palette) =>
       ...typo.small,
       color: colors.muted,
       marginTop: -6,
+    },
+    cover: {
+      height: 168,
+      borderRadius: 12,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.lineSoft,
+      backgroundColor: colors.surfaceSunken,
+    },
+    coverImage: {
+      width: "100%",
+      height: "100%",
+    },
+    coverEmpty: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+    },
+    coverBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.greenSoft,
+    },
+    coverEmptyText: {
+      ...typo.small,
+      color: colors.muted,
+    },
+    coverHint: {
+      ...typo.caption,
+      color: colors.faint,
     },
     summary: {
       flexDirection: "row",
