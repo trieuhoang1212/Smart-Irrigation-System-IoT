@@ -144,7 +144,9 @@ export default function AnalysisScreen() {
                 {analysis.headline}
               </Text>
             </View>
-            <Text style={styles.summary}>{analysis.summary}</Text>
+            {analysis.summary ? (
+              <Text style={styles.summary}>{analysis.summary}</Text>
+            ) : null}
           </View>
 
           <View style={styles.bandBlock}>

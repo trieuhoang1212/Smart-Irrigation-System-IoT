@@ -127,10 +127,6 @@ export function analyzeMoisture({
     )}%.`;
     advice.push("Tạm dừng tưới đến khi độ ẩm xuống dưới ngưỡng dừng.");
   } else {
-    summary = `Độ ẩm ${formatNumber(current, 0)}% nằm giữa ngưỡng tưới ${formatNumber(
-      safeLow,
-      0,
-    )}% và ngưỡng dừng ${formatNumber(safeHigh, 0)}%.`;
     advice.push("Không cần tưới. Tiếp tục theo dõi trong khoảng thời gian đã chọn.");
   }
 

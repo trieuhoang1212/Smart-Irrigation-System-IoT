@@ -52,7 +52,6 @@ export function ModeDock() {
       <View style={styles.options}>
         <ModeOrb
           label="Tự động"
-          hint="Theo ngưỡng"
           icon="auto"
           active={auto}
           disabled={disabled}
@@ -84,7 +83,6 @@ export function ModeDock() {
 
         <ModeOrb
           label="Thủ công"
-          hint="Tự bật bơm"
           icon="manual"
           active={!auto}
           disabled={disabled}
@@ -172,7 +170,6 @@ function PumpDot() {
 
 function ModeOrb({
   label,
-  hint,
   icon,
   active,
   disabled,
@@ -181,7 +178,6 @@ function ModeOrb({
   onPress,
 }: {
   label: string;
-  hint: string;
   icon: AppIconName;
   active: boolean;
   disabled: boolean;
@@ -211,7 +207,6 @@ function ModeOrb({
       onPress={onPress}
       disabled={disabled}
       accessibilityLabel={label}
-      accessibilityHint={hint}
       style={styles.orbSlot}
       innerStyle={[
         styles.orb,
@@ -236,11 +231,6 @@ function ModeOrb({
 
         <Text style={[styles.orbLabel, active && { color: tone }]}>
           {label}
-        </Text>
-        <Text
-          style={[styles.orbHint, active && { color: colors.inkSoft }]}
-        >
-          {hint}
         </Text>
       </Animated.View>
     </PressableScale>
@@ -339,11 +329,6 @@ const createStyles = (colors: Palette) =>
       ...typo.smallStrong,
       fontSize: 12.5,
       color: colors.ink,
-    },
-    orbHint: {
-      ...typo.caption,
-      fontSize: 10,
-      color: colors.faint,
     },
     connector: {
       flex: 1,

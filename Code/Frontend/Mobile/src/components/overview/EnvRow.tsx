@@ -92,10 +92,6 @@ export function EnvRow() {
         <Text style={styles.value} numberOfLines={1}>
           {weatherGate ? "Đang bật" : "Đang tắt"}
         </Text>
-
-        <Text style={styles.caption} numberOfLines={2}>
-          Tự dừng tưới khi cảm biến phát hiện nước
-        </Text>
       </View>
     </View>
   );
