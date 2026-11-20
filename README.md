@@ -309,15 +309,6 @@ Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database
 | <img src="https://github.com/phuongttt7928-cpu.png?size=80" width="56" alt="@phuongttt7928-cpu" /><br/>**@phuongttt7928-cpu** | ![Developer](https://img.shields.io/badge/Developer-1565C0?style=flat-square&logo=github&logoColor=white) | Phát triển phần mềm |
 | <img src="https://github.com/buithanhnguyen257-cmyk.png?size=80" width="56" alt="@buithanhnguyen257-cmyk" /><br/>**@buithanhnguyen257-cmyk** | ![Hardware](https://img.shields.io/badge/Hardware-EF6C00?style=flat-square&logo=espressif&logoColor=white) | Phần cứng & Vi điều khiển |
 
-<div align="center">
-
-<img height="150" src="https://github-readme-stats.vercel.app/api?username=trieuhoang1212&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=2E8B57&icon_color=2E8B57&text_color=1F2937&locale=vi" alt="GitHub stats @trieuhoang1212" />
-<img height="150" src="https://github-readme-stats.vercel.app/api?username=huylm8848-code&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=7E57C2&icon_color=7E57C2&text_color=1F2937&locale=vi" alt="GitHub stats @huylm8848-code" />
-<img height="150" src="https://github-readme-stats.vercel.app/api?username=phuongttt7928-cpu&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=1565C0&icon_color=1565C0&text_color=1F2937&locale=vi" alt="GitHub stats @phuongttt7928-cpu" />
-<img height="150" src="https://github-readme-stats.vercel.app/api?username=buithanhnguyen257-cmyk&show_icons=true&include_all_commits=true&hide_border=true&bg_color=F5F8F5&title_color=EF6C00&icon_color=EF6C00&text_color=1F2937&locale=vi" alt="GitHub stats @buithanhnguyen257-cmyk" />
-
-</div>
-
 ---
 
 ## Hạn chế
