@@ -66,12 +66,14 @@ export function HistoryChart({
   range,
   loading,
   error,
+  threshold,
 }: {
   response: HistoryResponse;
   metric: HistoryMetric;
   range: RangeKey;
   loading: boolean;
   error: string | null;
+  threshold: number | null;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -116,33 +118,33 @@ export function HistoryChart({
 
   return (
     <ChartPlot
-      samples={samples}
       series={series}
       points={points}
       metric={metric}
       range={range}
       chartWidth={chartWidth}
       lineColor={lineColor}
+      threshold={metric === "moisture" ? threshold : null}
     />
   );
 }
 
 function ChartPlot({
-  samples,
   series,
   points,
   metric,
   range,
   chartWidth,
   lineColor,
+  threshold,
 }: {
-  samples: HistoryResponse["samples"];
   series: SeriesPoint[];
   points: number[];
   metric: HistoryMetric;
   range: RangeKey;
   chartWidth: number;
   lineColor: string;
+  threshold: number | null;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -150,7 +152,6 @@ function ChartPlot({
   const focused = useIsFocused();
   const draw = useSharedValue(reduced ? 1 : 0);
 
-  const threshold = metric === "moisture" ? samples[0].threshold : null;
   const scaleValues = threshold === null ? points : [...points, threshold];
   let min = Math.min(...scaleValues);
   let max = Math.max(...scaleValues);

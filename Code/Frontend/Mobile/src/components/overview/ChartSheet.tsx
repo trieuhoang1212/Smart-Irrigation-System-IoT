@@ -114,9 +114,6 @@ export function ChartEntry({ onPress }: { onPress: () => void }) {
 
       <View style={styles.teaserText}>
         <Text style={styles.teaserTitle}>Biểu đồ dữ liệu</Text>
-        <Text style={styles.teaserSub} numberOfLines={1}>
-          Độ ẩm, nhiệt độ, không khí và mưa
-        </Text>
       </View>
 
       <Text style={styles.teaserLink}>Mở</Text>
@@ -220,6 +217,7 @@ export function ChartSheet({
               range={range}
               loading={loading}
               error={error}
+              threshold={zone ? zone.threshold : null}
             />
           </Reveal>
         ))}
@@ -250,12 +248,14 @@ function MetricCard({
   range,
   loading,
   error,
+  threshold: zoneThreshold,
 }: {
   metric: Metric;
   samples: ReturnType<typeof useHistory>["samples"];
   range: RangeKey;
   loading: boolean;
   error: string | null;
+  threshold: number | null;
 }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -282,9 +282,7 @@ function MetricCard({
   const min = values.length > 0 ? Math.min(...values) : null;
   const max = values.length > 0 ? Math.max(...values) : null;
 
-  const threshold = metric.hasThreshold
-    ? (samples[0]?.threshold ?? null)
-    : null;
+  const threshold = metric.hasThreshold ? zoneThreshold : null;
 
   let linePath = "";
   let areaPath = "";
@@ -478,17 +476,12 @@ const createStyles = (colors: Palette) =>
     },
     teaserText: {
       flex: 1,
-      gap: 1,
     },
     teaserTitle: {
       fontFamily: font.semibold,
       fontSize: 13,
       lineHeight: 18,
       color: colors.ink,
-    },
-    teaserSub: {
-      ...typo.caption,
-      color: colors.faint,
     },
     teaserLink: {
       ...typo.micro,

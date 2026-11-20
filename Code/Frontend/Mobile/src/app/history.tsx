@@ -79,12 +79,6 @@ export default function HistoryScreen() {
           hint={zone ? zone.name : undefined}
           footer={
             <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                {metric === "moisture"
-                  ? "Đường nét đứt là ngưỡng tưới · Mỗi điểm là mẫu mới nhất trong khoảng · Tự làm mới mỗi 30 giây."
-                  : "Mỗi điểm là mẫu mới nhất trong khoảng · Tự làm mới mỗi 30 giây."}
-              </Text>
-
               <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
                 <Text style={styles.reload}>Tải lại</Text>
               </Pressable>
@@ -101,6 +95,7 @@ export default function HistoryScreen() {
               range={range}
               loading={chartLoading}
               error={error}
+              threshold={zone ? zone.threshold : null}
             />
           </View>
         </Panel>
@@ -122,13 +117,7 @@ const createStyles = (colors: Palette) =>
     footer: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    footerText: {
-      flex: 1,
-      ...typo.caption,
-      color: colors.faint,
+      justifyContent: "flex-end",
     },
     reload: {
       ...typo.smallStrong,
