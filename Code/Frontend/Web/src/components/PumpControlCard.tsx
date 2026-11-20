@@ -26,7 +26,7 @@ export function PumpControlCard({
   onChangeStopThreshold,
 }: PumpControlCardProps) {
   const offlineReason = "Thiết bị mất kết nối";
-  const minStop = Math.min(100, selectedZone.threshold + 5);
+  const minStop = Math.min(100, selectedZone.threshold + 10);
 
   return (
     <article className="panel pump-tile">
@@ -138,7 +138,7 @@ export function PumpControlCard({
       <div className="threshold-control pump-threshold">
         <label htmlFor="stop-threshold">
           Ngừng tưới khi đạt <strong>{selectedZone.stopThreshold}%</strong>
-          <Tooltip text="Áp dụng ở chế độ Tự động: khi độ ẩm đất đạt ngưỡng này, hệ thống tự đóng van để dừng tưới. Ngưỡng dừng luôn cao hơn ngưỡng bật ít nhất 5%." />
+          <Tooltip text="Khi độ ẩm đất đạt ngưỡng này, hệ thống tự đóng van để dừng tưới. Ngưỡng dừng luôn cao hơn ngưỡng bật ít nhất 10%." />
         </label>
         <input
           id="stop-threshold"
@@ -152,10 +152,12 @@ export function PumpControlCard({
         />
         <span className="threshold-gap">
           Từ {selectedZone.threshold}% tưới đến {selectedZone.stopThreshold}% (
-          {selectedZone.stopThreshold - selectedZone.threshold} điểm) · chỉ áp dụng ở chế độ Tự động
-          {selectedZone.stopThreshold - selectedZone.threshold === 5
-            ? " · sát mức tối thiểu 5 điểm"
-            : ""}
+          {selectedZone.stopThreshold - selectedZone.threshold} điểm)
+          {selectedZone.stopThreshold - selectedZone.threshold < 10
+            ? " · cần cách ngưỡng bật ít nhất 10 điểm"
+            : selectedZone.stopThreshold - selectedZone.threshold === 10
+              ? " · sát mức tối thiểu 10 điểm"
+              : ""}
         </span>
       </div>
     </article>

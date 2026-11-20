@@ -48,8 +48,8 @@ const MAX_RECONNECT_DELAY = 15000;
 const OPTIMISTIC_WINDOW_MS = 3000;
 const THRESHOLD_PENDING_MS = 5000;
 const THRESHOLD_DEBOUNCE_MS = 400;
-// Firmware chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 5 điểm.
-const MIN_STOP_GAP = 5;
+// Firmware chặn hồi ẩm ngược: ngưỡng dừng phải cao hơn ngưỡng bật ít nhất 10 điểm.
+const MIN_STOP_GAP = 10;
 export const MIN_RAIN_THRESHOLD = 40;
 export const MAX_RAIN_THRESHOLD = 100;
 // Cảnh báo "có thể mưa" đi trước ngưỡng dừng 20 điểm, khớp firmware.
@@ -522,8 +522,12 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
     (zoneId: string, value: number) => {
       const clamped = Math.max(10, Math.min(90, Math.round(value)));
       const current = zonesRef.current.find((zone) => zone.id === zoneId);
-      // Ngưỡng dừng đã chỉnh tay thì giữ nguyên, chỉ nâng lên khi ngưỡng bật vượt qua.
-      const stop = Math.min(100, Math.max(current?.stopThreshold ?? clamped + 20, clamped + MIN_STOP_GAP));
+      // Ngưỡng dừng giữ nguyên; từ chối thay đổi làm khoảng cách xuống dưới mức tối thiểu.
+      const stop = current?.stopThreshold ?? Math.min(100, clamped + 20);
+      if (clamped + MIN_STOP_GAP > stop) {
+        notify(`Ngưỡng tưới phải thấp hơn ngưỡng dừng ít nhất ${MIN_STOP_GAP} điểm.`, "error");
+        return;
+      }
       stopPendingRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
       setZones((currentZones) =>
         currentZones.map((zone) =>
@@ -541,18 +545,21 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       window.clearTimeout(thresholdTimerRef.current[zoneId]);
       thresholdTimerRef.current[zoneId] = window.setTimeout(() => {
         delete thresholdTimerRef.current[zoneId];
-        // Firmware giữ ngưỡng dừng hiện tại, chỉ kẹp lên khi khoảng cách 5 bị vi phạm.
         void sendCommand(`SET_THRESHOLD_${zoneId}_${clamped}`);
       }, THRESHOLD_DEBOUNCE_MS);
     },
-    [sendCommand],
+    [notify, sendCommand],
   );
 
   const setZoneStopThreshold = useCallback(
     (zoneId: string, value: number) => {
       const current = zonesRef.current.find((zone) => zone.id === zoneId);
       const minStop = (current?.threshold ?? 10) + MIN_STOP_GAP;
-      const clamped = Math.max(minStop, Math.min(100, Math.round(value)));
+      const clamped = Math.min(100, Math.round(value));
+      if (clamped < minStop) {
+        notify(`Ngưỡng dừng phải cao hơn ngưỡng tưới ít nhất ${MIN_STOP_GAP} điểm.`, "error");
+        return;
+      }
       stopPendingRef.current[zoneId] = Date.now() + THRESHOLD_PENDING_MS;
       setZones((currentZones) =>
         currentZones.map((zone) =>
@@ -566,7 +573,7 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
         void sendCommand(`SET_STOP_${zoneId}_${clamped}`);
       }, THRESHOLD_DEBOUNCE_MS);
     },
-    [sendCommand],
+    [notify, sendCommand],
   );
 
   const setRainThreshold = useCallback(
@@ -626,14 +633,19 @@ export function useMqtt({ backendUrl, onLog, onNotify }: UseMqttOptions) {
       const threshold = input.threshold === undefined
         ? undefined
         : Math.max(10, Math.min(90, Math.round(input.threshold)));
+      const currentZone = zonesRef.current.find((zone) => zone.id === zoneId);
+      const nextThreshold = threshold ?? currentZone?.threshold ?? 10;
+      // Ngưỡng dừng độc lập nhưng phải cách ngưỡng bật ít nhất MIN_STOP_GAP điểm.
+      const stopThreshold = input.stopThreshold !== undefined
+        ? Math.min(100, Math.round(input.stopThreshold))
+        : Math.min(100, Math.round(currentZone?.stopThreshold ?? nextThreshold + 20));
+      if (stopThreshold < nextThreshold + MIN_STOP_GAP) {
+        notify(`Ngưỡng dừng phải cao hơn ngưỡng tưới ít nhất ${MIN_STOP_GAP} điểm.`, "error");
+        return false;
+      }
       setZones((current) =>
         current.map((zone) => {
           if (zone.id !== zoneId) return zone;
-          const nextThreshold = threshold ?? zone.threshold;
-          // Ngưỡng dừng độc lập: giữ số đang dùng, chỉ kẹp khi ngưỡng bật vượt khoảng cách 5.
-          const stopThreshold = input.stopThreshold !== undefined
-            ? Math.max(nextThreshold + MIN_STOP_GAP, Math.min(100, Math.round(input.stopThreshold)))
-            : Math.max(nextThreshold + MIN_STOP_GAP, Math.min(100, Math.round(zone.stopThreshold)));
           return {
             ...zone,
             threshold: nextThreshold,

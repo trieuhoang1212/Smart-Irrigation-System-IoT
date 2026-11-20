@@ -237,7 +237,7 @@ export function ZoneConfigCard({
         {isExpanded && (
           <form className="zone-config-form" onSubmit={(event) => void handleSubmit(event)}>
             <p className="config-role">
-              Hệ thống tưới khi ẩm dưới {zone.threshold}% và tự dừng khi đạt {zone.stopThreshold}% ở chế độ Tự động. Hai số dưới đây dùng để tính lượng nước và thời gian tự dừng.
+              Hệ thống tưới khi ẩm dưới {zone.threshold}% và tự dừng khi đạt {zone.stopThreshold}%. Hai số dưới đây dùng để tính lượng nước và thời gian tự dừng.
             </p>
 
             <div className="config-fields">
