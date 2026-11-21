@@ -25,8 +25,8 @@ export class MqttGateway {
     });
     this.client.on("reconnect", () => console.log("MQTT reconnecting..."));
     this.client.on("error", (error) => console.error("MQTT error:", error.message));
-    this.client.on("message", (topic, message, packet) => {
-      if (topic !== config.statusTopic) return;
+    this.client.on("message", (_topic, message, packet) => {
+      // Chỉ subscribe đúng statusTopic (có thể chứa wildcard), không lọc lại theo chuỗi cấu hình.
       try {
         const telemetry = normalizeTelemetry(
           JSON.parse(message.toString()) as Record<string, unknown>,

@@ -1,5 +1,4 @@
 #include "wokwi-api.h"
-#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct {
@@ -9,6 +8,7 @@ typedef struct {
   pin_t pin_do;
   uint32_t rain_attr;
   uint32_t threshold_attr;
+  uint32_t phase_ms;
 
 } chip_state_t;
 
@@ -36,14 +36,18 @@ void chip_timer_event(void *user_data) {
   chip_state_t *chip = (chip_state_t*)user_data;
   uint32_t rain = attr_read(chip->rain_attr);
   uint32_t threshold = attr_read(chip->threshold_attr);
-  float voltage = 5.0*((float)rain/1023.0);
-  if (pin_read(chip->pin_vcc) && !pin_read(chip->pin_gnd))
-  {
-    pin_dac_write(chip->pin_ao, voltage);
-    if (((voltage/5.0)*100) > threshold)
-        pin_write(chip->pin_do, HIGH);
-    else 
-        pin_write(chip->pin_do, LOW);
+  if (rain * 100U < threshold * 1023U) {
+    rain = 0;
   }
-  
+  const uint32_t high_ms = (rain * 90U) / 1023U;
+  const bool pwm_high = chip->phase_ms < high_ms;
+  chip->phase_ms = (chip->phase_ms + 1U) % 100U;
+  if (pin_read(chip->pin_vcc) && !pin_read(chip->pin_gnd)) {
+    pin_write(chip->pin_do, pwm_high ? HIGH : LOW);
+    // AO là đầu ra tương tự dự phòng; mạch hiện chỉ đọc DO.
+    pin_dac_write(chip->pin_ao, 3.3f * ((float)rain / 1023.0f));
+  } else {
+    pin_write(chip->pin_do, LOW);
+    pin_dac_write(chip->pin_ao, 0.0f);
+  }
 }

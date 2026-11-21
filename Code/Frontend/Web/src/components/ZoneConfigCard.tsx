@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Zone } from "../garden-data";
 import type { ZoneConfigInput } from "../hooks/useMqtt";
 import type { WateringRunSummary } from "../lib/garden-api";
@@ -15,6 +15,7 @@ type Field = {
   min: number;
   max: number;
   hint: string;
+  integer?: boolean;
 };
 
 const FIELDS: Field[] = [
@@ -24,7 +25,8 @@ const FIELDS: Field[] = [
     unit: "L/giờ",
     min: 1,
     max: 200,
-    hint: "Ghi trên bơm hoặc đầu tưới nhỏ giọt",
+    hint: "Số nguyên; càng lớn thì độ ẩm lên càng nhanh",
+    integer: true,
   },
   {
     key: "targetLiters",
@@ -36,7 +38,8 @@ const FIELDS: Field[] = [
   },
 ];
 
-// Firmware dừng bơm sau tối đa 10 phút mỗi lần.
+// Firmware chỉ chạy trong khoảng 10 giây - 10 phút mỗi lần.
+const MIN_RUNTIME_SECONDS = 10;
 const MAX_RUNTIME_MINUTES = 10;
 
 type ParsedField = { value: number | null; error: string | null };
@@ -47,6 +50,9 @@ function parseField(field: Field, raw: string): ParsedField {
 
   const parsed = Number(trimmed);
   if (!Number.isFinite(parsed)) return { value: null, error: "Chỉ nhập số." };
+  if (field.integer && !Number.isInteger(parsed)) {
+    return { value: null, error: "Chỉ nhập số nguyên." };
+  }
   if (parsed < field.min || parsed > field.max) {
     return {
       value: null,
@@ -101,6 +107,13 @@ export function ZoneConfigCard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setValues({
+      flowLitersPerHour: String(zone.flowLitersPerHour),
+      targetLiters: String(zone.targetLiters),
+    });
+  }, [zone.id, zone.flowLitersPerHour, zone.targetLiters]);
+
   const parsed = Object.fromEntries(
     FIELDS.map((field) => [field.key, parseField(field, values[field.key])]),
   ) as Record<FieldKey, ParsedField>;
@@ -120,6 +133,9 @@ export function ZoneConfigCard({
     if (minutesToTarget > MAX_RUNTIME_MINUTES) {
       verdictTone = "warn";
       verdict = `Cần khoảng ${formatDuration(minutesToTarget)} mới đủ ${formatLiters(target)} L, nhưng ESP32 dừng tối đa ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ mục tiêu còn khoảng ${formatLiters(maxLiters)} L hoặc chia làm nhiều lần.`;
+    } else if (minutesToTarget * 60 < MIN_RUNTIME_SECONDS) {
+      verdictTone = "warn";
+      verdict = `Mỗi lần chỉ chạy khoảng ${formatNumber(minutesToTarget * 60, 1)} giây — ngắn hơn mức tối thiểu ${MIN_RUNTIME_SECONDS} giây của ESP32.`;
     } else {
       verdict = `Đủ ${formatLiters(target)} L sau khoảng ${formatDuration(minutesToTarget)} — trong giới hạn ${MAX_RUNTIME_MINUTES} phút mỗi lần.`;
     }
@@ -135,11 +151,18 @@ export function ZoneConfigCard({
       setError("Có ô chưa hợp lệ — sửa theo ghi chú dưới ô nhập rồi lưu lại.");
       return;
     }
+    if (minutesToTarget !== null && minutesToTarget > MAX_RUNTIME_MINUTES) {
+      setError(`Mục tiêu cần hơn ${MAX_RUNTIME_MINUTES} phút mỗi lần. Hạ lượng nước hoặc tăng lưu lượng trước khi lưu.`);
+      return;
+    }
+    if (minutesToTarget !== null && minutesToTarget * 60 < MIN_RUNTIME_SECONDS) {
+      setError(`Mỗi lần chạy dưới ${MIN_RUNTIME_SECONDS} giây. Tăng lượng nước hoặc giảm lưu lượng trước khi lưu.`);
+      return;
+    }
 
     setSaving(true);
     setError(null);
     const saved = await onSave({
-      pumpSeconds: zone.pumpSeconds,
       flowLitersPerHour: flow,
       targetLiters: target,
     });
@@ -157,7 +180,7 @@ export function ZoneConfigCard({
           </p>
           <p className="config-role">
             ESP32 tự tưới theo ngưỡng đất khô {zone.threshold}% (chỉnh ở thẻ Điều khiển
-            bơm). Hai số dưới đây dùng để tính lượng nước và cảnh báo.
+            bơm). Hai số dưới đây dùng để tính lượng nước và thời gian tự dừng.
           </p>
         </div>
       </div>

@@ -3,6 +3,11 @@ import { Router, raw } from "express";
 import {
   type CommandRequest,
   type Telemetry,
+  MAX_RUN_SECONDS,
+  MAX_THRESHOLD,
+  MIN_RUN_SECONDS,
+  MIN_THRESHOLD,
+  STOP_OFFSET,
   ZONE_PROFILE_LIMITS,
   targetSecondsFor,
   toMqttCommand,
@@ -25,7 +30,7 @@ import {
   isZoneId,
   listZoneSettingChanges,
   saveZoneSetting,
-  updateZoneProfile,
+  updateZoneIrrigation,
 } from "./zone-settings-repository.js";
 import {
   type ZoneProfilePatch,
@@ -37,8 +42,13 @@ import {
 } from "./zone-profile-repository.js";
 import {
   type SoilType,
+  MAX_RAIN_THRESHOLD,
+  MIN_RAIN_THRESHOLD,
+  RAIN_WARN_OFFSET,
+  getGardenRainThreshold,
   getGardenSoil,
   isSoilType,
+  saveGardenRainThreshold,
   saveGardenSoil,
 } from "./garden-settings-repository.js";
 import { buildZoneAdvice, growthFor } from "./zone-advice.js";
@@ -56,6 +66,21 @@ function buildDeviceConfig(deviceId: string) {
   return {
     ...gardenConfig,
     soil: getGardenSoil(deviceId),
+    rainThreshold: getGardenRainThreshold(deviceId),
+    limits: {
+      thresholdMin: MIN_THRESHOLD,
+      thresholdMax: MAX_THRESHOLD,
+      stopOffset: STOP_OFFSET,
+      minRunSeconds: MIN_RUN_SECONDS,
+      maxRunSeconds: MAX_RUN_SECONDS,
+      flowMin: ZONE_PROFILE_LIMITS.flowLitersPerHour.min,
+      flowMax: ZONE_PROFILE_LIMITS.flowLitersPerHour.max,
+      targetMin: ZONE_PROFILE_LIMITS.targetLiters.min,
+      targetMax: ZONE_PROFILE_LIMITS.targetLiters.max,
+      rainMin: MIN_RAIN_THRESHOLD,
+      rainMax: MAX_RAIN_THRESHOLD,
+      rainWarnOffset: RAIN_WARN_OFFSET,
+    },
     zones: gardenConfig.zones.map((zone) => {
       const setting = settings.get(zone.id);
       const profile = profiles.get(zone.id);
@@ -82,7 +107,6 @@ function buildDeviceConfig(deviceId: string) {
           ? {
               threshold: setting.threshold,
               stopThreshold: setting.stopThreshold,
-              pumpSeconds: setting.pumpSeconds ?? zone.pumpSeconds,
               flowLitersPerHour: setting.flowLitersPerHour ?? zone.flowLitersPerHour,
               targetLiters: setting.targetLiters ?? zone.targetLiters,
             }
@@ -100,14 +124,21 @@ function queryNumber(value: unknown): number | undefined {
 
 type DeviceZone = ReturnType<typeof buildDeviceConfig>["zones"][number];
 
+// Gợi ý chỉ dùng thời tiết còn mới; snapshot quá cũ dễ làm khuyến nghị sai.
+const ADVICE_TELEMETRY_MAX_AGE_MS = 30 * 60_000;
+
+function telemetryForAdvice(deviceId: string): Telemetry | null {
+  const telemetry = loadLatestTelemetry(deviceId);
+  if (!telemetry) return null;
+  const age = Date.now() - Date.parse(telemetry.receivedAt);
+  return Number.isFinite(age) && age <= ADVICE_TELEMETRY_MAX_AGE_MS ? telemetry : null;
+}
+
 function adviceForZone(
   zone: DeviceZone,
   soil: SoilType,
   telemetry: Telemetry | null,
 ) {
-  const baseZone = gardenConfig.zones.find((item) => item.id === zone.id);
-  if (!baseZone) return null;
-
   const growth = growthFor(zone.group, zone.plantedAt ?? null, zone.harvestDays ?? null);
   return {
     zoneId: zone.id,
@@ -118,7 +149,6 @@ function adviceForZone(
         group: zone.group,
         soil,
         threshold: zone.threshold,
-        baseThreshold: baseZone.threshold,
       },
       growth,
       telemetry,
@@ -149,7 +179,7 @@ export function createApiRouter(gateway: MqttGateway) {
   router.get("/api/devices/:deviceId/config/advice", (request, response) => {
     const { deviceId } = request.params;
     const config = buildDeviceConfig(deviceId);
-    const telemetry = loadLatestTelemetry(deviceId);
+    const telemetry = telemetryForAdvice(deviceId);
 
     response.json({
       deviceId,
@@ -163,7 +193,7 @@ export function createApiRouter(gateway: MqttGateway) {
   router.post("/api/devices/:deviceId/config/advice/apply", async (request, response) => {
     const { deviceId } = request.params;
     const config = buildDeviceConfig(deviceId);
-    const telemetry = loadLatestTelemetry(deviceId);
+    const telemetry = telemetryForAdvice(deviceId);
     const applied: Array<{
       zoneId: string;
       threshold: number;
@@ -214,7 +244,7 @@ export function createApiRouter(gateway: MqttGateway) {
     const config = buildDeviceConfig(deviceId);
     const zone = config.zones.find((item) => item.id === zoneId);
     const payload = zone
-      ? adviceForZone(zone, config.soil, loadLatestTelemetry(deviceId))
+      ? adviceForZone(zone, config.soil, telemetryForAdvice(deviceId))
       : null;
     if (!payload) {
       response.status(404).json({ error: "Zone not found" });
@@ -231,6 +261,28 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
     response.json({ deviceId: request.params.deviceId, ...saveGardenSoil(request.params.deviceId, soil) });
+  });
+
+  router.put("/api/devices/:deviceId/config/rain", async (request, response) => {
+    const threshold = (request.body as { threshold?: unknown } | undefined)?.threshold;
+    if (typeof threshold !== "number" || !Number.isFinite(threshold)) {
+      response.status(400).json({ error: "threshold must be a number" });
+      return;
+    }
+
+    const saved = saveGardenRainThreshold(request.params.deviceId, threshold);
+    let appliedRemotely = false;
+    try {
+      await gateway.publish(`SET_RAIN_THRESHOLD_${saved.rainThreshold}`);
+      appliedRemotely = true;
+    } catch (error) {
+      console.error(
+        "Rain threshold saved but MQTT publish failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    response.json({ deviceId: request.params.deviceId, ...saved, appliedRemotely });
   });
 
   router.get("/api/devices/:deviceId/config/changes", (request, response) => {
@@ -261,16 +313,20 @@ export function createApiRouter(gateway: MqttGateway) {
     }
 
     const irrigation: {
-      pumpSeconds?: number;
       flowLitersPerHour?: number;
       targetLiters?: number;
     } = {};
-    for (const field of ["pumpSeconds", "flowLitersPerHour", "targetLiters"] as const) {
+    for (const field of ["flowLitersPerHour", "targetLiters"] as const) {
       const value = body[field];
       if (value === undefined) continue;
       const limits = ZONE_PROFILE_LIMITS[field];
       if (typeof value !== "number" || !Number.isFinite(value) || value < limits.min || value > limits.max) {
         response.status(400).json({ error: `${field} must be between ${limits.min} and ${limits.max}` });
+        return;
+      }
+      // Firmware đọc lưu lượng bằng số nguyên; nhận số lẻ sẽ làm lệch cấu hình.
+      if (field === "flowLitersPerHour" && !Number.isInteger(value)) {
+        response.status(400).json({ error: "flowLitersPerHour must be an integer" });
         return;
       }
       irrigation[field] = value;
@@ -343,19 +399,39 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
 
-    const threshold = hasThreshold ? clampThreshold(body.threshold as number) : null;
-    let setting = threshold !== null
-      ? saveZoneSetting(deviceId, zoneId, threshold, deriveStopThreshold(threshold))
-      : getZoneSetting(deviceId, zoneId);
+    const current = getZoneSetting(deviceId, zoneId);
+    if (!current) {
+      response.status(404).json({ error: "Zone setting not found" });
+      return;
+    }
 
+    // Kiểm tra mục tiêu trên cấu hình sau khi ghép, trước khi ghi DB.
+    let targetSeconds = 0;
     if (Object.keys(irrigation).length > 0) {
-      setting = updateZoneProfile(deviceId, zoneId, irrigation) ?? setting;
+      const nextFlow = irrigation.flowLitersPerHour ?? current.flowLitersPerHour;
+      const nextTarget = irrigation.targetLiters ?? current.targetLiters;
+      targetSeconds = targetSecondsFor(nextFlow, nextTarget);
+      if (targetSeconds === 0) {
+        response.status(400).json({
+          error: `flowLitersPerHour and targetLiters must produce a run time between ${MIN_RUN_SECONDS} and ${MAX_RUN_SECONDS} seconds`,
+        });
+        return;
+      }
     }
 
     const profile = hasProfile ? saveZoneProfile(deviceId, zoneId, profilePatch) : null;
-    if (!setting || (hasProfile && !profile)) {
-      response.status(404).json({ error: "Zone setting not found" });
+    if (hasProfile && !profile) {
+      response.status(404).json({ error: "Zone profile not found" });
       return;
+    }
+
+    const threshold = hasThreshold ? clampThreshold(body.threshold as number) : null;
+    let setting = threshold !== null
+      ? saveZoneSetting(deviceId, zoneId, threshold, deriveStopThreshold(threshold))
+      : current;
+
+    if (Object.keys(irrigation).length > 0) {
+      setting = updateZoneIrrigation(deviceId, zoneId, irrigation) ?? setting;
     }
 
     let appliedRemotely = false;
@@ -371,10 +447,23 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    // Mục tiêu nước chỉ có ý nghĩa khi firmware biết thời gian chạy tương ứng.
+    // Lưu lượng quyết định tốc độ ẩm lên trong mô phỏng của firmware.
+    let flowSynced = false;
+    if (irrigation.flowLitersPerHour !== undefined && setting.flowLitersPerHour !== null) {
+      try {
+        await gateway.publish(`SET_FLOW_${zoneId}_${setting.flowLitersPerHour}`);
+        flowSynced = true;
+      } catch (error) {
+        console.error(
+          "Flow saved but MQTT publish failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    // targetSeconds đã được kiểm tra nên không còn trường hợp gửi 0 ngoài ý muốn.
     let targetSynced = false;
     if (Object.keys(irrigation).length > 0) {
-      const targetSeconds = targetSecondsFor(setting.flowLitersPerHour, setting.targetLiters);
       try {
         await gateway.publish(`SET_TARGET_${zoneId}_${targetSeconds}`);
         targetSynced = true;
@@ -386,7 +475,7 @@ export function createApiRouter(gateway: MqttGateway) {
       }
     }
 
-    response.json({ ...setting, profile, appliedRemotely, targetSynced });
+    response.json({ ...setting, profile, appliedRemotely, targetSynced, flowSynced });
   });
 
   const photoParser = raw({
@@ -530,13 +619,12 @@ export function createApiRouter(gateway: MqttGateway) {
       return;
     }
 
-    // Firmware chỉ nhận lệnh bơm toàn vườn khi đang ở chế độ manual.
+    // Firmware chỉ nhận lệnh bơm (toàn vườn hoặc từng vùng) khi đang ở chế độ manual.
     if (
       (commandRequest.action === "PUMP_ON" || commandRequest.action === "PUMP_OFF") &&
-      commandRequest.zoneId === undefined &&
       getLatestTelemetry(deviceId)?.mode === "auto"
     ) {
-      response.status(409).json({ error: "Global pump control requires manual mode" });
+      response.status(409).json({ error: "Pump control requires manual mode" });
       return;
     }
 

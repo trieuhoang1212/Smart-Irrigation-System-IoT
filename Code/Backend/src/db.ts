@@ -25,10 +25,8 @@ db.pragma("busy_timeout = 5000");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS latest_telemetry (
-    device_id    TEXT PRIMARY KEY,
-    payload      TEXT NOT NULL,
-    received_at  TEXT NOT NULL,
-    updated_at   INTEGER NOT NULL
+    device_id  TEXT PRIMARY KEY,
+    payload    TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS telemetry_samples (
@@ -39,8 +37,6 @@ db.exec(`
     humidity      REAL,
     rain          REAL NOT NULL,
     raining       INTEGER NOT NULL,
-    weather_gate  INTEGER NOT NULL,
-    pump          INTEGER NOT NULL,
     recorded_at   INTEGER NOT NULL
   );
 
@@ -87,8 +83,6 @@ db.exec(`
     zone_id         TEXT NOT NULL,
     threshold       REAL NOT NULL,
     stop_threshold  REAL NOT NULL,
-    duration        INTEGER,
-    pump_seconds    INTEGER,
     flow_lph        REAL,
     target_liters   REAL,
     updated_at      INTEGER NOT NULL,
@@ -110,9 +104,10 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS garden_settings (
-    device_id   TEXT PRIMARY KEY,
-    soil        TEXT NOT NULL DEFAULT 'Đất phù sa',
-    updated_at  INTEGER NOT NULL
+    device_id      TEXT PRIMARY KEY,
+    soil           TEXT NOT NULL DEFAULT 'Đất phù sa',
+    rain_threshold INTEGER NOT NULL DEFAULT 100,
+    updated_at     INTEGER NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS zone_setting_changes (
@@ -137,7 +132,8 @@ db.exec(`
     last_seen_at INTEGER NOT NULL,
     ended_at     INTEGER,
     seconds      REAL,
-    liters       REAL
+    liters       REAL,
+    flow_lph     REAL NOT NULL DEFAULT 0
   );
 
   CREATE INDEX IF NOT EXISTS idx_watering_runs_device_zone
@@ -145,6 +141,23 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_watering_runs_device_end
     ON watering_runs(device_id, ended_at);
 `);
+
+function tableColumns(table: string): Set<string> {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  return new Set(rows.map((row) => row.name));
+}
+
+function addColumnIfMissing(table: string, name: string, type: string) {
+  if (!tableColumns(table).has(name)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+  }
+}
+
+function dropColumnIfExists(table: string, name: string) {
+  if (tableColumns(table).has(name)) {
+    db.exec(`ALTER TABLE ${table} DROP COLUMN ${name}`);
+  }
+}
 
 // DB cũ tạo temperature/humidity NOT NULL, không lưu được lúc DHT22 lỗi.
 function migrateSensorNullability() {
@@ -168,13 +181,11 @@ function migrateSensorNullability() {
           humidity      REAL,
           rain          REAL NOT NULL,
           raining       INTEGER NOT NULL,
-          weather_gate  INTEGER NOT NULL,
-          pump          INTEGER NOT NULL,
           recorded_at   INTEGER NOT NULL
         );
         INSERT INTO telemetry_samples_new
-          (id, device_id, mode, temperature, humidity, rain, raining, weather_gate, pump, recorded_at)
-        SELECT id, device_id, mode, temperature, humidity, rain, raining, weather_gate, pump, recorded_at
+          (id, device_id, mode, temperature, humidity, rain, raining, recorded_at)
+        SELECT id, device_id, mode, temperature, humidity, rain, raining, recorded_at
         FROM telemetry_samples;
         DROP TABLE telemetry_samples;
         ALTER TABLE telemetry_samples_new RENAME TO telemetry_samples;
@@ -189,37 +200,46 @@ function migrateSensorNullability() {
 
 migrateSensorNullability();
 
-// DB cũ chưa có thông số tưới của từng vùng (thời lượng, chu kỳ, lưu lượng, mục tiêu nước).
-function migrateZoneProfiles() {
-  const columns = db.prepare("PRAGMA table_info(zone_settings)").all() as Array<{
-    name: string;
-  }>;
-  const existing = new Set(columns.map((column) => column.name));
-  const additions: Array<[string, string]> = [
-    ["duration", "INTEGER"],
-    ["pump_seconds", "INTEGER"],
-    ["flow_lph", "REAL"],
-    ["target_liters", "REAL"],
-  ];
-
-  for (const [name, type] of additions) {
-    if (!existing.has(name)) db.exec(`ALTER TABLE zone_settings ADD COLUMN ${name} ${type}`);
-  }
+// DB cũ chưa có thông số nước của từng vùng.
+function migrateZoneSettings() {
+  addColumnIfMissing("zone_settings", "flow_lph", "REAL");
+  addColumnIfMissing("zone_settings", "target_liters", "REAL");
 }
 
-migrateZoneProfiles();
+migrateZoneSettings();
+addColumnIfMissing("watering_runs", "flow_lph", "REAL NOT NULL DEFAULT 0");
 
 // Loại đất chuyển từ hồ sơ từng ô sang cấu hình chung của khu vườn.
 function migrateGardenSoil() {
-  const columns = db.prepare("PRAGMA table_info(zone_profiles)").all() as Array<{
-    name: string;
-  }>;
-  if (columns.some((column) => column.name === "soil")) {
+  if (tableColumns("zone_profiles").has("soil")) {
     db.exec("ALTER TABLE zone_profiles DROP COLUMN soil");
   }
 }
 
 migrateGardenSoil();
+
+// DB cũ chưa có ngưỡng mưa chỉnh từ Web.
+function migrateGardenRainThreshold() {
+  if (!tableColumns("garden_settings").has("rain_threshold")) {
+    db.exec(
+      "ALTER TABLE garden_settings ADD COLUMN rain_threshold INTEGER NOT NULL DEFAULT 100",
+    );
+  }
+}
+
+migrateGardenRainThreshold();
+
+// Các cột không còn dùng sau khi bỏ thời gian bơm cố định và telemetry toàn vườn.
+function dropLegacyColumns() {
+  dropColumnIfExists("zone_settings", "duration");
+  dropColumnIfExists("zone_settings", "pump_seconds");
+  dropColumnIfExists("latest_telemetry", "received_at");
+  dropColumnIfExists("latest_telemetry", "updated_at");
+  dropColumnIfExists("telemetry_samples", "weather_gate");
+  dropColumnIfExists("telemetry_samples", "pump");
+}
+
+dropLegacyColumns();
 
 export function closeDatabase() {
   if (db.open) db.close();

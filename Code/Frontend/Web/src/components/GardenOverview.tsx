@@ -35,7 +35,6 @@ export function GardenOverview({
   const applyAdvice = (value: { threshold: number }) =>
     onApplyAdvice({
       threshold: value.threshold,
-      pumpSeconds: selectedZone.pumpSeconds,
       flowLitersPerHour: selectedZone.flowLitersPerHour,
       targetLiters: selectedZone.targetLiters,
     });

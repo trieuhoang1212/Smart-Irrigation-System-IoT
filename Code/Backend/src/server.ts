@@ -23,7 +23,7 @@ seedZoneSettings(gardenConfig.deviceId, gardenConfig.zones);
 // Hồ sơ cây (tên, nhóm, ngày trồng, ảnh) do người dùng chỉnh trên Web.
 seedZoneProfiles(gardenConfig.deviceId, gardenConfig.zones);
 
-// Lần đầu chạy, dựng lại các lần tưới từ telemetry 6 giờ gần nhất.
+// Lần đầu chạy, dựng lại các lần tưới từ telemetry 24 giờ gần nhất.
 const backfilled = backfillWateringRuns(gardenConfig.deviceId);
 if (backfilled > 0) console.log(`Backfilled watering runs from ${backfilled} samples`);
 

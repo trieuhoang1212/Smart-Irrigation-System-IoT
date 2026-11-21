@@ -3,21 +3,25 @@ export type ZoneId = (typeof ZONE_IDS)[number];
 
 export const MIN_THRESHOLD = 10;
 export const MAX_THRESHOLD = 90;
+// Firmware dừng khi độ ẩm đạt ngưỡng bật + 20 (tối đa 100).
+export const STOP_OFFSET = 20;
+
+export const MIN_RUN_SECONDS = 10;
+export const MAX_RUN_SECONDS = 600;
 
 export const ZONE_PROFILE_LIMITS = {
-  pumpSeconds: { min: 10, max: 600 },
   flowLitersPerHour: { min: 1, max: 200 },
   targetLiters: { min: 0.1, max: 20 },
 } as const;
 
-// Firmware dừng bơm thủ công tối đa 10 phút/lần, nên mục tiêu dài hơn sẽ không có cảnh báo.
+// Đổi lượng nước mục tiêu thành thời gian chạy; 0 nghĩa là cấu hình không dùng được.
 export function targetSecondsFor(
   flowLitersPerHour: number | null | undefined,
   targetLiters: number | null | undefined,
 ): number {
   if (!flowLitersPerHour || !targetLiters) return 0;
   const seconds = Math.round((targetLiters / flowLitersPerHour) * 3600);
-  return seconds >= 10 && seconds <= 600 ? seconds : 0;
+  return seconds >= MIN_RUN_SECONDS && seconds <= MAX_RUN_SECONDS ? seconds : 0;
 }
 
 export type ZoneState = {
@@ -28,6 +32,8 @@ export type ZoneState = {
   pump: boolean;
   // Firmware mới gửi thêm mục tiêu thời gian chạy và cờ vượt mục tiêu thủ công.
   targetSeconds?: number;
+  // Lưu lượng đầu tưới firmware đang dùng, để Backend phát hiện lệch và đồng bộ lại.
+  flowLph?: number;
   over?: boolean;
 };
 
@@ -38,10 +44,13 @@ export type TankState = {
 
 export type Telemetry = {
   deviceId: string;
+  uptimeMs?: number;
   mode: "auto" | "manual";
   temperature: number | null;
   humidity: number | null;
   rain: number;
+  // Firmware cũ dùng mốc cố định 80/100 nên chưa gửi ngưỡng.
+  rainThreshold?: number;
   raining: boolean;
   weatherGate: boolean;
   pump: boolean;
@@ -99,6 +108,9 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
       targetSeconds: zone.targetSeconds === undefined
         ? undefined
         : numberInRange(zone.targetSeconds, `${id}.targetSeconds`, 0, 3600),
+      flowLph: zone.flowLph === undefined
+        ? undefined
+        : numberInRange(zone.flowLph, `${id}.flowLph`, 1, 200),
       over: zone.over === undefined ? undefined : booleanValue(zone.over, `${id}.over`),
     });
   });
@@ -123,10 +135,16 @@ export function normalizeTelemetry(raw: Record<string, unknown>, expectedDeviceI
 
   return {
     deviceId: expectedDeviceId,
+    uptimeMs: raw.uptimeMs === undefined
+      ? undefined
+      : numberInRange(raw.uptimeMs, "uptimeMs", 0, 4294967295),
     mode: raw.mode,
     temperature: nullableNumberInRange(raw.temperature, "temperature", -40, 125),
     humidity: nullableNumberInRange(raw.humidity, "humidity", 0, 100),
     rain: numberInRange(raw.rain, "rain", 0, 100),
+    rainThreshold: raw.rainThreshold === undefined
+      ? undefined
+      : numberInRange(raw.rainThreshold, "rainThreshold", 0, 100),
     raining: booleanValue(raw.raining, "raining"),
     weatherGate: booleanValue(raw.weatherGate, "weatherGate"),
     pump,

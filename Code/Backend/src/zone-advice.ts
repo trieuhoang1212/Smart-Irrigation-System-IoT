@@ -1,4 +1,4 @@
-import type { Telemetry } from "./domain.js";
+import { MAX_THRESHOLD, MIN_THRESHOLD, type Telemetry } from "./domain.js";
 import { type CropGroup, isCropGroup } from "./zone-profile-repository.js";
 import type { SoilType } from "./garden-settings-repository.js";
 
@@ -84,6 +84,24 @@ const STAGE_RULES: Record<CropGroup, StageRule[]> = {
     { until: 1, stage: "harvest", label: "Thu hoạch" },
   ],
 };
+
+// Ngưỡng gốc theo nhóm cây; đổi nhóm cây thì gợi ý cũng đổi theo.
+const GROUP_BASE_THRESHOLD: Record<CropGroup, number> = {
+  "Rau ăn lá": 55,
+  "Rau ăn quả": 45,
+  "Cây lấy củ": 35,
+  "Cây gia vị": 45,
+  "Cây hoa cảnh": 45,
+  "Cây ăn quả / thân gỗ": 45,
+  "Sen đá / Xương rồng": 25,
+  "Cây trong nhà": 40,
+  "Hoa lan": 45,
+  Khác: 45,
+};
+
+export function baseThresholdFor(group: string): number {
+  return GROUP_BASE_THRESHOLD[isCropGroup(group) ? group : "Khác"];
+}
 
 type WaterWindow = { label: string; start: string; end: string; note: string };
 
@@ -183,8 +201,6 @@ export type AdviceZone = {
   soil: SoilType;
   /** Ngưỡng người dùng đang dùng, chỉ để so sánh. */
   threshold: number;
-  /** Ngưỡng gốc của vùng; khuyến nghị luôn tính từ đây nên áp dụng nhiều lần không bị cộng dồn. */
-  baseThreshold: number;
 };
 
 export type ZoneAdvice = {
@@ -311,10 +327,11 @@ export function buildZoneAdvice(
     reasons.push("Chưa có dữ liệu cảm biến thời tiết, chỉ dựa vào mùa và loại đất");
   }
 
+  // Luôn tính từ ngưỡng gốc của nhóm cây để áp dụng nhiều lần không bị cộng dồn.
   const suggestedThreshold = clamp(
-    Math.round((zone.baseThreshold + thresholdShift) / 5) * 5,
-    15,
-    85,
+    Math.round((baseThresholdFor(zone.group) + thresholdShift) / 5) * 5,
+    MIN_THRESHOLD,
+    MAX_THRESHOLD,
   );
 
   const recommended = GROUP_WATER_WINDOWS[isCropGroup(zone.group) ? zone.group : "Khác"];

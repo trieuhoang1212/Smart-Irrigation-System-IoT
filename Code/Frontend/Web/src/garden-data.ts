@@ -134,7 +134,6 @@ export type Zone = {
   threshold: number;
   stopThreshold: number;
   method: string;
-  pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
   color: string;
@@ -148,6 +147,7 @@ export type Zone = {
 export type GardenConfigResponse = {
   deviceId: string;
   soil: SoilType;
+  rainThreshold?: number;
   zones: Array<Omit<Zone, "moisture" | "pump" | "online">>;
 };
 

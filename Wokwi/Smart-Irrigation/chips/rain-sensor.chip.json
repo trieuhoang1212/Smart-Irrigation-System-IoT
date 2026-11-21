@@ -21,7 +21,7 @@
     },
     {
       "id" : "threshold",
-      "label": "Threshold %",
+      "label": "Bỏ qua mưa nhỏ (%)",
       "type": "range",
       "min": 0,
       "max": 100,

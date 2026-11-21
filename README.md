@@ -81,7 +81,7 @@ flowchart LR
 
 - Tự động tưới theo ngưỡng riêng của từng khu vực.
 - Hysteresis hai ngưỡng, hạn chế bơm đóng cắt liên tục.
-- Weather Gate: khả năng mưa ≥ 80% thì còi + cảnh báo Web; mưa 100% thì dừng bơm cả AUTO lẫn MANUAL.
+- Weather Gate: mưa ≥ ngưỡng − 20 điểm thì còi + cảnh báo Web; mưa ≥ ngưỡng (40–100%, chỉnh từ Web) thì dừng và chặn bơm ở cả AUTO lẫn MANUAL; phải giảm dưới ngưỡng 5 điểm mới tưới lại.
 - Chuyển AUTO/MANUAL, điều khiển bơm toàn hệ thống hoặc từng vùng.
 - MANUAL đặt mục tiêu nước (lít); vượt mục tiêu thì còi và báo Web để nông dân tắt bơm.
 - Chỉnh và lưu ngưỡng từ Web; backend đồng bộ lại khi thiết bị khởi động.
@@ -90,7 +90,7 @@ flowchart LR
 ### An toàn và tự chủ
 
 - **Mất Internet vẫn tưới:** vòng điều khiển cục bộ không phụ thuộc backend.
-- **Giới hạn thời gian:** tối đa 10 phút/vùng; quá hạn thì dừng và khóa vùng.
+- **Giới hạn thời gian:** tối đa 10 phút/vùng; quá hạn thì dừng, nghỉ 2 phút rồi auto tiếp tục, khóa vùng nếu đất không ẩm lên.
 - **Tự thoát MANUAL:** sau 10 phút tự về AUTO để tránh tưới mãi khi đi vắng.
 - **Chống chạy khô:** HC-SR04 đo mực nước bồn; cạn thì dừng và chặn bơm.
 - Cảnh báo tại chỗ bằng LCD, còi và serial.
@@ -134,19 +134,24 @@ flowchart LR
 | Chức năng | GPIO | Ghi chú |
 |---|:---:|---|
 | DHT22 data | 4 | |
-| MUX SIG / S0–S3 | 34 / 12, 13, 14, 25 | 34 là input-only |
-| Mưa analog / digital | 33 / 36 | 36 input-only |
+| Độ ẩm T001–T006 | 32, 33, 34, 35, 36, 39 | GPIO34–39 là input-only |
+| Mưa amount (PWM) | 27 | Custom chip rain-sensor |
 | Relay T001–T006 | 16, 17, 18, 23, 15, 19 | Active LOW |
 | Servo van tổng | 5 | |
 | I2C SDA / SCL | 21 / 22 | 6 LCD địa chỉ 0x20–0x25 |
 | LED trạng thái | 2 | |
 | Còi | 0 | Chân strapping; phần cứng thật nên qua transistor |
-| Nút mất mạng / thủ công | 35 / 32 | Active LOW; 35 cần trở kéo ngoài |
-| HC-SR04 TRIG / ECHO | 27 / 26 | |
+| Nút mất mạng / thủ công | 14 / 13 | Active LOW |
+| HC-SR04 TRIG / ECHO | 12 / 26 | |
 
 ### Mô phỏng Wokwi
 
-- 6 biến trở thay cảm biến độ ẩm, chip cảm biến mưa tùy chỉnh.
+- 6 biến trở nối trực tiếp vào sáu chân ADC, chip cảm biến mưa tùy chỉnh.
+- Độ ẩm mô phỏng theo động học đất: bơm chạy thì ẩm tăng theo lưu lượng đầu tưới (1 L ≈ +2%, tức 2%/phút ở 60 L/giờ), tắt thì khô ~2%/phút (3,5%/phút ở 25°C); nóng thì khô nhanh hơn, không khí ẩm hoặc mưa thì chậm lại. Một vòng khô → tự tưới → đủ ẩm khoảng 15 phút để tiện demo.
+- Chiết áp là tay chỉnh nhanh: vặn đến đâu độ ẩm bám tới đó, không vặn thì giữ nguyên mô phỏng. Env `esp32dev` bật mô phỏng đất; env `board` tắt và đọc thẳng ADC (chỉnh mốc hiệu chuẩn `SOIL_ADC_DRY` / `SOIL_ADC_WET` trong `src/config.h` khi dùng cảm biến thật).
+- Wokwi xoá NVS mỗi lần chạy lại nên độ ẩm không giữ được giữa các lần. Firmware khởi tạo ở giữa cặp ngưỡng, và ngay khi Backend đồng bộ ngưỡng thật thì đặt lại theo cặp ngưỡng đó, nên số khởi động luôn giống nhau.
+- Firmware tách thành `config.h`, `app.h`, `sensors.cpp`, `soil_sim.cpp`, `control.cpp`, `link.cpp` và `main.cpp` (setup/loop/UI).
+- Chip mưa dùng wasm build sẵn; sửa `chips/rain-sensor.chip.c` thì phải build lại wasm (xem `chips/README.md`).
 - Nút giả lập mất mạng và nút bật/tắt bơm thủ công.
 - Slider `distance` của HC-SR04 để mô phỏng mực nước bồn.
 - Relay, servo, LCD, LED và còi hiển thị trạng thái trực quan.
@@ -158,7 +163,7 @@ flowchart LR
 | Firmware | C++ · Arduino Framework · PlatformIO |
 | Mô phỏng | Wokwi |
 | Vi điều khiển | ESP32 DevKit C V4 |
-| Cảm biến | 74HC4067 · DHT22 · cảm biến mưa · HC-SR04 |
+| Cảm biến | Biến trở ADC · DHT22 · cảm biến mưa · HC-SR04 |
 | Giao tiếp | Wi-Fi · MQTT (PubSubClient) |
 | Broker | Mosquitto |
 | Backend | Node.js 20+ · TypeScript · Express 5 |
@@ -258,11 +263,12 @@ Sửa `.env` thành `EXPO_PUBLIC_API_URL=http://<IP-LAN-máy-tính>:3001` nếu 
 
 Mở thư mục `Wokwi\Smart-Irrigation` bằng PlatformIO hoặc Wokwi. Firmware kết nối MQTT tới `host.wokwi.internal`, nên cần chạy Wokwi với gateway (VS Code extension hoặc Wokwi CLI) để tới được backend trên máy host.
 
-Build kiểm tra:
+Build kiểm tra (mặc định là env Wokwi):
 
 ```powershell
 cd Wokwi\Smart-Irrigation
-pio run
+pio run              # Wokwi: bật mô phỏng động học đất
+pio run -e board     # board thật: tắt mô phỏng, đọc cảm biến trực tiếp
 ```
 
 ## 🎬 Demo
@@ -277,7 +283,7 @@ Kịch bản demo 15 phút từ Web → Wokwi → Mobile: [docs/KICH_BAN_DEMO_15
 - **Chẩn đoán:** chưa có cảm biến lưu lượng/áp suất để phát hiện vỡ ống hoặc bơm hỏng.
 - **Bồn nước:** chỉ hiển thị khoảng cách cm và trạng thái cạn; chưa quy đổi %/số lít.
 - **Đồng bộ trạng thái:** vùng bị khóa do quá thời gian chưa có trong telemetry nên Web/Mobile chưa hiển thị.
-- **Mục tiêu MANUAL:** chỉ báo vượt khi mục tiêu quy đổi ra 10–600 giây (giới hạn 10 phút/vùng); mục tiêu lớn hơn không kích hoạt cảnh báo.
+- **Mục tiêu MANUAL:** tự dừng bơm khi đạt thời gian quy đổi 10–600 giây; mục tiêu lớn hơn vẫn bị giới hạn bởi thời gian an toàn 10 phút/vùng.
 - **Ước tính thời gian:** là suy đoán từ lịch sử, cần đủ mẫu khô/ướt mới hiển thị; độ ẩm đổi do mưa hoặc thay đất sẽ làm lệch.
 - **Mobile:** chưa có push notification, chưa có hồ sơ cây; chưa phải bản phát hành.
 - **Mô phỏng:** phần cứng và cảm biến đang mô phỏng trên Wokwi, chưa kiểm chứng ngoài thực địa.

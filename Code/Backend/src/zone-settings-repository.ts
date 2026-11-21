@@ -1,11 +1,16 @@
 import { db } from "./db.js";
-import { MAX_THRESHOLD, MIN_THRESHOLD, ZONE_IDS, type ZoneId } from "./domain.js";
+import {
+  MAX_THRESHOLD,
+  MIN_THRESHOLD,
+  STOP_OFFSET,
+  ZONE_IDS,
+  type ZoneId,
+} from "./domain.js";
 
 export type ZoneSetting = {
   zoneId: ZoneId;
   threshold: number;
   stopThreshold: number;
-  pumpSeconds: number | null;
   flowLitersPerHour: number | null;
   targetLiters: number | null;
   updatedAt: number;
@@ -20,8 +25,7 @@ export type ZoneSettingChange = {
   updatedAt: number;
 };
 
-export type ZoneProfilePatch = {
-  pumpSeconds?: number;
+export type ZoneIrrigationPatch = {
   flowLitersPerHour?: number;
   targetLiters?: number;
 };
@@ -30,7 +34,6 @@ type ZoneSettingRow = {
   zone_id: string;
   threshold: number;
   stop_threshold: number;
-  pump_seconds: number | null;
   flow_lph: number | null;
   target_liters: number | null;
   updated_at: number;
@@ -44,8 +47,6 @@ type ZoneSettingChangeRow = {
   old_stop_threshold: number | null;
   updated_at: number;
 };
-
-const STOP_OFFSET = 20;
 
 /** Firmware đặt ngưỡng dừng = ngưỡng bật + 20 (giới hạn 100). */
 export function deriveStopThreshold(threshold: number): number {
@@ -65,7 +66,6 @@ function toZoneSetting(row: ZoneSettingRow): ZoneSetting {
     zoneId: row.zone_id as ZoneId,
     threshold: row.threshold,
     stopThreshold: row.stop_threshold,
-    pumpSeconds: row.pump_seconds,
     flowLitersPerHour: row.flow_lph,
     targetLiters: row.target_liters,
     updatedAt: row.updated_at,
@@ -74,10 +74,9 @@ function toZoneSetting(row: ZoneSettingRow): ZoneSetting {
 
 const insertDefault = db.prepare(`
   INSERT INTO zone_settings
-    (device_id, zone_id, threshold, stop_threshold, pump_seconds, flow_lph, target_liters, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (device_id, zone_id, threshold, stop_threshold, flow_lph, target_liters, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(device_id, zone_id) DO UPDATE SET
-    pump_seconds = COALESCE(zone_settings.pump_seconds, excluded.pump_seconds),
     flow_lph = COALESCE(zone_settings.flow_lph, excluded.flow_lph),
     target_liters = COALESCE(zone_settings.target_liters, excluded.target_liters)
 `);
@@ -86,7 +85,6 @@ type ZoneSeed = {
   id: string;
   threshold: number;
   stopThreshold: number;
-  pumpSeconds: number;
   flowLitersPerHour: number;
   targetLiters: number;
 };
@@ -101,7 +99,6 @@ export function seedZoneSettings(deviceId: string, zones: ZoneSeed[]): void {
         zone.id,
         zone.threshold,
         zone.stopThreshold,
-        zone.pumpSeconds,
         zone.flowLitersPerHour,
         zone.targetLiters,
         now,
@@ -114,7 +111,7 @@ export function seedZoneSettings(deviceId: string, zones: ZoneSeed[]): void {
 export function getZoneSettings(deviceId: string): ZoneSetting[] {
   const rows = db
     .prepare(`
-      SELECT zone_id, threshold, stop_threshold, pump_seconds, flow_lph, target_liters, updated_at
+      SELECT zone_id, threshold, stop_threshold, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ?
       ORDER BY zone_id
@@ -126,7 +123,7 @@ export function getZoneSettings(deviceId: string): ZoneSetting[] {
 export function getZoneSetting(deviceId: string, zoneId: string): ZoneSetting | null {
   const row = db
     .prepare(`
-      SELECT zone_id, threshold, stop_threshold, pump_seconds, flow_lph, target_liters, updated_at
+      SELECT zone_id, threshold, stop_threshold, flow_lph, target_liters, updated_at
       FROM zone_settings
       WHERE device_id = ? AND zone_id = ?
     `)
@@ -143,9 +140,9 @@ const upsertThreshold = db.prepare(`
     updated_at = excluded.updated_at
 `);
 
-const updateProfile = db.prepare(`
+const updateIrrigation = db.prepare(`
   UPDATE zone_settings
-  SET pump_seconds = ?, flow_lph = ?, target_liters = ?, updated_at = ?
+  SET flow_lph = ?, target_liters = ?, updated_at = ?
   WHERE device_id = ? AND zone_id = ?
 `);
 
@@ -188,17 +185,16 @@ export function saveZoneSetting(
   return persistThreshold(deviceId, zoneId, threshold, stopThreshold);
 }
 
-/** Cập nhật thông số tưới (không ảnh hưởng ngưỡng đang áp xuống thiết bị). */
-export function updateZoneProfile(
+/** Cập nhật thông số nước (không ảnh hưởng ngưỡng đang áp xuống thiết bị). */
+export function updateZoneIrrigation(
   deviceId: string,
   zoneId: ZoneId,
-  patch: ZoneProfilePatch,
+  patch: ZoneIrrigationPatch,
 ): ZoneSetting | null {
   const current = getZoneSetting(deviceId, zoneId);
   if (!current) return null;
 
-  updateProfile.run(
-    patch.pumpSeconds ?? current.pumpSeconds,
+  updateIrrigation.run(
     patch.flowLitersPerHour ?? current.flowLitersPerHour,
     patch.targetLiters ?? current.targetLiters,
     Date.now(),

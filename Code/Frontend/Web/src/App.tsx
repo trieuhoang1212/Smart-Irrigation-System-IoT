@@ -43,6 +43,9 @@ export default function App() {
     humidity,
     rainPercent,
     raining,
+    rainThreshold,
+    rainWarnThreshold,
+    setRainThreshold,
     rainBlock,
     lastUpdated,
     togglePump,
@@ -186,6 +189,8 @@ export default function App() {
           humidity={humidity}
           raining={raining}
           rainPercent={rainPercent}
+          rainThreshold={rainThreshold}
+          rainWarnThreshold={rainWarnThreshold}
           rainBlock={rainBlock}
           wateredLiters={wateredLitersByZone[activeZone] ?? 0}
           lastRun={selectedWatering?.lastRun ?? null}
@@ -198,6 +203,7 @@ export default function App() {
           onChangeMode={changeMode}
           onTogglePump={handleTogglePump}
           onChangeThreshold={(val) => setZoneThreshold(activeZone, val)}
+          onChangeRainThreshold={setRainThreshold}
           onToggleWeatherGate={toggleWeatherGate}
           onSaveZoneConfig={(input) => saveZoneConfig(selectedZone.id, input)}
         />
