@@ -91,9 +91,6 @@ export function GardenSoilPlan({
           <p className="eyebrow">Điều kiện tưới</p>
           <h2>Loại đất của khu vườn</h2>
         </div>
-        <p className="manager-card-hint">
-          Đổi loại đất chỉ cập nhật gợi ý. Ngưỡng tưới chỉ đổi khi bấm áp dụng.
-        </p>
       </div>
 
       <div className="soil-plan-toolbar">
@@ -171,7 +168,7 @@ export function GardenSoilPlan({
           {raining
             ? "Đang mưa: tạm hoãn áp dụng ngưỡng."
             : hasChange
-              ? "Áp dụng sẽ lưu ngưỡng tưới cho cả 6 ô."
+              ? ""
               : "Cả vườn đang dùng đúng gợi ý."}
         </span>
         <button

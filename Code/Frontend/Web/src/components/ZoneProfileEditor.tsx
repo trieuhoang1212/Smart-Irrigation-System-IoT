@@ -187,9 +187,6 @@ export function ZoneProfileEditor({
               {removingPhoto ? "Đang xoá..." : "Xoá ảnh"}
             </button>
           )}
-          <p className="manager-hint">
-            Ảnh được nén tự động (tối đa 1280px) trước khi lưu trên Backend.
-          </p>
         </div>
       </div>
 
@@ -280,11 +277,9 @@ export function ZoneProfileEditor({
         </div>
 
         <div className="manager-form-footer">
-          <p className={`manager-hint ${dirty ? "dirty" : ""}`}>
-            {dirty
-              ? "Có thay đổi chưa lưu."
-              : "Thay đổi này chỉ cập nhật hồ sơ cây trồng; ngưỡng tưới chỉnh ở trang tổng quan."}
-          </p>
+          {dirty && (
+            <p className="manager-hint dirty">Có thay đổi chưa lưu.</p>
+          )}
           <button type="submit" className="primary-button" disabled={saving || uploading}>
             <SaveIcon size={15} />
             {saving ? "Đang lưu..." : "Lưu thay đổi"}
