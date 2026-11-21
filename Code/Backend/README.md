@@ -16,7 +16,7 @@ flowchart LR
     MQTT -->|subscribe| ESP32
 ```
 
-- Thiết bị gửi telemetry khoảng 2 giây/lần; backend chỉ ghi lịch sử 10 giây/lần để nhẹ DB.
+- Thiết bị gửi telemetry khoảng 2 giây/lần; backend chỉ ghi lịch sử 5 giây/lần để nhẹ DB.
 - Mọi telemetry hợp lệ được push ngay cho Web qua WebSocket, không cần polling.
 
 ## Yêu cầu môi trường
@@ -71,7 +71,7 @@ Kết quả `ok: true` nghĩa là cả database và MQTT đều sẵn sàng.
 | `http/router.ts` | Ghép các nhóm route REST: config, telemetry, lệnh, khu vực, push. |
 | `http/routes/*` | Route theo nhóm: `config`, `telemetry`, `commands`, `zones`, `push`; validate input và publish lệnh MQTT. |
 | `http/config-view.ts` | Dựng cấu hình thiết bị (ngưỡng, hồ sơ cây, đất, mưa) và dữ liệu cho gợi ý tưới. |
-| `realtime/live-service.ts` | Nhận telemetry MQTT: ghi lịch sử (10 giây/lần), broadcast WebSocket, watchdog online/offline, timeout lệnh, resync cấu hình. |
+| `realtime/live-service.ts` | Nhận telemetry MQTT: ghi lịch sử (5 giây/lần), broadcast WebSocket, watchdog online/offline, timeout lệnh, resync cấu hình. |
 | `realtime/state.ts` | Cache telemetry mới nhất và thống kê realtime. |
 | `realtime/sync.ts` | Đồng bộ ngưỡng/lưu lượng/mục tiêu nước xuống thiết bị khi lệch DB. |
 | `realtime/commands.ts` | Theo dõi lệnh: xác nhận qua telemetry hoặc chuyển `timeout` sau 12 giây. |
@@ -256,4 +256,4 @@ Dữ liệu cũ hơn `DB_RETENTION_DAYS` (mặc định 30 ngày) được dọn
 | `400 Telemetry must include every zone` | Firmware gửi thiếu khu — phải đủ `T001`–`T006`. |
 | `/api/health` trả `503`, `database.ok: false` | PostgreSQL chưa chạy, sai `DATABASE_URL`, hoặc chưa tạo database `smart_irrigation`. |
 | `ECONNREFUSED 127.0.0.1:5432` | Service PostgreSQL chưa bật; mở Services và start `postgresql-x64-*`. |
-| Telemetry không vào history | Xem log backend: retained message không được ghi history, và tần suất ghi tối thiểu 10 giây/lần. |
+| Telemetry không vào history | Xem log backend: retained message không được ghi history, và tần suất ghi tối thiểu 5 giây/lần. |

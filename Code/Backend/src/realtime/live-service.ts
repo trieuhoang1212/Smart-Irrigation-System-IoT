@@ -26,7 +26,7 @@ import {
 import { resyncDeviceConfig } from "./sync.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
-const HISTORY_WRITE_INTERVAL_MS = 10_000;
+const HISTORY_WRITE_INTERVAL_MS = 5_000;
 
 let heartbeat: ReturnType<typeof setInterval> | null = null;
 let deviceWatchdog: ReturnType<typeof setInterval> | null = null;
@@ -114,7 +114,7 @@ export async function startLive(ws: WebSocketServer, gateway: MqttGateway) {
       });
     }
 
-    // Live state vẫn 2s/lần, nhưng history chỉ ghi 10s/lần cho nhẹ DB.
+    // Live state vẫn 2s/lần, nhưng history chỉ ghi 5s/lần cho nhẹ DB.
     // Retained chỉ là snapshot cũ nên không ghi vào history để khỏi lệch chart.
     const now = Date.now();
     const lastSavedAt = lastHistoryWriteByDevice.get(deviceId) ?? 0;
