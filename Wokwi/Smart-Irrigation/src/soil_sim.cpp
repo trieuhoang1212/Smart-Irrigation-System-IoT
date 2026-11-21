@@ -48,6 +48,32 @@ void soilSetup() {
 #endif
 }
 
+// Wokwi xoá flash/NVS mỗi lần Restart, nên khôi phục thêm từ retained status:
+// bản tin cuối cùng trên broker vẫn giữ độ ẩm của lần chạy trước.
+void soilRestoreFromRetained(const String& json) {
+#if SIMULATE_SOIL_DYNAMICS
+  int restored = 0;
+  for (int zone = 0; zone < ZONE_COUNT; zone++) {
+    // NVS vẫn là nguồn ưu tiên trên board thật.
+    if (soilStateRestored[zone]) continue;
+    const int idAt = json.indexOf(String("\"id\":\"") + zoneNames[zone] + "\"");
+    if (idAt < 0) continue;
+    const int moistureAt = json.indexOf("\"moisture\":", idAt);
+    if (moistureAt < 0) continue;
+    const float value = constrain(static_cast<float>(json.substring(moistureAt + 11).toInt()), 0.0f, 100.0f);
+    soilMoisture[zone] = value;
+    soilManualTarget[zone] = value;
+    lastPersistedSoil[zone] = value;
+    moisturePercent[zone] = static_cast<int>(round(value));
+    soilStateRestored[zone] = true;
+    restored++;
+  }
+  if (restored > 0) Serial.println("soil: restored from last status");
+#else
+  (void)json;
+#endif
+}
+
 void soilOnPumpStopped(int zone, bool wasRunning) {
 #if SIMULATE_SOIL_DYNAMICS
   if (wasRunning && zone >= 0 && zone < ZONE_COUNT) persistSoilState(zone);

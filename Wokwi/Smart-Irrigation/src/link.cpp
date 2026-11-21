@@ -12,8 +12,17 @@ static String telemetryJson;
 
 static bool simulateOffline = false;
 static bool netWasOnline = false;
+static bool soilRestorePending = true;
 static unsigned long lastWifiAttempt = 0;
 static unsigned long lastMqttAttempt = 0;
+static unsigned long lastMqttConnectAt = 0;
+
+// Chờ retained về tối đa 5 giây để không publish đè snapshot cũ bằng
+// giá trị chiết áp vừa đọc lúc khởi động.
+bool isSoilRestoreSettled() {
+  if (!soilRestorePending) return true;
+  return client.connected() && elapsedSince(millis(), lastMqttConnectAt, 5000UL);
+}
 
 static int findZoneIndex(const char* zoneId) {
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
@@ -194,7 +203,16 @@ static void callback(char* topic, byte* payload, unsigned int length) {
     message += static_cast<char>(payload[i]);
   }
 
-  if (String(topic) != TOPIC_CMD) return;
+  const String topicName = String(topic);
+  if (topicName == TOPIC_STATUS && soilRestorePending) {
+    // Retained gửi ngay khi subscribe: áp dụng một lần rồi huỷ để không nhận
+    // lại chính telemetry mình vừa publish mỗi 2 giây.
+    soilRestorePending = false;
+    soilRestoreFromRetained(message);
+    client.unsubscribe(TOPIC_STATUS);
+    return;
+  }
+  if (topicName != TOPIC_CMD) return;
   if (!handleCommand(message)) {
     Serial.print("unknown: ");
     Serial.println(message);
@@ -245,6 +263,8 @@ void ensureNetwork() {
     const String clientId = String(DEVICE_ID) + "-" + String(random(0xffff), HEX);
     if (client.connect(clientId.c_str())) {
       client.subscribe(TOPIC_CMD);
+      if (soilRestorePending) client.subscribe(TOPIC_STATUS);
+      lastMqttConnectAt = millis();
       lastMqttFailCode = 0;
       Serial.println("mqtt: connected");
     } else {
@@ -310,6 +330,7 @@ void publishTelemetry() {
   // Retained: backend/web nhận ngay trạng thái mới nhất dù kết nối sau ESP32.
   // Khi offline thì bỏ qua publish, tránh log lỗi mỗi 2 giây.
   if (!client.connected()) return;
+  if (!isSoilRestoreSettled()) return;
 
   buildTelemetry(telemetryJson);
   if (client.publish(TOPIC_STATUS, telemetryJson.c_str(), true)) return;
