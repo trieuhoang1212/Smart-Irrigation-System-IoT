@@ -1,96 +1,64 @@
-Smart Irrigation System – Mobile App
+# Mobile App — Smart Irrigation System
 
-Ứng dụng di động quản lý và giám sát hệ thống tưới cây thông minh, được xây dựng bằng React Native và Expo.
+Ứng dụng Expo/React Native để giám sát và điều khiển hệ thống tưới khi đang ở ngoài vườn. Dùng chung Backend, cấu hình và telemetry với Web Dashboard.
 
-1. Chức năng chính
+<div align="center">
+<img src="../../../images/mobile-light.png" alt="Mobile App - sáng" width="30%" />
+<img src="../../../images/mobile-dark.png" alt="Mobile App - tối" width="30%" />
+</div>
 
-Dashboard
+## Chức năng
 
-Hiển thị trạng thái hoạt động của hệ thống.
+- **Tổng quan**: trạng thái online, nhiệt độ/độ ẩm/mưa, mực nước bồn, lưới 6 khu `T001`–`T006`; chuyển Tự động/Thủ công, bật tắt bơm; chạm một khu để xem chi tiết; kéo lên để mở biểu đồ.
+- **Phân tích**: kết luận sức khoẻ khu đang chọn, % thời gian đất nằm trong ngưỡng, trung bình/nhỏ nhất/lớn nhất, gợi ý xử lý.
+- **Lịch sử**: biểu đồ độ ẩm đất, nhiệt độ, độ ẩm khí, mưa theo 1 giờ / 24 giờ / 7 ngày.
+- **Nhật ký**: lệnh đã gửi, đổi ngưỡng, trạng thái xác nhận; lọc theo loại và thời gian.
+- **Khu vườn**: hai mục Cây trồng / Tưới — hồ sơ cây, ảnh, ngày trồng, loại đất; chỉnh ngưỡng, lưu lượng và mục tiêu nước.
+- **Cài đặt** (mở từ bánh răng): theme theo máy / sáng / tối, chặn tưới khi mưa, thông tin thiết bị, bật và gửi thử thông báo.
 
-Theo dõi dữ liệu cảm biến: độ ẩm đất, nhiệt độ, độ ẩm không khí.
+## Công nghệ
 
-Hiển thị trạng thái máy bơm và chế độ hoạt động.
+Expo SDK 58 · React Native 0.88 · React 19 · Expo Router · TypeScript · Reanimated + Gesture Handler · react-native-svg · AsyncStorage · Expo Notifications · Expo Image Picker · Lexend · Ionicons.
 
-Chuyển đổi giữa chế độ AUTO và MANUAL.
+## Cấu trúc `src/`
 
-Điều khiển bật/tắt máy bơm.
+```text
+src/
+├─ app/          # 6 màn hình theo expo-router (index, analysis, history, activity, garden, settings)
+├─ api/          # client HTTP, config, telemetry, commands, garden, activity, notifications
+├─ providers/    # Garden (realtime + lệnh), Theme, Toast, Notifications
+├─ hooks/        # useHistory, useActivity
+├─ components/   # layout, navigation, overview, zones, garden, history, settings, ui
+├─ theme/        # palette dùng chung với Web, spacing, typography
+├─ utils/        # phân tích độ ẩm, nhóm cây, định dạng, haptics
+└─ lib/          # quyền thông báo, Expo push token
+```
 
-Quản lý vùng tưới
+`GardenProvider` mở một WebSocket duy nhất cho cả app, tự reconnect (tối đa 15 giây), giữ trạng thái lệnh đang chờ và ẩn số đo khi thiết bị offline.
 
-Hiển thị danh sách 6 vùng tưới: T001–T006.
+## Chạy ứng dụng
 
-Xem thông tin chi tiết từng vùng.
-
-Theo dõi độ ẩm đất và trạng thái máy bơm.
-
-Điều chỉnh ngưỡng độ ẩm bật/tắt tưới.
-
-Settings
-
-Chuyển chế độ hoạt động Tự động / Thủ công.
-
-Xem và chỉnh ngưỡng, lưu lượng, lượng nước mục tiêu của từng vùng.
-
-Real-time
-
-Sử dụng WebSocket để nhận dữ liệu cảm biến theo thời gian thực.
-
-Đồng bộ trạng thái thiết bị và kết quả thực hiện lệnh từ Backend.
-
-2. Công nghệ sử dụng
-
-React Native
-
-Expo SDK 58
-
-Expo Router
-
-TypeScript
-
-REST API
-
-WebSocket
-
-MQTT (thông qua Backend)
-
-
-3. Yêu cầu môi trường
-
-Node.js và npm.
-
-Điện thoại Android/iOS hoặc thiết bị giả lập.
-
-Backend đang hoạt động.
-
-Máy chạy Mobile và Backend có thể kết nối với nhau qua mạng.
-
-4. Cài đặt và chạy ứng dụng
-
-Bước 1: Di chuyển vào thư mục Mobile
-
-cd Code/Frontend/Mobile
-
-Bước 2: Cài đặt dependencies
-
+```powershell
+cd Code\Frontend\Mobile
+Copy-Item .env.example .env
 npm install
+npm start
+```
 
-Bước 3: Cấu hình kết nối Backend
+`.env`:
 
-Tạo file .env trong thư mục Code/Frontend/Mobile.
+```dotenv
+EXPO_PUBLIC_API_URL=http://192.168.1.10:3001
+```
 
-Thêm cấu hình:
+- Dùng IPv4 LAN của máy chạy Backend, không dùng `localhost` khi chạy trên điện thoại thật; mở firewall cổng 3001.
+- Expo Go: quét QR. Nếu bỏ trống `EXPO_PUBLIC_API_URL`, app tự lấy IP từ Metro.
+- Dev build/APK: `npm run android` hoặc build bằng EAS; giá trị `EXPO_PUBLIC_API_URL` được nhúng lúc build.
 
-EXPO_PUBLIC_API_URL=http://IP_MAY_CHAY_BACKEND:3001
+## Thông báo đẩy
 
-Ví dụ:
+- App đăng ký Expo push token với Backend theo `deviceId`; Android dùng kênh `alerts` ưu tiên cao.
+- Nút "Gửi thử" gửi qua Backend → Expo nếu đã có máy đăng ký, ngược lại gửi thông báo cục bộ.
+- Expo Go trên Android không lấy được token từ xa; muốn nhận push thật cần dev build/APK.
 
-EXPO_PUBLIC_API_URL=http://192.168.110.2:3001
-
-Lưu ý:
-
-Thay 192.168.110.2 bằng địa chỉ IPv4 thực tế của máy chạy Backend.
-
-Không sử dụng localhost khi chạy ứng dụng trên điện thoại thật vì localhost lúc này là chính điện thoại.
-
-Có thể tham khảo .env.example để tạo file cấu hình.
+> Tài liệu đầy đủ về cả Web và Mobile: [Code/Frontend/README.md](../README.md).

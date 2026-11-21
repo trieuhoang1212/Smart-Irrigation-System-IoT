@@ -205,6 +205,8 @@ Chạy thật hoặc mô phỏng trên Wokwi với 6 biến trở, chip mưa tù
    └─ Smart-Irrigation/        Firmware PlatformIO (ESP32)
 ```
 
+Chi tiết từng màn hình, luồng dữ liệu và cấu trúc mã nguồn frontend: [Code/Frontend/README.md](Code/Frontend/README.md).
+
 ---
 
 ## Khởi chạy
