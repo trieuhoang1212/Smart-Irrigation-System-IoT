@@ -16,10 +16,13 @@ ESP32 đọc cảm biến và quyết định tưới; Web Dashboard và Mobile 
 [![MQTT](https://img.shields.io/badge/MQTT-Mosquitto-3C5280?style=flat-square&logo=eclipsemosquitto&logoColor=white)](https://mosquitto.org/)
 [![Node.js](https://img.shields.io/badge/Node.js_22-Backend-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Neon](https://img.shields.io/badge/Neon-PostgreSQL-00E599?style=flat-square&logo=neon&logoColor=black)](https://neon.tech/)
 [![Next.js](https://img.shields.io/badge/Next.js-Web-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![Expo](https://img.shields.io/badge/Expo-Mobile-000020?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-FCM-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Cloudinary](https://img.shields.io/badge/Cloudinary-Zone_photos-3448C5?style=flat-square&logo=cloudinary&logoColor=white)](https://cloudinary.com/)
+[![Render](https://img.shields.io/badge/Render-Backend-000000?style=flat-square&logo=render&logoColor=white)](https://render.com/)
 
 <a href="#giao-diện">Giao diện</a> ·
 <a href="#kiến-trúc">Kiến trúc</a> ·
@@ -68,7 +71,8 @@ ESP32 đọc cảm biến và quyết định tưới; Web Dashboard và Mobile 
 flowchart LR
     ESP["ESP32 / Wokwi<br/>6 cảm biến · DHT22 · mưa<br/>relay · servo · LCD"]
     MQTT(["MQTT broker<br/>Mosquitto"])
-    API["Backend<br/>Express · SQLite · WebSocket"]
+    API["Backend<br/>Express · WebSocket"]
+    DB[("PostgreSQL<br/>Neon")]
     WEB["Web Dashboard<br/>Next.js"]
     APP["Mobile App<br/>Expo"]
     CLD[("Cloudinary<br/>ảnh khu vườn")]
@@ -76,6 +80,7 @@ flowchart LR
 
     ESP <-->|"status / cmd"| MQTT
     MQTT <--> API
+    API <-->|"lịch sử & cấu hình"| DB
     API <-->|"REST + WS"| WEB
     API <-->|"REST + WS"| APP
     API -->|"upload ảnh"| CLD
@@ -85,7 +90,7 @@ flowchart LR
 
 </div>
 
-**Dữ liệu** — ESP32 đọc cảm biến mỗi 2 giây, publish retained; backend lưu SQLite và broadcast WebSocket tới Web/Mobile.
+**Dữ liệu** — ESP32 đọc cảm biến mỗi 2 giây, publish retained; backend lưu PostgreSQL (Neon) và broadcast WebSocket tới Web/Mobile.
 
 **Lệnh** — REST → MQTT → ESP32 thực thi → telemetry xác nhận; quá 12 giây không phản hồi thì lệnh chuyển `timeout`.
 
@@ -106,7 +111,7 @@ sequenceDiagram
 
     U->>W: Đổi ngưỡng hoặc bật bơm
     W->>A: POST /api/devices/:id/commands
-    A->>A: Lưu SQLite, đặt hạn 12 giây
+    A->>A: Lưu PostgreSQL, đặt hạn 12 giây
     A->>M: SET_THRESHOLD_T001_51
     M->>E: chuyển tiếp xuống thiết bị
     E->>E: Ghi NVS và áp dụng ngay
@@ -169,7 +174,7 @@ stateDiagram-v2
 
 ### Dữ liệu
 
-- SQLite WAL, tự dọn dữ liệu cũ sau 30 ngày.
+- PostgreSQL trên Neon, tự dọn dữ liệu cũ sau 30 ngày.
 - Hồ sơ cây theo khu vực: tên, nhóm, ghi chú, ảnh (Cloudinary, hoặc lưu local nếu chưa cấu hình); gợi ý ngưỡng theo loại đất và nhóm cây.
 - Thông báo đẩy tới điện thoại khi khu vực cần tưới hoặc có sự kiện bất thường.
 
@@ -192,7 +197,7 @@ Chạy thật hoặc mô phỏng trên Wokwi với 6 biến trở, chip mưa tù
 ```text
 .
 ├─ Code/
-│  ├─ Backend/                 Express + SQLite + MQTT + WebSocket
+│  ├─ Backend/                 Express + PostgreSQL + MQTT + WebSocket
 │  └─ Frontend/
 │     ├─ Web/                  Next.js dashboard
 │     └─ Mobile/               Expo (React Native)
@@ -204,7 +209,7 @@ Chạy thật hoặc mô phỏng trên Wokwi với 6 biến trở, chip mưa tù
 
 ## Khởi chạy
 
-Cần Node.js 22 và PlatformIO. MQTT broker là bắt buộc; Cloudinary và Firebase là tùy chọn.
+Cần Node.js 22, PostgreSQL và PlatformIO. MQTT broker là bắt buộc; Cloudinary và Firebase là tùy chọn.
 
 ### 1. MQTT broker
 
@@ -229,6 +234,8 @@ npm run dev
 ```
 
 Mở `.env` và điền `MQTT_URL`, topic, cùng `CLOUDINARY_*` nếu muốn lưu ảnh trên Cloudinary.
+
+Cần một PostgreSQL đang chạy: local (tạo database `smart_irrigation`, `DATABASE_URL=postgres://postgres@127.0.0.1:5432/smart_irrigation`) hoặc hosted như Neon (dán connection string vào `DATABASE_URL` và đặt `DATABASE_SSL=true`). Bảng tự tạo khi backend khởi động lần đầu.
 
 ### 3. Web Dashboard — http://localhost:3000
 
@@ -292,11 +299,11 @@ Backend chạy trên Render, deploy trực tiếp từ nhánh `main`:
 | Build Command | `npm ci && npm run build` |
 | Start Command | `npm start` |
 
-Biến môi trường cần khai báo trong Render: `MQTT_URL`, `MQTT_STATUS_TOPIC`, `MQTT_COMMAND_TOPIC`, `WEB_ORIGIN`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (và `EXPO_ACCESS_TOKEN` nếu dùng).
+Biến môi trường cần khai báo trong Render: `DATABASE_URL` (chuỗi kết nối Neon), `DATABASE_SSL=true`, `MQTT_URL`, `MQTT_STATUS_TOPIC`, `MQTT_COMMAND_TOPIC`, `WEB_ORIGIN`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (và `EXPO_ACCESS_TOKEN` nếu dùng).
 
-Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database.ok: true`.
+Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database.ok: true`, `database.driver: "postgres"`.
 
-> Ổ đĩa của Render là tạm: mỗi lần deploy/restart, SQLite trong `data/` bị tạo lại. Ảnh đã đẩy lên Cloudinary nên không mất.
+> Dữ liệu nằm trên Neon chứ không nằm trong container Render, nên deploy/restart không mất lịch sử. Render free tự ngủ sau khoảng 15 phút không có request và Neon cũng tạm dừng compute — lần gọi đầu tiên có thể chậm 30–60 giây.
 
 ---
 
@@ -327,7 +334,7 @@ Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database
 - Mất mạng không buffer telemetry: lịch sử bị hở đoạn offline và lệnh gửi trong lúc đó bị mất.
 - Mỗi lượt tưới tối đa 10 phút/vùng rồi nghỉ 2 phút — lưu lượng nhỏ có thể cần nhiều lượt mới đạt ngưỡng dừng.
 - Mất điện lưới là dừng hoạt động, chưa có UPS hoặc pin mặt trời.
-- Render dùng ổ đĩa tạm: deploy/restart là mất lịch sử SQLite. Ảnh trên Cloudinary không mất.
+- Render free tự ngủ khi không có request và Neon tạm dừng compute: lần gọi đầu sau thời gian nghỉ chậm 30–60 giây.
 - Chưa có OTA: nạp firmware phải qua USB hoặc Wokwi.
 
 ### Đo lường và thuật toán
@@ -349,7 +356,7 @@ Kiểm tra sau khi deploy: `GET /api/health` trả `ok`, `mqtt: true`, `database
 
 - **Auth và phân quyền**: JWT hoặc API key cho REST, token cho WebSocket, tách dữ liệu theo từng người dùng.
 - **Bảo mật MQTT**: TLS cổng 8883, user/password, broker riêng; topic gắn token thiết bị thay vì tên cố định.
-- **Giữ dữ liệu**: gắn Render Disk hoặc chuyển sang Postgres để không mất lịch sử sau mỗi deploy.
+- **Sao lưu dữ liệu**: dump Neon định kỳ hoặc dùng branch để khôi phục lịch sử khi cần.
 - **Buffer khi offline**: xếp telemetry vào LittleFS trên ESP32 rồi replay khi có mạng.
 - **Test và CI**: `node:test` hoặc Vitest cho domain/repository, GitHub Actions chạy typecheck + test.
 - **OTA firmware**: cập nhật qua Wi-Fi thay vì cắm USB.
