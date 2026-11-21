@@ -37,6 +37,7 @@ export function AnalysisApp() {
 
   const {
     zones,
+    soil,
     connected,
     mode,
     configLoading,
@@ -99,11 +100,12 @@ export function AnalysisApp() {
     return analyzeZone({
       samples: series,
       zone: selectedZone,
+      soil,
       tankDistanceCm,
       tankEmpty,
       rainBlock,
     });
-  }, [series, selectedZone, tankDistanceCm, tankEmpty, rainBlock]);
+  }, [series, selectedZone, soil, tankDistanceCm, tankEmpty, rainBlock]);
 
   const handleSelectZone = (zoneId: string) => {
     setActiveZoneId(zoneId);
@@ -417,6 +419,16 @@ export function AnalysisApp() {
                     <li key={index}>{item}</li>
                   ))}
                 </ul>
+                {analysis.care.length > 0 && (
+                  <div className="analysis-care">
+                    <h3>Chăm sóc định kỳ</h3>
+                    <ul>
+                      {analysis.care.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </section>
             </div>
           </aside>

@@ -550,3 +550,22 @@
   background: var(--green);
   opacity: 0.55;
 }
+
+.analysis-care {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line-soft);
+}
+
+.analysis-care h3 {
+  color: var(--faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.analysis-care li::before {
+  background: var(--blue);
+  opacity: 0.6;
+}

@@ -1,4 +1,29 @@
-import type { Zone } from "../garden-data";
+import {
+  GROUP_WATER_HINTS,
+  type CropGroup,
+  type SoilType,
+  type Zone,
+} from "../garden-data";
+
+const GROWTH_CARE: Record<string, string> = {
+  seedling: "Cây con cần ẩm đều — kiểm tra mặt đất mỗi sáng, tránh để khô quá một ngày.",
+  vegetative: "Đang phát triển — giữ ẩm trong vùng an toàn và bón phân loãng sau khi tưới.",
+  flowering: "Ra hoa - đậu quả cần nước ổn định — tránh để đất khô hơn 2 ngày.",
+  bulking: "Đang hình thành củ — giữ ẩm đều, tránh tưới quá đậm gây nứt củ.",
+  mature: "Cây đã trưởng thành — duy trì ngưỡng hiện tại và kiểm tra sâu bệnh ở mặt dưới lá.",
+  harvest: "Đang thu hoạch — giảm nhẹ nước để cây tập trung dưỡng chất vào quả/củ.",
+  overdue:
+    "Đã quá {days} ngày so với dự kiến thu hoạch — kiểm tra lại ngày trồng trong hồ sơ.",
+};
+
+const SOIL_CARE: Record<SoilType, string> = {
+  "Đất cát":
+    "Đất cát thoát nước nhanh — tưới ngắn nhưng đều, ưu tiên buổi sáng.",
+  "Đất đỏ bazan":
+    "Đất đỏ bazan giữ ẩm khá — kiểm tra độ ẩm trước khi tưới thêm để tránh úng.",
+  "Đất phù sa":
+    "Đất phù sa giữ ẩm tốt — chỉ tưới khi độ ẩm xuống dưới ngưỡng.",
+};
 
 export type AnalysisSample = {
   recordedAt: number;
@@ -44,11 +69,13 @@ export type ZoneAnalysis = {
     lastSampleAt: number | null;
   };
   advice: string[];
+  care: string[];
 };
 
 type AnalyzeInput = {
   samples: AnalysisSample[];
   zone: Zone;
+  soil: SoilType;
   tankDistanceCm: number | null;
   tankEmpty: boolean;
   rainBlock: boolean;
@@ -77,6 +104,7 @@ function percentText(value: number | null): string {
 export function analyzeZone({
   samples,
   zone,
+  soil,
   tankDistanceCm,
   tankEmpty,
   rainBlock,
@@ -111,6 +139,7 @@ export function analyzeZone({
       advice: [
         "Kiểm tra ESP32 đã gửi telemetry chưa và Backend có đang chạy không.",
       ],
+      care: [],
     };
   }
 
@@ -248,16 +277,6 @@ export function analyzeZone({
   }
   if (status === "good") {
     summaryParts.push("Thời tiết và nguồn nước không có bất thường.");
-  } else if (missingSources > 0) {
-    const missing = [
-      climateScore === null ? "DHT22" : null,
-      waterScore === null ? "mực nước bồn" : null,
-    ]
-      .filter(Boolean)
-      .join(" và ");
-    summaryParts.push(
-      `Chưa có dữ liệu ${missing} nên điểm chỉ mang tính tham khảo.`,
-    );
   }
 
   const advice: string[] = [];
@@ -301,6 +320,26 @@ export function analyzeZone({
       "Không phát hiện bất thường — tiếp tục theo dõi và tưới theo ngưỡng hiện tại.",
     );
   }
+
+  const hint =
+    GROUP_WATER_HINTS[zone.group as CropGroup] ?? GROUP_WATER_HINTS["Khác"];
+  const care: string[] = [
+    latest.raining
+      ? `Đang mưa: tạm hoãn khung tưới ${hint.label.toLowerCase()} (${hint.start}–${hint.end}) đến khi tạm tắt mưa.`
+      : `Khung tham khảo cho ${zone.group}: ${hint.label} ${hint.start}–${hint.end}. ${hint.note}`,
+  ];
+  if (zone.growth) {
+    const growthTip = GROWTH_CARE[zone.growth.stage];
+    if (growthTip) {
+      care.push(
+        growthTip.replace("{days}", String(zone.growth.overdueDays)),
+      );
+    }
+  }
+  care.push(SOIL_CARE[soil]);
+  care.push(
+    "Hệ thống tưới theo độ ẩm đất; khung giờ chỉ để tham khảo.",
+  );
 
   return {
     status,
@@ -349,5 +388,6 @@ export function analyzeZone({
       lastSampleAt: latest.recordedAt,
     },
     advice: advice.slice(0, 6),
+    care,
   };
 }

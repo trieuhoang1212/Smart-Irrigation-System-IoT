@@ -203,6 +203,8 @@ export default function App() {
                 zones={zones}
                 mode={mode}
                 deviceOnline={deviceOnline}
+                raining={raining}
+                rainPercent={rainPercent}
               />
             </div>
 

@@ -57,6 +57,15 @@
   background: var(--red);
 }
 
+.live-badge.warn {
+  background: var(--amber-soft);
+  color: var(--amber-ink);
+}
+
+.live-badge.warn i {
+  background: var(--amber-line);
+}
+
 .mode-row,
 .control-row,
 .threshold-control {

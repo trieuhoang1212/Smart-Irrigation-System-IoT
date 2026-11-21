@@ -695,6 +695,10 @@
   background: #f59e0b;
 }
 
+.health-bar-seg.wet {
+  background: var(--blue);
+}
+
 .health-chips-row {
   display: flex;
   flex-wrap: wrap;
@@ -726,6 +730,20 @@
 
 .health-chips-row .dot.dry {
   background: #f59e0b;
+}
+
+.health-chips-row .dot.wet {
+  background: var(--blue);
+}
+
+.health-tip {
+  margin-top: 10px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .health-footer {
