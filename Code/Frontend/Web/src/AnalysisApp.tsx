@@ -101,11 +101,13 @@ export function AnalysisApp() {
       samples: series,
       zone: selectedZone,
       soil,
+      mode,
+      bucketMs: ANALYSIS_RANGES[range].bucketMs,
       tankDistanceCm,
       tankEmpty,
       rainBlock,
     });
-  }, [series, selectedZone, soil, tankDistanceCm, tankEmpty, rainBlock]);
+  }, [series, selectedZone, soil, mode, range, tankDistanceCm, tankEmpty, rainBlock]);
 
   const handleSelectZone = (zoneId: string) => {
     setActiveZoneId(zoneId);
@@ -212,7 +214,7 @@ export function AnalysisApp() {
             )}
             <div className="verdict-meta">
               <span>
-                Độ ẩm hiện tại <strong>{percent(analysis.stats.currentMoisture)}</strong>
+                Độ ẩm đất <strong>{percent(analysis.stats.currentMoisture)}</strong>
               </span>
               <span>
                 Vùng an toàn{" "}
@@ -410,7 +412,7 @@ export function AnalysisApp() {
                   <div>
                     <h2>
                       Gợi ý chăm sóc
-                      <Tooltip text="Dựa trên ngưỡng tưới, nhiệt độ và nguồn nước. Điểm sức khỏe chỉ là đánh giá tham khảo, không thay thế quan sát trực tiếp của người trồng." />
+                      <Tooltip text="Dựa trên ngưỡng tưới, nhiệt độ (theo mùa và loại đất) và nguồn nước. Điểm sức khỏe chỉ là đánh giá tham khảo, không thay thế quan sát trực tiếp của người trồng." />
                     </h2>
                   </div>
                 </div>

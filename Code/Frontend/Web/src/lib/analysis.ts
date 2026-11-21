@@ -37,6 +37,41 @@ export type AnalysisSample = {
   raining: boolean;
 };
 
+type Season = "Mùa khô" | "Mùa mưa";
+
+type ClimateBand = {
+  season: Season;
+  low: number;
+  high: number;
+  humidityLow: number;
+  humidityHigh: number;
+};
+
+function seasonOf(month: number): Season {
+  return month >= 5 && month <= 10 ? "Mùa mưa" : "Mùa khô";
+}
+
+/**
+ * Dải dễ chịu cho vườn rau: mùa khô chịu nóng tốt hơn nhưng không khí khô,
+ * mùa mưa mát hơn nhưng ẩm cao. Đất cát nóng lên nhanh nên hạ trần nhiệt độ,
+ * bazan giữ nhiệt hơn phù sa một chút.
+ */
+function climateBand(soil: SoilType, now: number): ClimateBand {
+  const season = seasonOf(new Date(now).getMonth() + 1);
+  const base =
+    season === "Mùa khô"
+      ? { low: 20, high: 35, humidityLow: 30, humidityHigh: 85 }
+      : { low: 22, high: 32, humidityLow: 50, humidityHigh: 90 };
+  const soilShift = soil === "Đất cát" ? -2 : soil === "Đất đỏ bazan" ? -1 : 0;
+  return {
+    season,
+    low: base.low,
+    high: base.high + soilShift,
+    humidityLow: base.humidityLow,
+    humidityHigh: base.humidityHigh,
+  };
+}
+
 export type AnalysisStatus = "good" | "watch" | "risk" | "unknown";
 
 export type ScoreComponent = {
@@ -76,6 +111,9 @@ type AnalyzeInput = {
   samples: AnalysisSample[];
   zone: Zone;
   soil: SoilType;
+  mode: "auto" | "manual";
+  /** Khoảng gộp của lịch sử, dùng để quy mỗi mẫu ra thời gian đại diện. */
+  bucketMs: number;
   tankDistanceCm: number | null;
   tankEmpty: boolean;
   rainBlock: boolean;
@@ -105,6 +143,8 @@ export function analyzeZone({
   samples,
   zone,
   soil,
+  mode,
+  bucketMs,
   tankDistanceCm,
   tankEmpty,
   rainBlock,
@@ -147,14 +187,38 @@ export function analyzeZone({
   const safeLow = Math.min(zone.threshold, zone.stopThreshold);
   const safeHigh = Math.max(zone.threshold, zone.stopThreshold);
 
-  const inSafeCount = clean.filter(
-    (sample) => sample.moisture >= safeLow && sample.moisture <= safeHigh,
-  ).length;
-  const inSafePct = (inSafeCount / clean.length) * 100;
+  // Mỗi mẫu đại diện cho khoảng thời gian tới mẫu kế (tối đa một bucket).
+  // Khoảng trống dài hơn 2 bucket là mất telemetry, không cộng vào thời gian
+  // quan sát để tỉ lệ % phản ánh thời gian thật thay vì số mẫu.
+  const bucket = Math.max(1, bucketMs);
+  const weights = clean.map((sample, index) => {
+    const next = clean[index + 1];
+    if (!next) return bucket;
+    const raw = next.recordedAt - sample.recordedAt;
+    return raw > bucket * 2 ? bucket : Math.max(0, raw);
+  });
+  const gapAfter = clean.map((sample, index) => {
+    const next = clean[index + 1];
+    return next ? next.recordedAt - sample.recordedAt > bucket * 2 : false;
+  });
+  const totalMs = weights.reduce((total, weight) => total + weight, 0);
+  const safeMs = clean.reduce(
+    (total, sample, index) =>
+      sample.moisture >= safeLow && sample.moisture <= safeHigh
+        ? total + weights[index]
+        : total,
+    0,
+  );
+  const inSafePct = totalMs > 0 ? (safeMs / totalMs) * 100 : 0;
 
   const moistureValues = clean.map((sample) => sample.moisture);
   const avgMoisture =
-    moistureValues.reduce((total, value) => total + value, 0) / moistureValues.length;
+    totalMs > 0
+      ? clean.reduce(
+          (total, sample, index) => total + sample.moisture * weights[index],
+          0,
+        ) / totalMs
+      : latest.moisture;
   const minMoisture = Math.min(...moistureValues);
   const maxMoisture = Math.max(...moistureValues);
 
@@ -162,30 +226,24 @@ export function analyzeZone({
   const isWet = latest.moisture > safeHigh;
 
   let longestDryMs = 0;
-  let dryStart: number | null = null;
-  for (const sample of clean) {
+  let dryRunMs = 0;
+  clean.forEach((sample, index) => {
     if (sample.moisture < safeLow) {
-      if (dryStart === null) dryStart = sample.recordedAt;
-    } else if (dryStart !== null) {
-      longestDryMs = Math.max(longestDryMs, sample.recordedAt - dryStart);
-      dryStart = null;
+      dryRunMs += weights[index];
+      longestDryMs = Math.max(longestDryMs, dryRunMs);
+    } else {
+      dryRunMs = 0;
     }
-  }
-  if (dryStart !== null) {
-    longestDryMs = Math.max(longestDryMs, latest.recordedAt - dryStart);
-  }
+    if (gapAfter[index]) dryRunMs = 0;
+  });
 
   let currentDryMs = 0;
   if (isDry) {
-    let start = latest.recordedAt;
-    for (let index = clean.length - 1; index > 0; index -= 1) {
-      if (clean[index - 1].moisture < safeLow) {
-        start = clean[index - 1].recordedAt;
-      } else {
-        break;
-      }
+    for (let index = clean.length - 1; index >= 0; index -= 1) {
+      if (clean[index].moisture >= safeLow) break;
+      currentDryMs += weights[index];
+      if (index > 0 && gapAfter[index - 1]) break;
     }
-    currentDryMs = latest.recordedAt - start;
   }
 
   let pumpStarts = 0;
@@ -196,25 +254,35 @@ export function analyzeZone({
     if (sample.pump) lastPumpAt = sample.recordedAt;
   });
 
-  const climateSamples = clean.filter(
-    (sample) => typeof sample.temperature === "number" && Number.isFinite(sample.temperature),
-  );
-  let comfortRatio: number | null = null;
-  if (climateSamples.length >= 3) {
-    const comfortCount = climateSamples.filter((sample) => {
-      const temperature = sample.temperature as number;
-      const temperatureOk = temperature >= 18 && temperature <= 33;
-      const humidityOk =
-        typeof sample.humidity === "number"
-          ? sample.humidity >= 40 && sample.humidity <= 85
-          : true;
-      return temperatureOk && humidityOk;
-    }).length;
-    comfortRatio = comfortCount / climateSamples.length;
+  const band = climateBand(soil, Date.now());
+  // Khí hậu là trạng thái hiện tại, không tích luỹ như độ ẩm đất: chấm theo
+  // mẫu DHT22 mới nhất để kéo slider trên Wokwi là điểm đổi ngay.
+  const latestClimate = [...clean]
+    .reverse()
+    .find(
+      (sample) =>
+        typeof sample.temperature === "number" && Number.isFinite(sample.temperature),
+    );
+  let climateScore: number | null = null;
+  let climateNote = "Thiếu dữ liệu DHT22 — không chấm";
+  if (latestClimate) {
+    const temperature = latestClimate.temperature as number;
+    const temperatureOk = temperature >= band.low && temperature <= band.high;
+    const humidityOk =
+      typeof latestClimate.humidity === "number"
+        ? latestClimate.humidity >= band.humidityLow &&
+          latestClimate.humidity <= band.humidityHigh
+        : true;
+    climateScore = temperatureOk && humidityOk ? 25 : 0;
+    const temperatureText = (Math.round(temperature * 10) / 10).toString();
+    const humidityText =
+      typeof latestClimate.humidity === "number"
+        ? `, ${Math.round(latestClimate.humidity)}% RH`
+        : "";
+    climateNote = `Hiện tại ${temperatureText}°C${humidityText} · ${band.season.toLowerCase()}, ${soil.toLowerCase()}: dải ${band.low}–${band.high}°C, ${band.humidityLow}–${band.humidityHigh}% RH`;
   }
 
-  const moistureScore = Math.round(60 * (inSafeCount / clean.length));
-  const climateScore = comfortRatio === null ? null : Math.round(25 * comfortRatio);
+  const moistureScore = totalMs > 0 ? Math.round(60 * (safeMs / totalMs)) : 0;
 
   let waterScore: number | null;
   let waterNote: string;
@@ -222,8 +290,14 @@ export function analyzeZone({
     waterScore = 0;
     waterNote = "Bồn đã cạn, bơm đang bị chặn";
   } else if (tankDistanceCm !== null) {
-    waterScore = 15;
-    waterNote = `Cách miệng bồn ${Math.round(tankDistanceCm)} cm`;
+    // Cảm biến đo khoảng cách từ miệng bồn; bồn cao 100 cm nên mức nước
+    // xấp xỉ 100 − distance. Chấm theo mức thay vì cho điểm tối đa mọi lúc.
+    const waterPercent = Math.max(
+      0,
+      Math.min(100, Math.round(100 - tankDistanceCm)),
+    );
+    waterScore = Math.round((15 * waterPercent) / 100);
+    waterNote = `Bồn còn khoảng ${waterPercent}% · cách miệng ${Math.round(tankDistanceCm)} cm`;
   } else {
     waterScore = null;
     waterNote = "Thiếu dữ liệu mực nước bồn — không chấm";
@@ -242,21 +316,36 @@ export function analyzeZone({
   const missingSources = 3 - scored.length;
 
   let status: AnalysisStatus = score >= 80 ? "good" : score >= 55 ? "watch" : "risk";
-  if (isDry && status === "good") status = "watch";
   if (isWet && status === "good") status = "watch";
   if (status === "good" && missingSources > 0) status = "watch";
-  if (isDry && !latest.pump && currentDryMs >= 30 * 60 * 1000) status = "risk";
+  if (isWet && latest.pump) status = "risk";
+  if (isDry) {
+    if (latest.pump) {
+      // Dưới ngưỡng khi bơm đang chạy là hệ thống đang bù nước, không phải nguy cơ.
+      status = "watch";
+    } else {
+      // AUTO có 30 phút để tự bật bơm; MANUAL cần người tưới ngay.
+      const needsAction = mode === "manual" || currentDryMs >= 30 * 60 * 1000;
+      status = needsAction ? "risk" : "watch";
+    }
+  }
   if (tankEmpty && isDry) status = "risk";
 
   const headline =
-    status === "good" ? "Cây đang ổn" : status === "watch" ? "Cần chú ý" : "Có nguy cơ";
+    isDry && latest.pump
+      ? "Đang tưới"
+      : status === "good"
+        ? "Cây đang ổn"
+        : status === "watch"
+          ? "Cần chú ý"
+          : "Có nguy cơ";
 
   const summaryParts: string[] = [];
   if (isDry) {
     summaryParts.push(
-      `Độ ẩm đất ${percentText(latest.moisture)} đang dưới ngưỡng tưới ${Math.round(safeLow)}%${
-        latest.pump ? " và bơm đã chạy." : "."
-      }`,
+      latest.pump
+        ? `Độ ẩm đất ${percentText(latest.moisture)} dưới ngưỡng tưới ${Math.round(safeLow)}%; bơm đang chạy, chờ đạt ngưỡng dừng ${Math.round(safeHigh)}%.`
+        : `Độ ẩm đất ${percentText(latest.moisture)} đang dưới ngưỡng tưới ${Math.round(safeLow)}%.`,
     );
   } else if (isWet) {
     summaryParts.push(
@@ -269,7 +358,7 @@ export function analyzeZone({
   }
   if (inSafePct < 60) {
     summaryParts.push(
-      `Chỉ ${Math.round(inSafePct)}% mẫu dữ liệu nằm trong vùng an toàn trong khoảng đang xem.`,
+      `Chỉ ${Math.round(inSafePct)}% thời gian quan sát nằm trong vùng an toàn.`,
     );
   }
   if (tankEmpty) {
@@ -283,8 +372,10 @@ export function analyzeZone({
   if (isDry) {
     advice.push(
       latest.pump
-        ? `Đất đang khô ${formatDuration(currentDryMs)} và bơm đã chạy — theo dõi độ ẩm có tăng lại không.`
-        : `Đất khô liên tục ${formatDuration(currentDryMs)}, dưới ngưỡng ${Math.round(safeLow)}% — kiểm tra bơm/vòi hoặc tăng lượng nước mỗi lần.`,
+        ? `Bơm đang bù nước (đã khô ${formatDuration(currentDryMs)}) — chờ độ ẩm đạt ngưỡng dừng ${Math.round(safeHigh)}% rồi kiểm tra lại.`
+        : mode === "auto"
+          ? `Đất khô ${formatDuration(currentDryMs)} dưới ngưỡng ${Math.round(safeLow)}% — chế độ Tự động sẽ bật bơm; nếu quá 30 phút vẫn khô, kiểm tra bơm và đường ống.`
+          : `Đất khô ${formatDuration(currentDryMs)} dưới ngưỡng ${Math.round(safeLow)}% — bật bơm thủ công hoặc tăng lượng nước mỗi lần.`,
     );
   }
   if (isWet) {
@@ -307,9 +398,13 @@ export function analyzeZone({
       `Đang mưa ${percentText(latest.rain)} nhưng chưa bật "Hoãn tưới khi có mưa".`,
     );
   }
-  if (typeof latest.temperature === "number" && latest.temperature > 33) {
+  if (
+    latestClimate &&
+    typeof latestClimate.temperature === "number" &&
+    latestClimate.temperature > band.high
+  ) {
     advice.push(
-      `Nhiệt độ ${Math.round(latest.temperature)}°C khá cao — cây thoát hơi mạnh, nên tưới sáng sớm hoặc chiều mát.`,
+      `Nhiệt độ ${Math.round(latestClimate.temperature)}°C cao hơn dải dễ chịu ${band.low}–${band.high}°C (${band.season.toLowerCase()}, ${soil.toLowerCase()}) — cây thoát hơi mạnh, nên tưới sáng sớm hoặc chiều mát.`,
     );
   }
   if (tankEmpty) {
@@ -354,17 +449,14 @@ export function analyzeZone({
         label: "Độ ẩm trong vùng an toàn",
         score: moistureScore,
         max: 60,
-        note: `${Math.round(inSafePct)}% mẫu dữ liệu`,
+        note: `${Math.round(inSafePct)}% thời gian quan sát`,
       },
       {
         key: "climate",
         label: "Thời tiết dễ chịu",
         score: climateScore,
         max: 25,
-        note:
-          comfortRatio === null
-            ? "Thiếu dữ liệu DHT22 — không chấm"
-            : `${Math.round(comfortRatio * 100)}% mẫu trong khoảng 18–33°C`,
+        note: climateNote,
       },
       {
         key: "water",
