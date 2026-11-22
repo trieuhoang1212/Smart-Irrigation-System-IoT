@@ -1,11 +1,9 @@
 import type { Router } from "express";
 import { gardenConfig } from "../../garden-config.js";
 import { getLatestTelemetry } from "../../live.js";
-import {
-  deleteHistoryBefore,
-  getTelemetryHistory,
-  getWateringOverview,
-} from "../../telemetry-repository.js";
+import { deleteHistoryBefore } from "../../retention.js";
+import { getTelemetryHistory } from "../../telemetry-repository.js";
+import { getWateringOverview } from "../../watering-repository.js";
 import { isZoneId } from "../../zone-settings-repository.js";
 import { queryNumber } from "../query.js";
 

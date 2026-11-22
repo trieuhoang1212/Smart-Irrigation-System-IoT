@@ -3,7 +3,7 @@ import type { Router } from "express";
 import { type CommandRequest, toMqttCommand } from "../../domain.js";
 import { getLatestTelemetry, trackCommand } from "../../live.js";
 import type { MqttGateway } from "../../mqtt-gateway.js";
-import { listCommands, logCommand } from "../../telemetry-repository.js";
+import { listCommands, logCommand } from "../../command-log-repository.js";
 import {
   clampStopThreshold,
   clampThreshold,

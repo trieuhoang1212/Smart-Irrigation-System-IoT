@@ -1,5 +1,5 @@
 import { ZONE_IDS, type Telemetry } from "../domain.js";
-import { resolveCommand } from "../telemetry-repository.js";
+import { resolveCommand } from "../command-log-repository.js";
 import { broadcast } from "./broadcaster.js";
 
 const DEVICE_TIMEOUT_MS = 6000;

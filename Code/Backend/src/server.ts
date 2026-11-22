@@ -8,11 +8,9 @@ import { gardenConfig } from "./garden-config.js";
 import { getLiveStats, startLive, stopLive } from "./live.js";
 import { MqttGateway } from "./mqtt-gateway.js";
 import { createApiRouter } from "./http/router.js";
-import {
-  backfillWateringRuns,
-  pruneHistory,
-  timeoutStaleCommands,
-} from "./telemetry-repository.js";
+import { timeoutStaleCommands } from "./command-log-repository.js";
+import { pruneHistory } from "./retention.js";
+import { backfillWateringRuns } from "./watering-repository.js";
 import { seedZoneSettings } from "./zone-settings-repository.js";
 import { seedZoneProfiles } from "./zone-profile-repository.js";
 import { uploadDir } from "./uploads.js";
