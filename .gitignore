@@ -36,3 +36,4 @@ docs
 .vscode
 **/*firebase-adminsdk*.json
 **/*service-account*.json
+.qoder/skills/run-smart-irrigation/SKILL.md

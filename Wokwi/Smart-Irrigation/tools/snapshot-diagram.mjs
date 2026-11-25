@@ -1,8 +1,5 @@
-// Chép giá trị đang chạy của Wokwi vào diagram.json, để lần Stop/Play sau
-// Wokwi mở lại đúng chiết áp, nhiệt độ và mực nước vừa kéo.
-// Chạy khi Wokwi vẫn đang chạy (số liệu còn mới):
-//   node Wokwi/Smart-Irrigation/tools/snapshot-diagram.mjs
-// Đổi Backend hoặc thiết bị bằng biến môi trường IOT_API, IOT_DEVICE.
+// Chép giá trị đang chạy của Wokwi vào diagram.json, để lần Stop/Play sau Wokwi mở lại đúng chiết áp, nhiệt độ và mực nước vừa kéo
+
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,7 +35,6 @@ function setAttrs(partId, attrs) {
   diagram = diagram.replace(pattern, `$1{ ${body} }`);
 }
 
-// Chiết áp 0..1023 ứng với ADC 0..4095, hiệu chuẩn 0..4095 = 0..100%.
 const potValue = (moisture) => Math.round((moisture / 100) * 1023);
 
 telemetry.zones.forEach((zone, index) => {

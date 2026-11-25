@@ -18,8 +18,7 @@ static void persistSoilState(int zone) {
   lastPersistedSoil[zone] = soilMoisture[zone];
 }
 
-// Nóng thì đất khô nhanh hơn, không khí ẩm hoặc đang mưa thì khô chậm lại.
-// Sàn 0,6 giữ tốc độ khô đủ nhanh khi phòng mát để demo một vòng trong ~15 phút.
+// tạo logic nóng thì đất khô nhanh hơn, không khí ẩm hoặc đang mưa thì khô chậm lại
 static float soilDryingFactor() {
   float factor = 1.0f;
   if (!isnan(temperature)) {

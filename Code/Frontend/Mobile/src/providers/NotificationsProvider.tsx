@@ -111,7 +111,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (current !== "granted") {
         return {
           ok: false,
-          message: "Bạn cần cho phép thông báo trong cài đặt của điện thoại.",
+          message: "Bạn cần cho phép thông báo trong cài đặt của điện thoại",
         };
       }
 
@@ -121,14 +121,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
           ok: false,
           message:
             result.reason === "projectId"
-              ? "Chưa có EAS projectId nên chưa nhận được thông báo từ xa. Thêm extra.eas.projectId vào app.json."
-              : "Chưa lấy được mã thông báo. Hãy chạy bản dev build và kiểm tra kết nối mạng.",
+              ? "Chưa có EAS projectId nên chưa nhận được thông báo từ xa. Thêm extra.eas.projectId vào app.json"
+              : "Chưa lấy được mã thông báo. Hãy chạy bản dev build và kiểm tra kết nối mạng",
         };
       }
 
       await registerPushToken(DEVICE_ID, result.token, platformName());
       await refresh();
-      return { ok: true, message: "Đã bật thông báo cho khu vườn." };
+      return { ok: true, message: "Đã bật thông báo cho khu vườn" };
     } catch (err) {
       const message =
         err instanceof Error
