@@ -289,3 +289,241 @@
   font-size: 12px;
   font-weight: 500;
 }
+
+/* ==========================================================================
+   MÔI TRƯỜNG TOÀN VƯỜN (cảm biến dùng chung)
+   ========================================================================== */
+.environment-panel {
+  padding: 18px 20px 16px;
+}
+
+.environment-error {
+  margin: 8px 0 0;
+  color: var(--red);
+  font-size: 12px;
+}
+
+.environment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.env-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.env-metric-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.env-metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.env-metric-value small {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.env-spark {
+  display: block;
+  width: 100%;
+  height: 52px;
+}
+
+.env-metric-range {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.env-metric-range strong {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.env-metric-empty {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+/* ==========================================================================
+   DONUT NƯỚC TƯỚI THEO KHU
+   ========================================================================== */
+.water-donut-card {
+  padding: 18px 20px 16px;
+}
+
+.donut-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+}
+
+.donut-svg {
+  width: 168px;
+  height: 168px;
+}
+
+.donut-track {
+  stroke: var(--surface-3);
+}
+
+.donut-total {
+  fill: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 600;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-caption {
+  fill: var(--faint);
+  font-size: 7.5px;
+  text-anchor: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.donut-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.donut-legend-row.zero {
+  opacity: 0.5;
+}
+
+.donut-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.donut-legend-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-legend-value {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-legend-pct {
+  min-width: 34px;
+  color: var(--faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-empty {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* Màn hình lớn: trang lịch sử cao bằng khung nhìn, biểu đồ độ ẩm hút phần dư
+   để không còn mảng trống lớn dưới đáy. */
+@container page (min-width: 921px) {
+  .history-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .history-page > .topbar,
+  .history-page > .sync-banner {
+    flex: none;
+  }
+
+  .history-page .bento-dashboard {
+    flex: 1 1 auto;
+    align-items: stretch;
+  }
+
+  .history-page .history-panel {
+    --history-fill: 1;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+  }
+
+  .history-page .history-chart {
+    flex: 1 1 auto;
+    min-height: 240px;
+  }
+
+  /* SVG nằm trong khung tuyệt đối: chiều cao khung không phụ thuộc tỉ lệ SVG,
+     tránh vòng lặp đo lại giữa khung và biểu đồ. */
+  .history-page .history-svg {
+    position: absolute;
+    inset: 8px 10px 0;
+    width: auto;
+    height: auto;
+  }
+
+  .history-page .history-empty {
+    position: absolute;
+    inset: 8px 10px 0;
+  }
+}
+
+@container page (max-width: 920px) {
+  .environment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container page (max-width: 620px) {
+  .environment-grid {
+    grid-template-columns: 1fr;
+  }
+}

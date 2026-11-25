@@ -20,8 +20,10 @@ export type HistorySample = {
   mode: "auto" | "manual";
 };
 
-type RangeKey = "1h" | "24h" | "7d";
+export type RangeKey = "1h" | "24h" | "7d";
 type MetricKey = "moisture" | "temperature" | "humidity" | "rain";
+
+const ALL_METRICS: MetricKey[] = ["moisture", "temperature", "humidity", "rain"];
 
 const RANGES: Record<RangeKey, { label: string; durationMs: number; bucketMs: number }> = {
   "1h": { label: "1 giờ", durationMs: 60 * 60 * 1000, bucketMs: 30 * 1000 },
@@ -70,6 +72,10 @@ export function HistoryChart({
   compact = false,
   focusAt = null,
   onPointSelect,
+  allowedMetrics = ALL_METRICS,
+  range: rangeProp,
+  onRangeChange,
+  fill = false,
 }: {
   backendUrl: string;
   deviceId: string | null;
@@ -81,9 +87,18 @@ export function HistoryChart({
   compact?: boolean;
   focusAt?: number | null;
   onPointSelect?: (sample: HistorySample) => void;
+  /** Giới hạn chỉ số được hiển thị; mặc định đủ cả bốn. */
+  allowedMetrics?: MetricKey[];
+  /** Cho phép trang cha giữ khoảng thời gian và chia sẻ với panel khác. */
+  range?: RangeKey;
+  onRangeChange?: (range: RangeKey) => void;
+  /** Giãn biểu đồ theo chiều cao khung chứa thay vì theo tỉ lệ khung hình cố định. */
+  fill?: boolean;
 }) {
-  const [range, setRange] = useState<RangeKey>("24h");
-  const [metric, setMetric] = useState<MetricKey>("moisture");
+  const [internalRange, setInternalRange] = useState<RangeKey>("24h");
+  const range = rangeProp ?? internalRange;
+  const setRange = onRangeChange ?? setInternalRange;
+  const [metric, setMetric] = useState<MetricKey>(allowedMetrics[0] ?? "moisture");
   const [samples, setSamples] = useState<HistorySample[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +106,55 @@ export function HistoryChart({
   const [now, setNow] = useState<number | null>(null);
   const requestRef = useRef(0);
   const chartWrapRef = useRef<HTMLDivElement>(null);
+  const [fillSize, setFillSize] = useState<{ width: number; height: number } | null>(null);
+
+  // Ở chế độ fill, khung chứa quyết định chiều cao; đổi viewBox theo đúng tỉ lệ
+  // khung để SVG giãn kín chỗ mà không bóp méo nét vẽ và chữ.
+  useEffect(() => {
+    if (!fill) {
+      setFillSize(null);
+      return;
+    }
+    const wrap = chartWrapRef.current;
+    const panel = wrap?.parentElement ?? null;
+    if (!wrap || !panel) return;
+    const measure = () => {
+      // CSS chỉ bật biến này khi khung biểu đồ thực sự giãn theo chiều cao;
+      // ngoài chế độ đó biểu đồ giữ nguyên tỉ lệ khung hình như cũ.
+      if (getComputedStyle(panel).getPropertyValue("--history-fill").trim() !== "1") {
+        setFillSize(null);
+        return;
+      }
+      const style = window.getComputedStyle(wrap);
+      const width =
+        wrap.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight);
+      const height =
+        wrap.clientHeight -
+        parseFloat(style.paddingTop) -
+        parseFloat(style.paddingBottom);
+      if (width < 320 || height < 120) {
+        setFillSize(null);
+        return;
+      }
+      setFillSize((prev) =>
+        prev &&
+        Math.abs(prev.width - width) < 2 &&
+        Math.abs(prev.height - height) < 2
+          ? prev
+          : { width, height },
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, [fill]);
+
+  const viewHeight = fillSize
+    ? Math.round((CHART.width * fillSize.height) / fillSize.width)
+    : CHART.height;
 
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -193,7 +257,7 @@ export function HistoryChart({
     const to = series[series.length - 1].recordedAt;
     const span = Math.max(1, to - from);
     const plotWidth = CHART.width - CHART.left - CHART.right;
-    const plotHeight = CHART.height - CHART.top - CHART.bottom;
+    const plotHeight = viewHeight - CHART.top - CHART.bottom;
     const toX = (timestamp: number) =>
       CHART.left + ((timestamp - from) / span) * plotWidth;
     const toY = (value: number) =>
@@ -255,7 +319,7 @@ export function HistoryChart({
       focusX,
       focusPoint,
     };
-  }, [series, metric, focusAt]);
+  }, [series, metric, focusAt, viewHeight]);
 
   // Trên mobile biểu đồ cuộn ngang: đưa mốc nhật ký vào giữa khung nhìn.
   const focusX = chart?.focusX ?? null;
@@ -322,7 +386,7 @@ export function HistoryChart({
     <div className="history-chart" ref={chartWrapRef}>
       {chart ? (
         <svg
-          viewBox={`0 0 ${CHART.width} ${CHART.height}`}
+          viewBox={`0 0 ${CHART.width} ${viewHeight}`}
           role="img"
           aria-label={`Biểu đồ ${METRICS[metric].label} của ${activeZone}`}
           className={`history-svg ${onPointSelect ? "clickable" : ""}`}
@@ -364,7 +428,7 @@ export function HistoryChart({
             <text
               key={`x-${index}`}
               x={tick.x}
-              y={CHART.height - 8}
+              y={viewHeight - 8}
               textAnchor={index === 0 ? "start" : index === 3 ? "end" : "middle"}
               className="history-axis-text"
             >
@@ -619,20 +683,22 @@ export function HistoryChart({
         </div>
       </div>
 
-      <div className="history-metrics">
-        {(Object.keys(METRICS) as MetricKey[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            className={`history-metric ${metric === key ? "selected" : ""}`}
-            aria-pressed={metric === key}
-            onClick={() => setMetric(key)}
-          >
-            <i style={{ background: METRICS[key].color }} />
-            {METRICS[key].label}
-          </button>
-        ))}
-      </div>
+      {allowedMetrics.length > 1 && (
+        <div className="history-metrics">
+          {allowedMetrics.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`history-metric ${metric === key ? "selected" : ""}`}
+              aria-pressed={metric === key}
+              onClick={() => setMetric(key)}
+            >
+              <i style={{ background: METRICS[key].color }} />
+              {METRICS[key].label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {onPointSelect && (
         <p className="history-hint">

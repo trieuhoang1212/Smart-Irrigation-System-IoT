@@ -81,6 +81,9 @@
   }
 
   html[data-rail="collapsed"] .bento-col-side {
+    /* size containment: cột thu về 0 mà nội dung bên trong (bị ép về bề ngang 0)
+       không kéo chiều cao hàng lưới lên hàng nghìn px tạo mảng trống. */
+    contain: size;
     overflow: hidden;
     opacity: 0;
     transform: translateX(16px);
