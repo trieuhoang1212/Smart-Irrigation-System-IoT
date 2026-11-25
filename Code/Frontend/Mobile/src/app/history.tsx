@@ -2,11 +2,9 @@ import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ZONE_IDS } from "@/api/types";
-import {
-  HistoryChart,
-  HISTORY_METRICS,
-  type HistoryMetric,
-} from "@/components/history/HistoryChart";
+import { EnvironmentPanel } from "@/components/history/EnvironmentPanel";
+import { HistoryChart } from "@/components/history/HistoryChart";
+import { WaterDonut } from "@/components/history/WaterDonut";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Screen } from "@/components/layout/Screen";
 import { LedgerTabs } from "@/components/ui/LedgerTabs";
@@ -14,6 +12,7 @@ import { Panel } from "@/components/ui/Panel";
 import { Reveal } from "@/components/ui/Reveal";
 import { ZoneGrid } from "@/components/zones/ZoneGrid";
 import { HISTORY_RANGES, useHistory, type RangeKey } from "@/hooks/useHistory";
+import { useWatering } from "@/hooks/useWatering";
 import { useGarden } from "@/providers/GardenProvider";
 import { typo, type Palette } from "@/theme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
@@ -23,34 +22,40 @@ const RANGE_OPTIONS: { value: RangeKey; label: string }[] = (
   Object.keys(HISTORY_RANGES) as RangeKey[]
 ).map((key) => ({ value: key, label: HISTORY_RANGES[key].label }));
 
-const METRIC_OPTIONS: { value: HistoryMetric; label: string }[] = [
-  { value: "moisture", label: "Độ ẩm đất" },
-  { value: "temperature", label: "Nhiệt độ" },
-  { value: "humidity", label: "Độ ẩm khí" },
-  { value: "rain", label: "Mưa" },
-];
-
 export default function HistoryScreen() {
   const styles = useThemedStyles(createStyles);
   const { deviceId, zones, deviceOnline, lastTelemetryAt } = useGarden();
 
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("24h");
-  const [metric, setMetric] = useState<HistoryMetric>("moisture");
 
   const zone = zones.find((item) => item.id === zoneId) ?? zones[0];
   const activeZoneId = zone?.id ?? ZONE_IDS[0];
-  const { samples, loading: chartLoading, error, reload } = useHistory({
-    deviceId,
-    zoneId: activeZoneId,
-    range,
-  });
+  // Cảm biến môi trường dùng chung: lấy đại diện một khu cố định để biểu đồ
+  // không đổi theo khu đang chọn.
+  const envZoneId = zones[0]?.id ?? activeZoneId;
+
+  const {
+    samples,
+    loading: chartLoading,
+    error,
+    reload: reloadHistory,
+  } = useHistory({ deviceId, zoneId: activeZoneId, range });
+  const {
+    samples: envSamples,
+    loading: envLoading,
+    error: envError,
+    reload: reloadEnvironment,
+  } = useHistory({ deviceId, zoneId: envZoneId, range });
+  const { byZone, reload: reloadWatering } = useWatering(deviceId);
 
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    void reload().finally(() => setRefreshing(false));
-  }, [reload]);
+    void Promise.all([reloadHistory(), reloadEnvironment(), reloadWatering()]).finally(
+      () => setRefreshing(false),
+    );
+  }, [reloadHistory, reloadEnvironment, reloadWatering]);
 
   return (
     <Screen refreshing={refreshing} onRefresh={handleRefresh}>
@@ -75,23 +80,22 @@ export default function HistoryScreen() {
       <Reveal index={1}>
         <Panel
           index="02"
-          title={HISTORY_METRICS[metric].label}
+          title="Độ ẩm đất"
           hint={zone ? zone.name : undefined}
           footer={
             <View style={styles.footer}>
-              <Pressable accessibilityRole="button" onPress={reload} hitSlop={8}>
+              <Pressable accessibilityRole="button" onPress={reloadHistory} hitSlop={8}>
                 <Text style={styles.reload}>Tải lại</Text>
               </Pressable>
             </View>
           }
         >
-          <LedgerTabs options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
           <LedgerTabs options={RANGE_OPTIONS} value={range} onChange={setRange} />
 
           <View style={styles.chartBlock}>
             <HistoryChart
               response={{ samples, bucketMs: HISTORY_RANGES[range].bucketMs }}
-              metric={metric}
+              metric="moisture"
               range={range}
               loading={chartLoading}
               error={error}
@@ -99,6 +103,14 @@ export default function HistoryScreen() {
             />
           </View>
         </Panel>
+      </Reveal>
+
+      <Reveal index={2}>
+        <EnvironmentPanel samples={envSamples} loading={envLoading} error={envError} />
+      </Reveal>
+
+      <Reveal index={3}>
+        <WaterDonut zones={zones} byZone={byZone} />
       </Reveal>
     </Screen>
   );

@@ -116,6 +116,17 @@ export type HistoryResponse = {
   bucketMs: number;
 };
 
+export type ZoneWateringSummary = {
+  zoneId: string;
+  todayLiters: number;
+  todayRuns: number;
+};
+
+export type WateringResponse = {
+  deviceId: string;
+  zones: ZoneWateringSummary[];
+};
+
 export type HealthResponse = {
   ok: boolean;
   mqtt: boolean;
