@@ -23,7 +23,7 @@ import {
   latestByDevice,
   onlineByDevice,
 } from "./state.js";
-import { resyncDeviceConfig } from "./sync.js";
+import { resyncDeviceConfig } from "./resyncDeviceConfig.js";
 
 const DEVICE_TIMEOUT_MS = 6000;
 const HISTORY_WRITE_INTERVAL_MS = 5_000;

@@ -1,9 +1,8 @@
 import { targetSecondsFor, type Telemetry } from "../domain.js";
 import { getGardenRainThreshold } from "../garden-settings-repository.js";
 import type { MqttGateway } from "../mqtt-gateway.js";
-import { getZoneSettings, type ZoneSetting } from "../zone-settings-repository.js";
+import { type ZoneSetting } from "../zone-settings-repository.js";
 
-// Không gửi lại cùng một cấu hình xuống thiết bị quá dày.
 const SYNC_COOLDOWN_MS = 10_000;
 
 const lastThresholdSyncAt = new Map<string, number>();
@@ -12,24 +11,6 @@ const lastTargetSyncAt = new Map<string, number>();
 const lastFlowSyncAt = new Map<string, number>();
 const lastRainThresholdSyncAt = new Map<string, number>();
 
-/**
- * Đồng bộ cấu hình trong DB xuống thiết bị sau mỗi telemetry live.
- * Retained telemetry là snapshot cũ nên nơi gọi không được chạy hàm này.
- */
-export async function resyncDeviceConfig(
-  telemetry: Telemetry,
-  gateway: MqttGateway,
-): Promise<void> {
-  const settings = await getZoneSettings(telemetry.deviceId);
-  if (settings.length === 0) return;
-
-  // Ngưỡng dừng chạy sau ngưỡng bật để giá trị cuối cùng khớp với DB.
-  resyncThresholds(telemetry, gateway, settings);
-  resyncStopThresholds(telemetry, gateway, settings);
-  resyncTargets(telemetry, gateway, settings);
-  resyncFlows(telemetry, gateway, settings);
-  await resyncRainThreshold(telemetry, gateway);
-}
 
 export function resyncThresholds(
   telemetry: Telemetry,
