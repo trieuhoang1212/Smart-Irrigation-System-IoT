@@ -197,7 +197,81 @@
 
 .garden-detail-photo {
   width: 100%;
-  height: 150px;
+  height: 140px;
+}
+
+.garden-detail-photo.strata-mode {
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.zone-strata-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 12px 14px;
+  position: relative;
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface-3) 48%, var(--surface-4) 100%);
+}
+
+.strata-horizon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.strata-top {
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line-strong);
+}
+
+.strata-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strata-crop {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.strata-type {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.strata-depth {
+  color: var(--faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.strata-root {
+  padding-top: 8px;
+}
+
+.strata-label {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.strata-stamp {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  opacity: 0.25;
+}
+
+.strata-code {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -1px;
 }
 
 .garden-detail-head {

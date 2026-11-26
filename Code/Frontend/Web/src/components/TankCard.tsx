@@ -73,12 +73,12 @@ export function TankCard({ tankDistanceCm, tankEmpty }: TankCardProps) {
 
       <p className="tank-caption">
         {tankEmpty
-          ? "Bồn nước đã cạn: hệ thống tự động khóa bơm để chống cháy thiết bị."
+          ? "Bồn nước đã cạn — tự động khóa bơm chống chạy khô"
           : waterPercent === null
-            ? "Chưa nhận được số đo từ cảm biến."
+            ? "Chưa nhận được số đo từ cảm biến"
             : waterPercent <= 25
-              ? "Mực nước xuống thấp: nên sớm châm thêm nước vào bồn."
-              : "Mực nước dồi dào, sẵn sàng phục vụ các lượt tưới tự động."}
+              ? "Mực nước thấp — cần châm thêm nước"
+              : "Mực nước ổn định cho các lượt tưới tự động"}
       </p>
 
       <div className="health-footer">

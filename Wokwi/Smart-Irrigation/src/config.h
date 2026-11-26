@@ -56,7 +56,6 @@ constexpr int RAIN_HYSTERESIS = 5;
 constexpr int RAIN_PWM_MAX_SAMPLES = 90;
 
 // Mô phỏng độ ẩm: 1 L nước nâng khoảng 2% độ ẩm vùng.
-// Tốc độ tăng (%/phút) = SOIL_PERCENT_PER_LITER * lưu lượng (L/giờ) / 60.
 constexpr float SOIL_PERCENT_PER_LITER = 2.0f;
 constexpr float SOIL_DRY_PER_MIN = 3.5f;
 constexpr float SOIL_MANUAL_PER_SEC = 20.0f;
@@ -64,7 +63,6 @@ constexpr unsigned long SOIL_STEP_CAP_MS = 10000UL;
 constexpr unsigned long SOIL_PERSIST_INTERVAL_MS = 30000UL;
 
 // Wokwi: chiết áp 0 -> khô, 4095 -> ướt.
-// Cảm biến thật thường đảo chiều, ví dụ đo được khô 3000 và ướt 1200 thì đổi hai số này.
 constexpr int SOIL_ADC_DRY = 0;
 constexpr int SOIL_ADC_WET = 4095;
 static_assert(SOIL_ADC_DRY != SOIL_ADC_WET, "Hai moc hieu chuan ADC phai khac nhau");
@@ -76,13 +74,12 @@ constexpr unsigned long TANK_STALE_MS = 10000UL;
 // Một xung nhiễu không đủ để đổi trạng thái bồn: cần 2 lần đọc liên tiếp.
 constexpr int TANK_CONFIRM_READS = 2;
 
-// 1: mô phỏng động học đất (bơm chạy thì ẩm lên, tắt thì khô dần), chiết áp là tay chỉnh.
-// 0: chiết áp là số đo trực tiếp, bơm chạy không làm đổi số đo.
+// mô phỏng động học đất (bơm chạy thì ẩm lên, tắt thì khô dần), chiết áp là tay chỉnh.
 #ifndef SIMULATE_SOIL_DYNAMICS
 #define SIMULATE_SOIL_DYNAMICS 1
 #endif
 
-// So sánh millis an toàn khi bộ đếm tràn sau ~49,7 ngày.
+
 inline bool elapsedSince(unsigned long now, unsigned long since, unsigned long interval) {
   return now - since >= interval;
 }

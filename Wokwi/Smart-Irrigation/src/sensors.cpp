@@ -27,7 +27,6 @@ void updateClimate() {
   humidity = dht.readHumidity();
 }
 
-// Lấy trung vị 9 mẫu để bỏ qua nhiễu, rồi quy đổi ADC -> % theo hai mốc hiệu chuẩn.
 static int readDirectMoisture(int pin) {
   int samples[9];
   for (int sample = 0; sample < 9; sample++) {
@@ -67,6 +66,6 @@ float readTankDistanceCm() {
   digitalWrite(TANK_TRIG_PIN, LOW);
 
   const unsigned long duration = pulseIn(TANK_ECHO_PIN, HIGH, 30000UL);
-  if (duration == 0) return -1;  // cảm biến không trả về xung
+  if (duration == 0) return -1;
   return duration / 58.0;
 }

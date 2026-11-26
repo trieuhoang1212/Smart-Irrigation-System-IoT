@@ -1,8 +1,6 @@
 import { Pool, types, type PoolClient } from "pg";
 import { config } from "./config.js";
 
-// Mọi cột số trong schema đều nhỏ hơn 2^53; pg trả BIGINT/NUMERIC dạng chuỗi
-// nên đổi sẵn về number để tầng trên không phải parse thủ công.
 types.setTypeParser(types.builtins.INT8, (value) => Number(value));
 types.setTypeParser(types.builtins.NUMERIC, (value) => Number(value));
 

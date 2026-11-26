@@ -213,9 +213,7 @@ export default function App() {
               <div className="panel-heading">
                 <div>
                   <h2>Sơ đồ các ô trồng</h2>
-                  <p>
-                    {zones.length} ô trồng · Đang xem: {selectedZone.id} ({selectedZone.name})
-                  </p>
+                  <p>{zones.length} ô trồng trong hệ thống</p>
                 </div>
                 <Link className="link-button" href={zoneHref("/garden", selectedZone.id)}>
                   <EditIcon size={14} />

@@ -4,7 +4,7 @@ export const CROP_GROUPS = [
   "Cây lấy củ",
   "Cây gia vị",
   "Cây hoa cảnh",
-  "Cây ăn quả / thân gỗ",
+  "Cây ăn quả",
   "Sen đá / Xương rồng",
   "Cây trong nhà",
   "Hoa lan",
@@ -47,7 +47,7 @@ export const GROUP_WATER_HINTS: Record<CropGroup, WaterWindowHint> = {
     end: "08:00",
     note: "Chỉ tưới vào gốc, tránh làm ướt cánh hoa.",
   },
-  "Cây ăn quả / thân gỗ": {
+  "Cây ăn quả": {
     label: "Sáng sớm hoặc chiều mát",
     start: "05:30",
     end: "07:30",

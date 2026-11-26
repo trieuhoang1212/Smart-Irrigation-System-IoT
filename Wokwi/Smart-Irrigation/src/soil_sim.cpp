@@ -47,13 +47,12 @@ void soilSetup() {
 #endif
 }
 
-// Wokwi xoá flash/NVS mỗi lần Restart, nên khôi phục thêm từ retained status:
-// bản tin cuối cùng trên broker vẫn giữ độ ẩm của lần chạy trước.
+// Wokwi xoá flash/NVS mỗi lần Restart
 void soilRestoreFromRetained(const String& json) {
 #if SIMULATE_SOIL_DYNAMICS
   int restored = 0;
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
-    // NVS vẫn là nguồn ưu tiên trên board thật.
+    // NVS vẫn là nguồn ưu tiên trên board thật
     if (soilStateRestored[zone]) continue;
     const int idAt = json.indexOf(String("\"id\":\"") + zoneNames[zone] + "\"");
     if (idAt < 0) continue;
@@ -84,7 +83,7 @@ void soilOnPumpStopped(int zone, bool wasRunning) {
 
 void soilUpdate(unsigned long elapsedMs) {
 #if SIMULATE_SOIL_DYNAMICS
-  // Bơm chạy thì đất ẩm lên, tắt thì khô dần; chiết áp đóng vai trò tay chỉnh nhanh.
+  // Bơm chạy thì đất ẩm lên, tắt thì khô dần
   const float dtMin = elapsedMs / 60000.0f;
   const float dtSec = elapsedMs / 1000.0f;
   const float dryFactor = soilDryingFactor();
@@ -92,14 +91,13 @@ void soilUpdate(unsigned long elapsedMs) {
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
     const int pot = readZoneMoisture(zone);
     if (lastPotValue[zone] < 0) {
-      // Không ghi đè giá trị đã khôi phục sau reset; vùng chưa có dữ liệu thì lấy
-      // chiết áp làm gốc để Wokwi luôn tự có số liệu, kể cả khi Backend tắt.
+      // Không ghi đè giá trị đã khôi phục sau reset
       if (!soilStateRestored[zone]) {
         soilMoisture[zone] = pot;
         soilManualTarget[zone] = pot;
       }
     } else {
-      // Cộng dồn thay đổi thay vì so từng mẫu: kéo chậm 1%/2 giây vẫn phải bám kịp.
+      // Cộng dồn thay đổi thay vì so từng mẫu
       soilPotDrift[zone] += pot - lastPotValue[zone];
       if (fabs(soilPotDrift[zone]) >= 2.0f) {
         soilManualTarget[zone] = pot;

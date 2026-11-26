@@ -16,7 +16,7 @@ int rainThreshold = RAIN_THRESHOLD_MAX;
 int rainWarnThreshold = RAIN_THRESHOLD_MAX - RAIN_WARN_OFFSET;
 bool weatherGateEnabled = true;
 
-Preferences prefs;  // Lưu ngưỡng và chế độ vào NVS để không mất khi reboot
+Preferences prefs;
 
 static LiquidCrystal_I2C lcds[ZONE_COUNT] = {
   LiquidCrystal_I2C(LCD_ADDRESSES[0], 16, 2),
@@ -109,7 +109,7 @@ static bool buttonPressed(int pin, ButtonState& state) {
 }
 
 static void handleButtons() {
-  // Nút mô phỏng mất WiFi: nhấn lần 1 ngắt, nhấn lần 2 nối lại.
+  // Nút mô phỏng mất WiFi
   if (buttonPressed(WIFI_BUTTON_PIN, wifiButton)) {
     const bool offline = !isSimulatedOffline();
     setSimulatedOffline(offline);
@@ -118,8 +118,7 @@ static void handleButtons() {
     updateLcds();
   }
 
-  // Nút vật lý: bật/tắt cả 6 vùng ở chế độ thủ công, không cần Web/WiFi.
-  // Khi tắt vẫn giữ MANUAL; sau MAX_MANUAL_MS tự về AUTO để không tưới mãi khi đi vắng.
+  // Nút vật lý: bật/tắt cả 6 vùng ở chế độ thủ công, không cần Web/WiFi
   if (buttonPressed(MANUAL_BUTTON_PIN, manualButton)) {
     if (isAutoMode) {
       startManualFromButton();
@@ -135,8 +134,7 @@ static void handleButtons() {
 }
 
 static void printStatusLine() {
-  // Chỉ in khi trạng thái đổi hoặc mỗi 30 giây, tránh lấp kín console mỗi 2 giây.
-  // Khoảng cách bồn dao động vài cm nên chỉ dùng mức EMPTY làm mốc kích hoạt.
+  // Chỉ in khi trạng thái đổi hoặc mỗi 30 giây, tránh lấp kín console mỗi 2 giây
   String core = isNetOnline() ? "net:on " : "net:off ";
   core += isAutoMode ? "AUTO" : "MANUAL";
   if (isRaining) core += " RAIN";
@@ -176,7 +174,7 @@ static void printStatusLine() {
 void setup() {
   Serial.begin(115200);
 
-  // Khôi phục ngưỡng, chế độ và Weather Gate đã lưu trong NVS (nếu có).
+  // Khôi phục ngưỡng, chế độ và Weather Gate đã lưu trong NVS
   prefs.begin("irrigation", false);
   for (int zone = 0; zone < ZONE_COUNT; zone++) {
     const String keyOn = String("on_") + zoneNames[zone];
@@ -197,7 +195,7 @@ void setup() {
     prefs.getInt("rain", RAIN_THRESHOLD_MAX), RAIN_THRESHOLD_MIN, RAIN_THRESHOLD_MAX);
   rainWarnThreshold = max(0, rainThreshold - RAIN_WARN_OFFSET);
   weatherGateEnabled = prefs.getBool("gate", true);
-  // Đăng nhập lại thì về đúng chế độ trước đó; lần đầu chạy mặc định AUTO.
+  // Đăng nhập lại thì về đúng chế độ trước đó
   isAutoMode = prefs.getBool("auto", true);
 
   sensorsSetup();
@@ -207,7 +205,7 @@ void setup() {
   digitalWrite(LED_PIN, LOW);
   controlSetup();
 
-  pinMode(WIFI_BUTTON_PIN, INPUT);  // Có trở kéo 10k ngoài lên 3V3
+  pinMode(WIFI_BUTTON_PIN, INPUT);
   pinMode(MANUAL_BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   noTone(BUZZER_PIN);
@@ -227,7 +225,7 @@ void setup() {
 }
 
 void loop() {
-  // WiFi/MQTT chỉ là kênh giám sát; mất mạng thì vẫn đọc cảm biến và tưới cục bộ.
+  // WiFi/MQTT chỉ là kênh giám sát
   ensureNetwork();
   linkLoop();
   updateBuzzer();
@@ -247,7 +245,7 @@ void loop() {
   enforceRuntimeLimits();
   enforceWaterTargets();
 
-  // Mưa + bật hoãn: dừng cả bơm thủ công, không chỉ bơm tự động.
+  // Mưa + bật hoãn: dừng cả bơm thủ công, không chỉ bơm tự động
   if (weatherGateEnabled && isRaining && anyPumpRunning()) stopAllZones("rain");
   if (isAutoMode) runAutoControl();
 

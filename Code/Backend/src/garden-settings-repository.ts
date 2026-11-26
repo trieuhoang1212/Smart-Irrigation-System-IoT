@@ -6,7 +6,7 @@ export type SoilType = (typeof SOIL_TYPES)[number];
 
 export const DEFAULT_SOIL: SoilType = "Đất phù sa";
 
-// Ngưỡng mưa do người dùng chỉnh từ Web; mốc cảnh báo đi trước 20 điểm.
+// Ngưỡng mưa do người dùng chỉnh từ Web
 export const DEFAULT_RAIN_THRESHOLD = 100;
 export const MIN_RAIN_THRESHOLD = 40;
 export const MAX_RAIN_THRESHOLD = 100;

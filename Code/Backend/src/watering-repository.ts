@@ -1,12 +1,9 @@
 import type { PoolClient } from "pg";
 import { pool, transaction } from "./db.js";
 
-// Telemetry thật 2–10 giây/lần; mất tín hiệu quá 60 giây coi như lần tưới đã kết thúc.
+// Telemetry thật 2–10 giây/lần
 export const LIVE_GAP_MS = 60_000;
-// Dữ liệu demo ghi 5 phút/lần nên khi dựng lại lịch sử cần khoảng đệm lớn hơn.
 const BACKFILL_GAP_MS = 15 * 60_000;
-
-// Chạy quá lâu không có telemetry thì coi như đã dừng, tránh hiện lần tưới ảo.
 const OPEN_RUN_STALE_MS = 15 * 60_000;
 
 type OpenWateringRun = {

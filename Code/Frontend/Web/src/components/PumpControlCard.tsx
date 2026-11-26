@@ -101,8 +101,8 @@ export function PumpControlCard({
       {controlsEnabled && (tankEmpty || mode === "manual") && (
         <p className="pump-hint">
           {tankEmpty
-            ? "Bồn đã cạn — bơm bị chặn để tránh chạy khô."
-            : "Đang Thủ công: hệ thống không tự tưới cho tới khi bạn bật lại Tự động."}
+            ? "Bồn đã cạn — đã khóa bơm chống chạy khô"
+            : "Chế độ thủ công — tạm dừng lịch tưới tự động"}
         </p>
       )}
 

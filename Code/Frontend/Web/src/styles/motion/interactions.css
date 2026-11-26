@@ -39,10 +39,6 @@
   box-shadow: none;
 }
 
-.water-button.watering svg {
-  animation: droplet-bob 1.4s ease-in-out infinite;
-}
-
 .link-button svg {
   transition: transform 0.2s ease;
 }

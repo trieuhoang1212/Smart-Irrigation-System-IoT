@@ -54,7 +54,7 @@ void startPump(int zone) {
     Serial.println(tankEmpty ? " tank empty" : " runtime lock");
     return;
   }
-  // Chặn ngay từ đầu thay vì bật 2 giây rồi bị khối mưa tắt, tránh nháy relay.
+  // Chặn ngay từ đầu thay vì bật 2 giây rồi bị khối mưa tắt
   if (weatherGateEnabled && isRaining) {
     Serial.print("BLOCK ");
     Serial.print(zoneNames[zone]);
@@ -126,7 +126,7 @@ void updateTank() {
   if (distance < 0 || distance > 400) {
     tankEmptyStreak = 0;
     tankRefillStreak = 0;
-    // Cảm biến lỗi kéo dài: báo distanceCm = null thay vì phát mãi số đo cũ.
+    // Cảm biến lỗi kéo dài: báo distanceCm = null thay vì phát mãi số đo cũ
     if (tankValid && elapsedSince(now, lastTankReadAt, TANK_STALE_MS)) {
       tankValid = false;
       Serial.println("TANK: sensor stale - distance unknown");
@@ -168,8 +168,7 @@ void enforceRuntimeLimits() {
       stopPump(zone, "max runtime");
       zoneCooldownUntil[zone] = now + ZONE_COOLDOWN_MS;
 
-      // Chỉ khoá khi suốt lượt tưới đất không ẩm lên (cảm biến không phản hồi).
-      // Ngưỡng "có ẩm lên" tính theo lưu lượng: flow nhỏ thì chỉ cần 1 điểm.
+// Chỉ khoá khi suốt lượt tưới đất không ẩm lên (cảm biến không phản hồi)
       const int rise = moisturePercent[zone] - zoneStartMoisture[zone];
 #if SIMULATE_SOIL_DYNAMICS
       const float expectedRise = SOIL_PERCENT_PER_LITER * zoneFlowLph[zone] *
@@ -184,14 +183,13 @@ void enforceRuntimeLimits() {
         Serial.println("SAFETY: no moisture rise -> lock zone");
       }
     }
-    // Mở khóa khi đất đã đủ ẩm; cảm biến kẹt khô thì vẫn khóa để bơm không chạy mãi.
+    // Mở khóa khi đất đã đủ ẩm
     if (zoneLocked[zone] && moisturePercent[zone] >= moistureOff[zone]) {
       zoneLocked[zone] = false;
     }
   }
 
-  // Chỉ đếm 10 phút khi bơm đang chạy thật: chuyển sang Thủ công rồi tắt bơm
-  // thì phải đứng yên chờ người dùng bấm, không tự về Tự động.
+  // Chỉ đếm 10 phút khi bơm đang chạy thật
   if (!isAutoMode && manualStartedAt != 0 && anyPumpRunning() &&
       elapsedSince(now, manualStartedAt, MAX_MANUAL_MS)) {
     stopAllZones("manual timeout");
@@ -234,7 +232,7 @@ void runAutoControl() {
   }
 }
 
-// Bấm nút vật lý: vào MANUAL và bật cả 6 vùng (có thể bị chặn vì bồn cạn / đang mưa).
+// Bấm nút vật lý
 void startManualFromButton() {
   isAutoMode = false;
   saveMode();

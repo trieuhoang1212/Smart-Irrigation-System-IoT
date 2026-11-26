@@ -85,7 +85,7 @@ const STAGE_RULES: Record<CropGroup, StageRule[]> = {
   ],
 };
 
-// Ngưỡng gốc theo nhóm cây; đổi nhóm cây thì gợi ý cũng đổi theo.
+// Ngưỡng gốc theo nhóm cây; đổi nhóm cây thì gợi ý cũng đổi theo
 const GROUP_BASE_THRESHOLD: Record<CropGroup, number> = {
   "Rau ăn lá": 55,
   "Rau ăn quả": 45,
@@ -105,7 +105,7 @@ export function baseThresholdFor(group: string): number {
 
 type WaterWindow = { label: string; start: string; end: string; note: string };
 
-// Giờ tưới tham khảo theo nhóm cây; không dùng để điều khiển bơm.
+// Giờ tưới tham khảo theo nhóm cây; không dùng để điều khiển bơm
 const GROUP_WATER_WINDOWS: Record<CropGroup, WaterWindow> = {
   "Rau ăn lá": {
     label: "Sáng sớm",
