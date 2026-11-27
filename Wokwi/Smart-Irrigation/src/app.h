@@ -45,10 +45,8 @@ float readTankDistanceCm();
 // soil_sim.cpp
 void soilSetup();
 void soilUpdate(unsigned long elapsedMs);
-void soilOnThresholdSynced(int zone);
-void soilOnSetSoil(int zone, int value);
-void soilOnPumpStarted(int zone);
 void soilOnPumpStopped(int zone, bool wasRunning);
+void soilRestoreFromRetained(const String& json)
 
 // control.cpp
 void controlSetup();
@@ -70,6 +68,7 @@ void setupLink();
 void ensureNetwork();
 void linkLoop();
 void publishTelemetry();
+bool isSoilRestoreSettled()
 bool isNetOnline();
 bool isSimulatedOffline();
 void setSimulatedOffline(bool offline);

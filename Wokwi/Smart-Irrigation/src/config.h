@@ -50,7 +50,6 @@ constexpr int RAIN_THRESHOLD_MIN = 40;
 constexpr int RAIN_THRESHOLD_MAX = 100;
 constexpr int RAIN_WARN_OFFSET = 20;
 constexpr int RAIN_HYSTERESIS = 5;
-constexpr int STOP_OFFSET = 20;
 
 // Chip mưa xuất PWM tối đa 90/100 ms, nên 90 mẫu HIGH tương ứng 100% mưa.
 constexpr int RAIN_PWM_MAX_SAMPLES = 90;
@@ -61,7 +60,6 @@ constexpr float SOIL_PERCENT_PER_LITER = 2.0f;
 constexpr float SOIL_DRY_PER_MIN = 3.5f;
 constexpr float SOIL_MANUAL_PER_SEC = 20.0f;
 constexpr unsigned long SOIL_STEP_CAP_MS = 10000UL;
-constexpr unsigned long SOIL_SEED_WINDOW_MS = 30000UL;
 constexpr unsigned long SOIL_PERSIST_INTERVAL_MS = 30000UL;
 
 // Wokwi: chiết áp 0 -> khô, 4095 -> ướt.

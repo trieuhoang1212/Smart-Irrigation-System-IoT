@@ -143,8 +143,8 @@ static void printStatusLine() {
   Serial.print(isRaining ? "YES" : "NO");
   Serial.print(" Tank=");
   if (tankValid) {
-    Serial.print(tankDistanceCm, 0);
-    Serial.print("cm");
+    body += String(tankDistanceCm, 0);
+    body += "cm";
   } else {
     Serial.print("?");
   }
@@ -171,7 +171,7 @@ void setup() {
     const String keyOff = String("off_") + zoneNames[zone];
     moistureOn[zone] = constrain(prefs.getInt(keyOn.c_str(), moistureOn[zone]), 10, 90);
     moistureOff[zone] = constrain(
-      prefs.getInt(keyOff.c_str(), moistureOff[zone]), moistureOn[zone] + 5, 100);
+      prefs.getInt(keyOff.c_str(), moistureOff[zone]), moistureOn[zone] + 10, 100);
 
     const String keyTarget = String("tgt_") + zoneNames[zone];
     zoneTargetSeconds[zone] = constrain(
